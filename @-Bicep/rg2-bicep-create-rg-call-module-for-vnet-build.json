@@ -1,0 +1,107 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2018-05-01/subscriptionDeploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "rgName": {
+      "type": "string",
+      "defaultValue": "rg-vmr123"
+    },
+    "rgLocation": {
+      "type": "string",
+      "defaultValue": "SouthAfricaNorth"
+    }
+  },
+  "functions": [],
+  "resources": [
+    {
+      "type": "Microsoft.Resources/resourceGroups",
+      "apiVersion": "2019-10-01",
+      "name": "[parameters('rgName')]",
+      "location": "[parameters('rgLocation')]"
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2019-10-01",
+      "name": "vnetdep5",
+      "resourceGroup": "[parameters('rgName')]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "parameters": {
+            "vnet_name": {
+              "type": "string",
+              "defaultValue": "vnet123"
+            },
+            "subnet_name": {
+              "type": "string",
+              "defaultValue": "subnet01"
+            },
+            "ip_address_space": {
+              "type": "string",
+              "defaultValue": "123.1.0.0/16"
+            },
+            "subnet_1_prefix": {
+              "type": "string",
+              "defaultValue": "123.1.1.0/24"
+            }
+          },
+          "functions": [],
+          "resources": [
+            {
+              "type": "Microsoft.Network/virtualNetworks",
+              "apiVersion": "2020-08-01",
+              "name": "[parameters('vnet_name')]",
+              "location": "southafricanorth",
+              "properties": {
+                "addressSpace": {
+                  "addressPrefixes": [
+                    "[parameters('ip_address_space')]"
+                  ]
+                },
+                "subnets": [
+                  {
+                    "name": "[parameters('subnet_name')]",
+                    "properties": {
+                      "addressPrefix": "[parameters('subnet_1_prefix')]",
+                      "delegations": [],
+                      "privateEndpointNetworkPolicies": "Enabled",
+                      "privateLinkServiceNetworkPolicies": "Enabled"
+                    }
+                  }
+                ],
+                "virtualNetworkPeerings": [],
+                "enableDdosProtection": false
+              }
+            },
+            {
+              "type": "Microsoft.Network/virtualNetworks/subnets",
+              "apiVersion": "2020-08-01",
+              "name": "[parameters('subnet_name')]",
+              "properties": {
+                "addressPrefix": "[parameters('subnet_1_prefix')]",
+                "delegations": [],
+                "privateEndpointNetworkPolicies": "Enabled",
+                "privateLinkServiceNetworkPolicies": "Enabled"
+              }
+            }
+          ]
+        }
+      },
+      "dependsOn": [
+        "[subscriptionResourceId('Microsoft.Resources/resourceGroups', parameters('rgName'))]"
+      ]
+    }
+  ],
+  "metadata": {
+    "_generator": {
+      "name": "bicep",
+      "version": "0.3.126.58533",
+      "templateHash": "17238284432576843086"
+    }
+  }
+}

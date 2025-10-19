@@ -1,0 +1,20 @@
+Write-Host "=============================================================================" -ForegroundColor Yellow
+Write-Host "Creating Resource Group..." -ForegroundColor Yellow
+Write-Host "=============================================================================" -ForegroundColor Yellow
+
+$rgResult = New-AzResourceGroup `
+  -Name $ResourceGroup `
+  -Location $Location
+
+Write-Host ""
+Write-Host "=============================================================================" -ForegroundColor Green
+Write-Host "✓ Resource Group Created Successfully!" -ForegroundColor Green
+Write-Host "=============================================================================" -ForegroundColor Green
+Write-Host ""
+Write-Host "Resource Group Details:" -ForegroundColor Cyan
+Write-Host "  • Name:         $($rgResult.ResourceGroupName)" -ForegroundColor White
+Write-Host "  • Location:     $($rgResult.Location)" -ForegroundColor White
+Write-Host "  • Provisioning: $($rgResult.ProvisioningState)" -ForegroundColor White
+Write-Host "  • Resource ID:  $($rgResult.ResourceId)" -ForegroundColor Gray
+Write-Host "=============================================================================" -ForegroundColor Green
+Write-Host ""

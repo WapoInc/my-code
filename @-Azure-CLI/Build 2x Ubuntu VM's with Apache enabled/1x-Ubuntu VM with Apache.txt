@@ -1,0 +1,52 @@
+# Variables
+
+1st VM
+ResGrp="SA-Region-Ping-Test-PoC"
+location="SouthAfricaNorth"
+vnetName="ZAN-SA-Region-Ping-Test-PoC-vnet"
+subnetName="default"
+vmName="ZAN-VM-1"
+
+2nd VM
+
+ResGrp="SA-Region-Ping-Test-PoC"
+location="SouthAfricaWest"
+vnetName="ZAW-SA-Region-Ping-Test-PoC-vnet"
+subnetName="default"
+vmName="ZAW-VM-1"
+
+
+--------------------------------------------------------------------------------------------------------------------------------
+# CREATING VMs
+az vm create --resource-group $ResGrp --name $vmName --size Standard_B2s --image Ubuntu2204 --vnet-name $vnetName --subnet $subnetName --admin-username rootadmin --admin-password P@ssw0rd123! 
+az vm boot-diagnostics enable --name $vmName --resource-group $ResGrp
+
+--------------------------------------------------------------------------------------------------------------------------------
+# Install hping3
+
+sudo apt update
+sudo apt install -y hping3
+
+# Examples
+
+sudo hping3 --icmp -c 10 --beep -i 2 www.bing.com
+sudo hping3 -S -p 53 8.8.8.8
+
+sudo hping3 --icmp -c 10 bing.com
+sudo hping3 -S -p 22 --beep za-east.fortiddns.com
+--------------------------------------------------------------------------------------------------------------------------------
+
+
+# SETTING UP WEB SERVERS
+sudo apt-get update -y
+sudo apt-get upgrade -y
+sudo apt-get install apache2 -y
+
+echo "See all of your IMAGES here!" > /var/www/html/index.html
+echo "See all of your VIDEOS here!" > /var/www/html/index.html
+
+sudo mkdir /var/www/html/images
+sudo mv /var/www/html/index.html /var/www/html/images/index.html
+
+sudo mkdir /var/www/html/videos
+sudo mv /var/www/html/index.html /var/www/html/videos/index.html

@@ -1,0 +1,154 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2018-05-01/subscriptionDeploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "rgName": {
+      "type": "string",
+      "defaultValue": "rg-vmr"
+    },
+    "rgLocation": {
+      "type": "string",
+      "defaultValue": "SouthAfricaNorth"
+    },
+    "tags": {
+      "type": "object",
+      "defaultValue": {}
+    }
+  },
+  "functions": [],
+  "resources": [
+    {
+      "type": "Microsoft.Resources/resourceGroups",
+      "apiVersion": "2019-10-01",
+      "name": "[parameters('rgName')]",
+      "location": "[parameters('rgLocation')]",
+      "properties": {},
+      "tags": "[parameters('tags')]"
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2019-10-01",
+      "name": "vnetdep3",
+      "resourceGroup": "[parameters('rgName')]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "parameters": {
+            "virtualNetworks_10_224_name": {
+              "type": "string",
+              "defaultValue": "10-224"
+            }
+          },
+          "functions": [],
+          "resources": [
+            {
+              "type": "Microsoft.Network/virtualNetworks",
+              "apiVersion": "2020-08-01",
+              "name": "[parameters('virtualNetworks_10_224_name')]",
+              "location": "southafricanorth",
+              "properties": {
+                "addressSpace": {
+                  "addressPrefixes": [
+                    "10.224.0.0/24"
+                  ]
+                },
+                "subnets": [
+                  {
+                    "name": "SubNet-1",
+                    "properties": {
+                      "addressPrefix": "10.224.0.0/25",
+                      "delegations": [],
+                      "privateEndpointNetworkPolicies": "Enabled",
+                      "privateLinkServiceNetworkPolicies": "Enabled"
+                    }
+                  },
+                  {
+                    "name": "SubNet-2",
+                    "properties": {
+                      "addressPrefix": "10.224.0.128/26",
+                      "serviceEndpoints": [],
+                      "delegations": [],
+                      "privateEndpointNetworkPolicies": "Enabled",
+                      "privateLinkServiceNetworkPolicies": "Enabled"
+                    }
+                  },
+                  {
+                    "name": "SubNet-3",
+                    "properties": {
+                      "addressPrefix": "10.224.0.192/26",
+                      "serviceEndpoints": [],
+                      "delegations": [],
+                      "privateEndpointNetworkPolicies": "Enabled",
+                      "privateLinkServiceNetworkPolicies": "Enabled"
+                    }
+                  }
+                ],
+                "virtualNetworkPeerings": [],
+                "enableDdosProtection": false
+              }
+            },
+            {
+              "type": "Microsoft.Network/virtualNetworks/subnets",
+              "apiVersion": "2020-08-01",
+              "name": "[format('{0}/SubNet-1', parameters('virtualNetworks_10_224_name'))]",
+              "properties": {
+                "addressPrefix": "10.224.0.0/25",
+                "delegations": [],
+                "privateEndpointNetworkPolicies": "Enabled",
+                "privateLinkServiceNetworkPolicies": "Enabled"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Network/virtualNetworks', parameters('virtualNetworks_10_224_name'))]"
+              ]
+            },
+            {
+              "type": "Microsoft.Network/virtualNetworks/subnets",
+              "apiVersion": "2020-08-01",
+              "name": "[format('{0}/SubNet-2', parameters('virtualNetworks_10_224_name'))]",
+              "properties": {
+                "addressPrefix": "10.224.0.128/26",
+                "serviceEndpoints": [],
+                "delegations": [],
+                "privateEndpointNetworkPolicies": "Enabled",
+                "privateLinkServiceNetworkPolicies": "Enabled"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Network/virtualNetworks', parameters('virtualNetworks_10_224_name'))]"
+              ]
+            },
+            {
+              "type": "Microsoft.Network/virtualNetworks/subnets",
+              "apiVersion": "2020-08-01",
+              "name": "[format('{0}/SubNet-3', parameters('virtualNetworks_10_224_name'))]",
+              "properties": {
+                "addressPrefix": "10.224.0.192/26",
+                "serviceEndpoints": [],
+                "delegations": [],
+                "privateEndpointNetworkPolicies": "Enabled",
+                "privateLinkServiceNetworkPolicies": "Enabled"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Network/virtualNetworks', parameters('virtualNetworks_10_224_name'))]"
+              ]
+            }
+          ]
+        }
+      },
+      "dependsOn": [
+        "[subscriptionResourceId('Microsoft.Resources/resourceGroups', parameters('rgName'))]"
+      ]
+    }
+  ],
+  "metadata": {
+    "_generator": {
+      "name": "bicep",
+      "version": "0.3.126.58533",
+      "templateHash": "5367958134107992791"
+    }
+  }
+}

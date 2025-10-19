@@ -1,0 +1,22 @@
+ResourceGroup="ZA-East-vDC"
+Location="SouthAfricaNorth"
+vnetName="ZA-East-vDC-vnet"
+subnetName="Ping-test"
+vmName="NW-check-1"
+
+===========
+| sudo su |
+===========================
+| hping3 -S -p 22 x.x.x.x |
+| hping3 --icmp x.x.x.x   |
+===========================
+
+sudo apt update
+sudo apt install -y hping3
+
+sudo apt install inetutils-traceroute
+sudo apt install traceroute  
+
+az network vnet list --resource-group za-east-vdc -o table
+az network vnet subnet list --vnet-name ZA-East-vDC-vnet --resource-group ZA-East-vDC -o table
+

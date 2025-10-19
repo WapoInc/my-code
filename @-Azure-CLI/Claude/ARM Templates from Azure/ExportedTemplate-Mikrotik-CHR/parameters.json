@@ -1,0 +1,18 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "virtualNetworks_MK_CHR_vnet_name": {
+            "value": null
+        },
+        "networkSecurityGroups_MK_CHR_vnet_InBound_nsg_southafricanorth_name": {
+            "value": null
+        },
+        "networkSecurityGroups_MK_CHR_vnet_Trusted_nsg_southafricanorth_name": {
+            "value": null
+        },
+        "networkSecurityGroups_MK_CHR_vnet_Untrusted_nsg_southafricanorth_name": {
+            "value": null
+        }
+    }
+}

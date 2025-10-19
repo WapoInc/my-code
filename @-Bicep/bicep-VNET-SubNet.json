@@ -1,0 +1,52 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "_generator": {
+      "name": "bicep",
+      "version": "0.4.613.9944",
+      "templateHash": "16763035156311466664"
+    }
+  },
+  "parameters": {
+    "vnetIPPrefix": {
+      "type": "string",
+      "defaultValue": "192.168.0.0/16"
+    },
+    "Suffix1": {
+      "type": "string",
+      "defaultValue": "WapoInc"
+    },
+    "Suffix2": {
+      "type": "string",
+      "defaultValue": "VNET"
+    }
+  },
+  "functions": [],
+  "variables": {
+    "myvNETName": "[format('vnet-{0}-{1}', parameters('Suffix1'), parameters('Suffix2'))]"
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Network/virtualnetworks",
+      "apiVersion": "2015-05-01-preview",
+      "name": "[variables('myvNETName')]",
+      "location": "[resourceGroup().location]",
+      "properties": {
+        "addressSpace": {
+          "addressPrefixes": [
+            "[parameters('vnetIPPrefix')]"
+          ]
+        },
+        "subnets": [
+          {
+            "name": "SubNet03",
+            "properties": {
+              "addressPrefix": "192.168.2.0/24"
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,102 @@
+crypto ikev2 proposal VNET-T-to-CGW-proposal
+  encryption aes-cbc-256
+  integrity  sha1
+  group      2
+  exit
+
+crypto ikev2 policy VNET-T-to-CGW-policy
+  proposal VNET-T-to-CGW-proposal
+  match address local 11.100.19.3
+  exit
+  
+crypto ikev2 keyring VNET-T-to-CGW-keyring
+  peer 11.101.3.164
+    address 11.101.3.164
+    pre-shared-key gDcCl0udAw5_1725_Native
+    exit
+  peer 11.101.3.165
+    address 11.101.3.165
+    pre-shared-key gDcCl0udAw5_1725_Native
+    exit
+  exit
+
+crypto ikev2 profile VNET-T-to-CGW-profile
+  match address  local 11.100.19.3
+  match identity remote address 11.101.3.164 255.255.255.255
+  match identity remote address 11.101.3.165 255.255.255.255
+  authentication remote pre-share
+  authentication local  pre-share
+  lifetime       3600
+  dpd 10 5 on-demand
+  keyring local  VNET-T-to-CGW-keyring
+  exit
+  
+crypto ipsec transform-set VNET-T-to-CGW-TransformSet esp-gcm 256 
+  mode tunnel
+  exit
+
+crypto ipsec profile VNET-T-to-CGW-IPsec
+  set transform-set  VNET-T-to-CGW-TransformSet
+  set ikev2-profile  VNET-T-to-CGW-profile
+  set security-association lifetime seconds 3600
+  exit
+  
+int tunnel 11
+description *** to AZR VNG Primary Native - VRF LAB-ECC ***
+ vrf forwarding LAB-ECC
+  ip address 169.254.0.1 255.255.255.255
+  tunnel mode ipsec ipv4
+  ip tcp adjust-mss 1350
+ tunnel source Loopback10000
+  tunnel destination 11.101.3.164
+  tunnel protection ipsec profile VNET-T-to-CGW-IPsec
+  exit
+
+int tunnel 12
+description *** to AZR VNG Secondary Native - VRF LAB-ECC ***
+ vrf forwarding LAB-ECC
+  ip address 169.254.0.2 255.255.255.255
+  tunnel mode ipsec ipv4
+  ip tcp adjust-mss 1350
+ tunnel source Loopback10000
+  tunnel destination 11.101.3.165
+  tunnel protection ipsec profile VNET-T-to-CGW-IPsec
+  exit
+  
+int lo 100
+description *** BGP Source AZR VNG Native - VRF LAB-ECC ***
+ vrf forwarding LAB-ECC
+ ip address 11.101.2.160 255.255.255.255
+ no shut
+!
+
+router bgp 64643
+ address-family ipv4 vrf LAB-ECC
+  neighbor 11.101.3.166 remote-as 65616
+  neighbor 11.101.3.166 ebgp-multihop 255
+  neighbor 11.101.3.166 update-source loopback 100
+  neighbor 11.101.3.166 route-map AZR-Native-to-LAB-ECC in
+!
+  neighbor 11.101.3.167 remote-as 65616
+  neighbor 11.101.3.167 ebgp-multihop 255
+  neighbor 11.101.3.167 update-source loopback 100
+  neighbor 11.101.3.167 route-map AZR-Native-to-LAB-ECC in
+!
+    neighbor 11.101.3.166 activate
+    neighbor 11.101.3.167 activate    
+    exit
+  exit
+
+
+ip route vrf LAB-ECC 11.101.3.166 255.255.255.255 Tunnel 11
+ip route vrf LAB-ECC 11.101.3.167 255.255.255.255 Tunnel 12
+
+ip prefix-list AZR-Native-to-LAB-ECC description # These are cloud subnet allowed on Native VNG BGP #
+ip prefix-list AZR-Native-to-LAB-ECC seq 5 permit 11.101.4.0/26 le 32
+ip prefix-list AZR-Native-to-LAB-ECC seq 10 permit 11.101.4.64/26 le 32
+!
+route-map AZR-Native-to-LAB-ECC permit 10 
+ match ip address prefix-list AZR-Native-to-LAB-ECC
+!
+ip prefix-list LAB-ECC-to-TCN_EDGE seq 15 permit 11.101.4.0/26 le 32
+ip prefix-list LAB-ECC-to-TCN_EDGE seq 20 permit 11.101.4.64/26 le 32

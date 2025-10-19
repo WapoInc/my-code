@@ -1,0 +1,47 @@
+﻿# Connect to your Azure Subscription.
+Connect-AzAccount
+
+#-------------------------------------------------------------------------------------------------------------------------------------
+# If you have more than one subscription, get a list of your Azure subscriptions.
+Get-AzSubscription
+
+#-------------------------------------------------------------------------------------------------------------------------------------
+# Specify the subscription that you want to use.
+Select-AzSubscription -SubscriptionName "Name of subscription"
+
+#-------------------------------------------------------------------------------------------------------------------------------------
+Select-AzSubscription -SubscriptionName "Dele - Microsoft Azure Internal Consumption"
+
+$RG = "za-east-vdc"
+$Location = "SouthAfricaNorth"
+$GWName = "ER-GW-3-to-SA-North"
+$GWIPName = "ER-GW-3-to-SA-North-Pub-IP"
+$GWIPconfName = "gwipconf"
+$VNetName = "ZA-East-vDC-vnet"
+
+
+#-------------------------------------------------------------------------------------------------------------------------------------
+# Store the virtual network object as a variable.
+$vnet = Get-AzVirtualNetwork -Name $VNetName -ResourceGroupName $RG
+#-------------------------------------------------------------------------------------------------------------------------------------
+# Set the vnet configuration
+$vnet = Set-AzVirtualNetwork -VirtualNetwork $vnet
+
+#-------------------------------------------------------------------------------------------------------------------------------------
+# Store the gateway subnet as a variable.
+$subnet = Get-AzVirtualNetworkSubnetConfig -Name 'GatewaySubnet' -VirtualNetwork $vnet
+
+#-------------------------------------------------------------------------------------------------------------------------------------
+# Request a public IP address. The IP address is requested before creating the gateway. 
+# You cannot specify the IP address that you want to use; it’s Statically allocated. You'll use this IP address in the next configuration section. The AllocationMethod must be Dynamic.
+$pip = New-AzPublicIpAddress -Name $GWIPName  -ResourceGroupName $RG -Location $Location -AllocationMethod Static
+
+#-------------------------------------------------------------------------------------------------------------------------------------
+#Create the configuration for your gateway. The gateway configuration defines the subnet and the public IP address to use. In this step, you are specifying the configuration that will be used when you create the gateway. This step does not actually create the gateway object. Use the sample below to create your gateway configuration.
+$ipconf = New-AzVirtualNetworkGatewayIpConfig -Name $GWIPconfName -Subnet $subnet -PublicIpAddress $pip
+
+#-------------------------------------------------------------------------------------------------------------------------------------
+#Create the gateway. In this step, the -GatewayType is especially important. You must use the value ExpressRoute. After running these cmdlets, the gateway can take 45 minutes or more to create.
+New-AzVirtualNetworkGateway -Name $GWName -ResourceGroupName $RG -Location $Location -IpConfigurations $ipconf -GatewayType ExpressRoute -GatewaySku Standard 
+
+#-------------------------------------------------------------------------------------------------------------------------------------

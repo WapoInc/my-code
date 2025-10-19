@@ -1,0 +1,126 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "virtualNetworks_vWAN_Spoke_1_name": {
+            "defaultValue": "vWAN-Spoke-1",
+            "type": "String"
+        },
+        "virtualNetworks_HV_ZAN_Hub_b7d9ed31_ea1a_4b42_a0fb_9c02e4c3a73e_externalid": {
+            "defaultValue": "/subscriptions/321ab01c-ce57-41fd-a69c-59d6946da7a9/resourceGroups/RG_ZAN-Hub_a2d64c5d-f4e8-4291-a78a-f42ade3ead15/providers/Microsoft.Network/virtualNetworks/HV_ZAN-Hub_b7d9ed31-ea1a-4b42-a0fb-9c02e4c3a73e",
+            "type": "String"
+        }
+    },
+    "variables": {},
+    "resources": [
+        {
+            "type": "Microsoft.Network/virtualNetworks",
+            "apiVersion": "2024-07-01",
+            "name": "[parameters('virtualNetworks_vWAN_Spoke_1_name')]",
+            "location": "southafricanorth",
+            "properties": {
+                "addressSpace": {
+                    "addressPrefixes": [
+                        "172.23.0.0/24",
+                        "172.23.2.0/24"
+                    ]
+                },
+                "privateEndpointVNetPolicies": "Disabled",
+                "dhcpOptions": {
+                    "dnsServers": []
+                },
+                "subnets": [
+                    {
+                        "name": "default",
+                        "id": "[resourceId('Microsoft.Network/virtualNetworks/subnets', parameters('virtualNetworks_vWAN_Spoke_1_name'), 'default')]",
+                        "properties": {
+                            "addressPrefix": "172.23.0.0/24",
+                            "delegations": [],
+                            "privateEndpointNetworkPolicies": "Disabled",
+                            "privateLinkServiceNetworkPolicies": "Enabled",
+                            "defaultOutboundAccess": false
+                        },
+                        "type": "Microsoft.Network/virtualNetworks/subnets"
+                    }
+                ],
+                "virtualNetworkPeerings": [
+                    {
+                        "name": "RemoteVnetToHubPeering_11833f11-d4c6-46f7-ba53-54cd53427bb8",
+                        "id": "[resourceId('Microsoft.Network/virtualNetworks/virtualNetworkPeerings', parameters('virtualNetworks_vWAN_Spoke_1_name'), 'RemoteVnetToHubPeering_11833f11-d4c6-46f7-ba53-54cd53427bb8')]",
+                        "properties": {
+                            "peeringState": "Connected",
+                            "peeringSyncLevel": "FullyInSync",
+                            "remoteVirtualNetwork": {
+                                "id": "[parameters('virtualNetworks_HV_ZAN_Hub_b7d9ed31_ea1a_4b42_a0fb_9c02e4c3a73e_externalid')]"
+                            },
+                            "allowVirtualNetworkAccess": true,
+                            "allowForwardedTraffic": false,
+                            "allowGatewayTransit": false,
+                            "useRemoteGateways": true,
+                            "doNotVerifyRemoteGateways": true,
+                            "peerCompleteVnets": true,
+                            "remoteAddressSpace": {
+                                "addressPrefixes": [
+                                    "192.168.127.0/24"
+                                ]
+                            },
+                            "remoteVirtualNetworkAddressSpace": {
+                                "addressPrefixes": [
+                                    "192.168.127.0/24"
+                                ]
+                            }
+                        },
+                        "type": "Microsoft.Network/virtualNetworks/virtualNetworkPeerings"
+                    }
+                ],
+                "enableDdosProtection": false
+            }
+        },
+        {
+            "type": "Microsoft.Network/virtualNetworks/subnets",
+            "apiVersion": "2024-07-01",
+            "name": "[concat(parameters('virtualNetworks_vWAN_Spoke_1_name'), '/default')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Network/virtualNetworks', parameters('virtualNetworks_vWAN_Spoke_1_name'))]"
+            ],
+            "properties": {
+                "addressPrefix": "172.23.0.0/24",
+                "delegations": [],
+                "privateEndpointNetworkPolicies": "Disabled",
+                "privateLinkServiceNetworkPolicies": "Enabled",
+                "defaultOutboundAccess": false
+            }
+        },
+        {
+            "type": "Microsoft.Network/virtualNetworks/virtualNetworkPeerings",
+            "apiVersion": "2024-07-01",
+            "name": "[concat(parameters('virtualNetworks_vWAN_Spoke_1_name'), '/RemoteVnetToHubPeering_11833f11-d4c6-46f7-ba53-54cd53427bb8')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Network/virtualNetworks', parameters('virtualNetworks_vWAN_Spoke_1_name'))]"
+            ],
+            "properties": {
+                "peeringState": "Connected",
+                "peeringSyncLevel": "FullyInSync",
+                "remoteVirtualNetwork": {
+                    "id": "[parameters('virtualNetworks_HV_ZAN_Hub_b7d9ed31_ea1a_4b42_a0fb_9c02e4c3a73e_externalid')]"
+                },
+                "allowVirtualNetworkAccess": true,
+                "allowForwardedTraffic": false,
+                "allowGatewayTransit": false,
+                "useRemoteGateways": true,
+                "doNotVerifyRemoteGateways": true,
+                "peerCompleteVnets": true,
+                "remoteAddressSpace": {
+                    "addressPrefixes": [
+                        "192.168.127.0/24"
+                    ]
+                },
+                "remoteVirtualNetworkAddressSpace": {
+                    "addressPrefixes": [
+                        "192.168.127.0/24"
+                    ]
+                }
+            }
+        }
+    ]
+}

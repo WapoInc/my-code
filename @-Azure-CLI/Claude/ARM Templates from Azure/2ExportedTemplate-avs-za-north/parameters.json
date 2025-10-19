@@ -1,0 +1,12 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "virtualNetworks_vWAN_Spoke_1_name": {
+            "value": null
+        },
+        "virtualNetworks_HV_ZAN_Hub_b7d9ed31_ea1a_4b42_a0fb_9c02e4c3a73e_externalid": {
+            "value": null
+        }
+    }
+}

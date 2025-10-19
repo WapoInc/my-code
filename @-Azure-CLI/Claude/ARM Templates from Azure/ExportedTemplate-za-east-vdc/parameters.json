@@ -1,0 +1,33 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "virtualNetworks_ZA_East_vDC_vnet_name": {
+            "value": null
+        },
+        "networkSecurityGroups_ZA_East_vDC_vnet_AzureBastionSubnet_nsg_southafricanorth_externalid": {
+            "value": null
+        },
+        "networkSecurityGroups_ZA_East_vDC_vnet_ZA_East_Subnet_1_nsg_southafricanorth_externalid": {
+            "value": null
+        },
+        "networkSecurityGroups_ZA_East_vDC_vnet_Ping_test_nsg_southafricanorth_externalid": {
+            "value": null
+        },
+        "natGateways_NAT_GW1_externalid": {
+            "value": null
+        },
+        "networkSecurityGroups_ZA_East_vDC_vnet_ZA_East_Subnet_2_nsg_southafricanorth_externalid": {
+            "value": null
+        },
+        "networkSecurityGroups_ZA_East_vDC_vnet_InBound_EP_nsg_southafricanorth_externalid": {
+            "value": null
+        },
+        "virtualNetworks_ZA_East_Spoke_2_externalid": {
+            "value": null
+        },
+        "virtualNetworks_ZA_East_Spoke_1_externalid": {
+            "value": null
+        }
+    }
+}

@@ -1,0 +1,1 @@
+az vm list-ip-addresses --query "[].{VMName:virtualMachine.name, Region:virtualMachine.location, SKU:virtualMachine.hardwareProfile.vmSize, PublicIP:virtualMachine.network.publicIpAddresses[0].ipAddress, PrivateIP:virtualMachine.network.privateIpAddresses[0]}" --output table

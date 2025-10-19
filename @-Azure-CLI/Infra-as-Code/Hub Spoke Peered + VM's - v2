@@ -1,0 +1,71 @@
+
+
+#Build a Hub + 2 Spokes with VNET + Subnet + a VM in each SubNet
+
+#----------------------------------------------------------------------------------------------------------------------------------------------
+resourceGroup='Hub-Spoke-PoC-2'
+locationName='southafricanorth'
+
+# Variables
+vnetName1='Hub'
+vnetName2='Hub-Spoke-1'
+vnetName3='Hub-Spoke-2'
+vnetName4='Hub-Spoke-3'
+
+subnetName1='SubNet-1'
+subnetName2='SubNet-1'
+subnetName3='SubNet-1'
+subnetName4='SubNet-1'
+#----------------------------------------------------------------------------------------------------------------------------------------------
+# Resource Group Create
+#----------------------------------------------------------------------------------------------------------------------------------------------
+az group create --name $resourceGroup --location $locationName
+#----------------------------------------------------------------------------------------------------------------------------------------------
+# VNET Create
+#----------------------------------------------------------------------------------------------------------------------------------------------
+az network vnet create --name $vnetName1  --resource-group $resourceGroup --location $locationName --address-prefixes 10.10.0.0/22
+az network vnet subnet create --address-prefix 10.10.1.0/24 --name $subnetName1 --resource-group $resourceGroup --vnet-name $vnetName1
+
+az network vnet create --name $vnetName2 --resource-group $resourceGroup  --location $locationName --address-prefixes 10.20.0.0/22
+az network vnet subnet create --address-prefix 10.20.1.0/24 --name $subnetName2 --resource-group $resourceGroup --vnet-name $vnetName2
+
+az network vnet create --name $vnetName3 --resource-group $resourceGroup  --location $locationName --address-prefixes 10.30.0.0/22
+az network vnet subnet create --address-prefix 10.30.1.0/24 --name $subnetName3 --resource-group $resourceGroup --vnet-name $vnetName3
+
+az network vnet create --name $vnetName4 --resource-group $resourceGroup  --location $locationName --address-prefixes 10.40.0.0/22
+az network vnet subnet create --address-prefix 10.40.1.0/24 --name $subnetName4 --resource-group $resourceGroup --vnet-name $vnetName4
+#----------------------------------------------------------------------------------------------------------------------------------------------
+#VNET peering
+#----------------------------------------------------------------------------------------------------------------------------------------------
+#Hub to Spoke-1
+az network vnet peering create --resource-group $resourceGroup --name Hub-to-Spoke-1 --vnet-name $vnetName1 --remote-vnet $vnetName2 --allow-vnet-access --allow-forwarded-traffic --allow-gateway-transit --no-wait
+az network vnet peering create --resource-group $resourceGroup --name Spoke-1-to-Hub --vnet-name $vnetName2 --remote-vnet $vnetName1 --allow-vnet-access --allow-forwarded-traffic --no-wait --use-remote-gateways
+
+#Hub to Spoke-2
+az network vnet peering create --resource-group $resourceGroup --name Hub-to-Spoke-2 --vnet-name $vnetName1 --remote-vnet $vnetName3 --allow-vnet-access --allow-forwarded-traffic --allow-gateway-transit --no-wait
+az network vnet peering create --resource-group $resourceGroup --name Spoke-2-to-Hub --vnet-name $vnetName3 --remote-vnet $vnetName1 --allow-vnet-access --allow-forwarded-traffic --no-wait --use-remote-gateways
+
+#Hub to Spoke-3
+az network vnet peering create --resource-group $resourceGroup --name Hub-to-Spoke-3 --vnet-name $vnetName1 --remote-vnet $vnetName4 --allow-vnet-access --allow-forwarded-traffic --allow-gateway-transit --no-wait
+az network vnet peering create --resource-group $resourceGroup --name Spoke-3-to-Hub --vnet-name $vnetName4 --remote-vnet $vnetName1 --allow-vnet-access --allow-forwarded-traffic --no-wait --use-remote-gateways
+#----------------------------------------------------------------------------------------------------------------------------------------------
+# Create VM's
+#----------------------------------------------------------------------------------------------------------------------------------------------
+#az vm create --resource-group Hub2-2-Spokes-with-peerings --name AzCLI-VM1 --image UbuntuLTS --admin-username rootadmin --admin-password myPassword --public-ip-sku Standard 
+az vm create --resource-group $resourceGroup --name AzCLI-VM1 --image UbuntuLTS --admin-username rootadmin --admin-password Perme550123! --public-ip-sku Standard --vnet-name $vnetName2 --subnet $subnetName1 --no-wait
+az vm create --resource-group $resourceGroup --name AzCLI-VM2 --image UbuntuLTS --admin-username rootadmin --admin-password Perme550123! --public-ip-sku Standard --vnet-name $vnetName3 --subnet $subnetName2 --no-wait
+az vm create --resource-group $resourceGroup --name AzCLI-VM3 --image UbuntuLTS --admin-username rootadmin --admin-password Perme550123! --public-ip-sku Standard --vnet-name $vnetName4 --subnet $subnetName3 --no-wait
+#----------------------------------------------------------------------------------------------------------------------------------------------
+
+# resourceGroup='ZA-East-vDC'
+# locationName='southafricanorth'
+
+# vnetName1='ZA-East-vDC-vnet'
+# vnetName2='ZA-East-Spoke-1'
+# vnetName3='ZA-East-Spoke-2'
+# vnetName4='ZA-East-Spoke-3'
+
+# subnetName1='SubNet-1'
+# subnetName2='SubNet-1'
+# subnetName3='SubNet-1'
+# subnetName4='SubNet-1'

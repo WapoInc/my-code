@@ -1,0 +1,24 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "virtualWans_AVS_vWAN_Transit_Hub_name": {
+            "defaultValue": "AVS-vWAN-Transit-Hub",
+            "type": "String"
+        }
+    },
+    "variables": {},
+    "resources": [
+        {
+            "type": "Microsoft.Network/virtualWans",
+            "apiVersion": "2024-07-01",
+            "name": "[parameters('virtualWans_AVS_vWAN_Transit_Hub_name')]",
+            "location": "southafricanorth",
+            "properties": {
+                "disableVpnEncryption": false,
+                "allowBranchToBranchTraffic": true,
+                "type": "Standard"
+            }
+        }
+    ]
+}

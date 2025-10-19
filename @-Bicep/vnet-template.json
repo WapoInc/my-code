@@ -1,0 +1,60 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "vNET_name": {
+      "type": "string",
+      "defaultValue": "West-EU-Spoke-2"
+    }
+  },
+  "functions": [],
+  "resources": [
+    {
+      "type": "Microsoft.Network/virtualNetworks",
+      "apiVersion": "2020-08-01",
+      "name": "[parameters('vNET_name')]",
+      "location": "southafricawest",
+      "properties": {
+        "addressSpace": {
+          "addressPrefixes": [
+            "172.23.8.128/25"
+          ]
+        },
+        "subnets": [
+          {
+            "name": "SubNet-1",
+            "properties": {
+              "addressPrefix": "172.23.8.128/26",
+              "delegations": [],
+              "privateEndpointNetworkPolicies": "Enabled",
+              "privateLinkServiceNetworkPolicies": "Enabled"
+            }
+          }
+        ],
+        "virtualNetworkPeerings": [],
+        "enableDdosProtection": false
+      }
+    },
+    {
+      "type": "Microsoft.Network/virtualNetworks/subnets",
+      "apiVersion": "2020-08-01",
+      "name": "[format('{0}/SubNet-1', parameters('vNET_name'))]",
+      "properties": {
+        "addressPrefix": "172.23.8.128/26",
+        "delegations": [],
+        "privateEndpointNetworkPolicies": "Enabled",
+        "privateLinkServiceNetworkPolicies": "Enabled"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/virtualNetworks', parameters('vNET_name'))]"
+      ]
+    }
+  ],
+  "metadata": {
+    "_generator": {
+      "name": "bicep",
+      "version": "0.3.126.58533",
+      "templateHash": "15684566753629290209"
+    }
+  }
+}

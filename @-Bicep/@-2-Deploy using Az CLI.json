@@ -1,0 +1,37 @@
+
+#//Build Resource Group + Deploy Bicep file to Resource Group
+#//Az CLI:
+---------------------------------------------------------------------------------------------------------------------------------------------------
+az group create -g vmr-Bicep-RG3 --location SouthAfricaNorth
+bicep build -f .\bicep-test01.bicep
+az deployment group create --name vmrdep01 -f .\bicep-test1.bicep -g vmr-bicep01
+---------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+// Deploying a Bicep file
+// Bicep files can be directly deployed via the Az CLI or PowerShell Az module, so the standard deployment commands 
+// (i.e. az deployment group create or New-AzResourceGroupDeployment) will "just work" with a .bicep file. 
+// You will need Az CLI version 2.20.0+ or PowerShell Az module version 5.6.0+.
+---------------------------------------------------------------------------------------------------------------------------------------------------
+az deployment sub create -f .\main.bicep -l SouthAfricaNorth -c
+---------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+
+// Deploy with parameters //
+// Our Bicep file exposed two parameters that we can be optionally overridden (location and storageAccountName) by passing new values at deployment time.
+
+
+// Pass parameters on the command line
+---------------------------------------------------------------------------------------------------------------------------------------------------
+// Az CLI:
+---------------------------------------------------------------------------------------------------------------------------------------------------
+az deployment group create -f ./main.bicep -g my-rg --parameters location=westus storageAccountName=uniquelogstorage001
+---------------------------------------------------------------------------------------------------------------------------------------------------
+
+Once you have your parameters file, you can pass it to the deployment command-line tools:
+---------------------------------------------------------------------------------------------------------------------------------------------------
+// Az CLI: //
+---------------------------------------------------------------------------------------------------------------------------------------------------
+az deployment group create -f ./main.bicep -g my-rg --parameters ./parameters.json
+---------------------------------------------------------------------------------------------------------------------------------------------------

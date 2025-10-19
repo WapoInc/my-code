@@ -1,0 +1,805 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "virtualNetworks_ZA_East_vDC_vnet_name": {
+            "defaultValue": "ZA-East-vDC-vnet",
+            "type": "String"
+        },
+        "networkSecurityGroups_ZA_East_vDC_vnet_AzureBastionSubnet_nsg_southafricanorth_externalid": {
+            "defaultValue": "/subscriptions/0cfd0d2a-2b38-4c93-ba14-cf79185bc683/resourceGroups/za-east-vdc/providers/Microsoft.Network/networkSecurityGroups/ZA-East-vDC-vnet-AzureBastionSubnet-nsg-southafricanorth",
+            "type": "String"
+        },
+        "networkSecurityGroups_ZA_East_vDC_vnet_ZA_East_Subnet_1_nsg_southafricanorth_externalid": {
+            "defaultValue": "/subscriptions/0cfd0d2a-2b38-4c93-ba14-cf79185bc683/resourceGroups/za-east-vdc/providers/Microsoft.Network/networkSecurityGroups/ZA-East-vDC-vnet-ZA-East-Subnet-1-nsg-southafricanorth",
+            "type": "String"
+        },
+        "networkSecurityGroups_ZA_East_vDC_vnet_Ping_test_nsg_southafricanorth_externalid": {
+            "defaultValue": "/subscriptions/0cfd0d2a-2b38-4c93-ba14-cf79185bc683/resourceGroups/za-east-vdc/providers/Microsoft.Network/networkSecurityGroups/ZA-East-vDC-vnet-Ping-test-nsg-southafricanorth",
+            "type": "String"
+        },
+        "natGateways_NAT_GW1_externalid": {
+            "defaultValue": "/subscriptions/0cfd0d2a-2b38-4c93-ba14-cf79185bc683/resourceGroups/ZA-East-vDC/providers/Microsoft.Network/natGateways/NAT-GW1",
+            "type": "String"
+        },
+        "networkSecurityGroups_ZA_East_vDC_vnet_ZA_East_Subnet_2_nsg_southafricanorth_externalid": {
+            "defaultValue": "/subscriptions/0cfd0d2a-2b38-4c93-ba14-cf79185bc683/resourceGroups/za-east-vdc/providers/Microsoft.Network/networkSecurityGroups/ZA-East-vDC-vnet-ZA-East-Subnet-2-nsg-southafricanorth",
+            "type": "String"
+        },
+        "networkSecurityGroups_ZA_East_vDC_vnet_InBound_EP_nsg_southafricanorth_externalid": {
+            "defaultValue": "/subscriptions/0cfd0d2a-2b38-4c93-ba14-cf79185bc683/resourceGroups/za-east-vdc/providers/Microsoft.Network/networkSecurityGroups/ZA-East-vDC-vnet-InBound-EP-nsg-southafricanorth",
+            "type": "String"
+        },
+        "virtualNetworks_ZA_East_Spoke_2_externalid": {
+            "defaultValue": "/subscriptions/0cfd0d2a-2b38-4c93-ba14-cf79185bc683/resourceGroups/za-east-vdc/providers/Microsoft.Network/virtualNetworks/ZA-East-Spoke-2",
+            "type": "String"
+        },
+        "virtualNetworks_ZA_East_Spoke_1_externalid": {
+            "defaultValue": "/subscriptions/0cfd0d2a-2b38-4c93-ba14-cf79185bc683/resourceGroups/za-east-vdc/providers/Microsoft.Network/virtualNetworks/ZA-East-Spoke-1",
+            "type": "String"
+        }
+    },
+    "variables": {},
+    "resources": [
+        {
+            "type": "Microsoft.Network/virtualNetworks",
+            "apiVersion": "2024-07-01",
+            "name": "[parameters('virtualNetworks_ZA_East_vDC_vnet_name')]",
+            "location": "southafricanorth",
+            "properties": {
+                "addressSpace": {
+                    "addressPrefixes": [
+                        "10.20.0.0/16"
+                    ]
+                },
+                "privateEndpointVNetPolicies": "Disabled",
+                "subnets": [
+                    {
+                        "name": "AzureFirewallManagementSubnet",
+                        "id": "[resourceId('Microsoft.Network/virtualNetworks/subnets', parameters('virtualNetworks_ZA_East_vDC_vnet_name'), 'AzureFirewallManagementSubnet')]",
+                        "properties": {
+                            "addressPrefix": "10.20.7.0/24",
+                            "serviceEndpoints": [
+                                {
+                                    "service": "Microsoft.Storage",
+                                    "locations": [
+                                        "southafricanorth",
+                                        "southafricawest"
+                                    ]
+                                }
+                            ],
+                            "delegations": [],
+                            "privateEndpointNetworkPolicies": "Disabled",
+                            "privateLinkServiceNetworkPolicies": "Enabled",
+                            "defaultOutboundAccess": false
+                        },
+                        "type": "Microsoft.Network/virtualNetworks/subnets"
+                    },
+                    {
+                        "name": "AzureBastionSubnet",
+                        "id": "[resourceId('Microsoft.Network/virtualNetworks/subnets', parameters('virtualNetworks_ZA_East_vDC_vnet_name'), 'AzureBastionSubnet')]",
+                        "properties": {
+                            "addressPrefix": "10.20.2.0/26",
+                            "networkSecurityGroup": {
+                                "id": "[parameters('networkSecurityGroups_ZA_East_vDC_vnet_AzureBastionSubnet_nsg_southafricanorth_externalid')]"
+                            },
+                            "serviceEndpoints": [
+                                {
+                                    "service": "Microsoft.Storage",
+                                    "locations": [
+                                        "southafricanorth",
+                                        "southafricawest"
+                                    ]
+                                }
+                            ],
+                            "delegations": [],
+                            "privateEndpointNetworkPolicies": "Disabled",
+                            "privateLinkServiceNetworkPolicies": "Enabled",
+                            "defaultOutboundAccess": false
+                        },
+                        "type": "Microsoft.Network/virtualNetworks/subnets"
+                    },
+                    {
+                        "name": "ZA-East-Subnet-1",
+                        "id": "[resourceId('Microsoft.Network/virtualNetworks/subnets', parameters('virtualNetworks_ZA_East_vDC_vnet_name'), 'ZA-East-Subnet-1')]",
+                        "properties": {
+                            "addressPrefix": "10.20.3.0/24",
+                            "networkSecurityGroup": {
+                                "id": "[parameters('networkSecurityGroups_ZA_East_vDC_vnet_ZA_East_Subnet_1_nsg_southafricanorth_externalid')]"
+                            },
+                            "serviceEndpoints": [
+                                {
+                                    "service": "Microsoft.Storage",
+                                    "locations": [
+                                        "southafricanorth",
+                                        "southafricawest"
+                                    ]
+                                }
+                            ],
+                            "delegations": [],
+                            "privateEndpointNetworkPolicies": "Disabled",
+                            "privateLinkServiceNetworkPolicies": "Disabled",
+                            "defaultOutboundAccess": false
+                        },
+                        "type": "Microsoft.Network/virtualNetworks/subnets"
+                    },
+                    {
+                        "name": "PEP",
+                        "id": "[resourceId('Microsoft.Network/virtualNetworks/subnets', parameters('virtualNetworks_ZA_East_vDC_vnet_name'), 'PEP')]",
+                        "properties": {
+                            "addressPrefix": "10.20.6.0/27",
+                            "serviceEndpoints": [
+                                {
+                                    "service": "Microsoft.Storage",
+                                    "locations": [
+                                        "southafricanorth",
+                                        "southafricawest"
+                                    ]
+                                }
+                            ],
+                            "delegations": [],
+                            "privateEndpointNetworkPolicies": "Disabled",
+                            "privateLinkServiceNetworkPolicies": "Enabled",
+                            "defaultOutboundAccess": false
+                        },
+                        "type": "Microsoft.Network/virtualNetworks/subnets"
+                    },
+                    {
+                        "name": "Ping-test",
+                        "id": "[resourceId('Microsoft.Network/virtualNetworks/subnets', parameters('virtualNetworks_ZA_East_vDC_vnet_name'), 'Ping-test')]",
+                        "properties": {
+                            "addressPrefix": "10.20.8.0/24",
+                            "networkSecurityGroup": {
+                                "id": "[parameters('networkSecurityGroups_ZA_East_vDC_vnet_Ping_test_nsg_southafricanorth_externalid')]"
+                            },
+                            "natGateway": {
+                                "id": "[parameters('natGateways_NAT_GW1_externalid')]"
+                            },
+                            "serviceEndpoints": [
+                                {
+                                    "service": "Microsoft.Storage",
+                                    "locations": [
+                                        "southafricanorth",
+                                        "southafricawest"
+                                    ]
+                                }
+                            ],
+                            "delegations": [],
+                            "privateEndpointNetworkPolicies": "Disabled",
+                            "privateLinkServiceNetworkPolicies": "Enabled",
+                            "defaultOutboundAccess": false
+                        },
+                        "type": "Microsoft.Network/virtualNetworks/subnets"
+                    },
+                    {
+                        "name": "CloudShell",
+                        "id": "[resourceId('Microsoft.Network/virtualNetworks/subnets', parameters('virtualNetworks_ZA_East_vDC_vnet_name'), 'CloudShell')]",
+                        "properties": {
+                            "addressPrefix": "10.20.10.0/24",
+                            "delegations": [],
+                            "privateEndpointNetworkPolicies": "Disabled",
+                            "privateLinkServiceNetworkPolicies": "Enabled",
+                            "defaultOutboundAccess": false
+                        },
+                        "type": "Microsoft.Network/virtualNetworks/subnets"
+                    },
+                    {
+                        "name": "NVA",
+                        "id": "[resourceId('Microsoft.Network/virtualNetworks/subnets', parameters('virtualNetworks_ZA_East_vDC_vnet_name'), 'NVA')]",
+                        "properties": {
+                            "addressPrefixes": [
+                                "10.20.6.32/27"
+                            ],
+                            "delegations": [],
+                            "privateEndpointNetworkPolicies": "Disabled",
+                            "privateLinkServiceNetworkPolicies": "Enabled",
+                            "defaultOutboundAccess": false
+                        },
+                        "type": "Microsoft.Network/virtualNetworks/subnets"
+                    },
+                    {
+                        "name": "AzureFirewallSubnet",
+                        "id": "[resourceId('Microsoft.Network/virtualNetworks/subnets', parameters('virtualNetworks_ZA_East_vDC_vnet_name'), 'AzureFirewallSubnet')]",
+                        "properties": {
+                            "addressPrefixes": [
+                                "10.20.6.64/26"
+                            ],
+                            "serviceEndpoints": [
+                                {
+                                    "service": "Microsoft.Storage",
+                                    "locations": [
+                                        "southafricanorth",
+                                        "southafricawest"
+                                    ]
+                                }
+                            ],
+                            "delegations": [],
+                            "privateEndpointNetworkPolicies": "Disabled",
+                            "privateLinkServiceNetworkPolicies": "Enabled",
+                            "defaultOutboundAccess": false
+                        },
+                        "type": "Microsoft.Network/virtualNetworks/subnets"
+                    },
+                    {
+                        "name": "AppGW-SubNet",
+                        "id": "[resourceId('Microsoft.Network/virtualNetworks/subnets', parameters('virtualNetworks_ZA_East_vDC_vnet_name'), 'AppGW-SubNet')]",
+                        "properties": {
+                            "addressPrefix": "10.20.9.0/24",
+                            "delegations": [
+                                {
+                                    "name": "AppGW-SubNet",
+                                    "id": "[concat(resourceId('Microsoft.Network/virtualNetworks/subnets', parameters('virtualNetworks_ZA_East_vDC_vnet_name'), 'AppGW-SubNet'), '/delegations/AppGW-SubNet')]",
+                                    "properties": {
+                                        "serviceName": "Microsoft.Network/applicationGateways"
+                                    },
+                                    "type": "Microsoft.Network/virtualNetworks/subnets/delegations"
+                                }
+                            ],
+                            "privateEndpointNetworkPolicies": "Disabled",
+                            "privateLinkServiceNetworkPolicies": "Enabled",
+                            "defaultOutboundAccess": false
+                        },
+                        "type": "Microsoft.Network/virtualNetworks/subnets"
+                    },
+                    {
+                        "name": "ZA-East-Subnet-2",
+                        "id": "[resourceId('Microsoft.Network/virtualNetworks/subnets', parameters('virtualNetworks_ZA_East_vDC_vnet_name'), 'ZA-East-Subnet-2')]",
+                        "properties": {
+                            "addressPrefix": "10.20.5.0/24",
+                            "networkSecurityGroup": {
+                                "id": "[parameters('networkSecurityGroups_ZA_East_vDC_vnet_ZA_East_Subnet_2_nsg_southafricanorth_externalid')]"
+                            },
+                            "serviceEndpoints": [
+                                {
+                                    "service": "Microsoft.Storage",
+                                    "locations": [
+                                        "southafricanorth",
+                                        "southafricawest"
+                                    ]
+                                }
+                            ],
+                            "delegations": [],
+                            "privateEndpointNetworkPolicies": "Disabled",
+                            "privateLinkServiceNetworkPolicies": "Enabled",
+                            "defaultOutboundAccess": false
+                        },
+                        "type": "Microsoft.Network/virtualNetworks/subnets"
+                    },
+                    {
+                        "name": "OutBound-EP1",
+                        "id": "[resourceId('Microsoft.Network/virtualNetworks/subnets', parameters('virtualNetworks_ZA_East_vDC_vnet_name'), 'OutBound-EP1')]",
+                        "properties": {
+                            "addressPrefix": "10.20.2.80/28",
+                            "delegations": [
+                                {
+                                    "name": "Microsoft.Network.dnsResolvers",
+                                    "id": "[concat(resourceId('Microsoft.Network/virtualNetworks/subnets', parameters('virtualNetworks_ZA_East_vDC_vnet_name'), 'OutBound-EP1'), '/delegations/Microsoft.Network.dnsResolvers')]",
+                                    "properties": {
+                                        "serviceName": "Microsoft.Network/dnsResolvers"
+                                    },
+                                    "type": "Microsoft.Network/virtualNetworks/subnets/delegations"
+                                }
+                            ],
+                            "privateEndpointNetworkPolicies": "Disabled",
+                            "privateLinkServiceNetworkPolicies": "Enabled",
+                            "defaultOutboundAccess": false
+                        },
+                        "type": "Microsoft.Network/virtualNetworks/subnets"
+                    },
+                    {
+                        "name": "InBound-EP",
+                        "id": "[resourceId('Microsoft.Network/virtualNetworks/subnets', parameters('virtualNetworks_ZA_East_vDC_vnet_name'), 'InBound-EP')]",
+                        "properties": {
+                            "addressPrefix": "10.20.2.64/28",
+                            "networkSecurityGroup": {
+                                "id": "[parameters('networkSecurityGroups_ZA_East_vDC_vnet_InBound_EP_nsg_southafricanorth_externalid')]"
+                            },
+                            "delegations": [],
+                            "privateEndpointNetworkPolicies": "Disabled",
+                            "privateLinkServiceNetworkPolicies": "Enabled",
+                            "defaultOutboundAccess": false
+                        },
+                        "type": "Microsoft.Network/virtualNetworks/subnets"
+                    },
+                    {
+                        "name": "GatewaySubnet",
+                        "id": "[resourceId('Microsoft.Network/virtualNetworks/subnets', parameters('virtualNetworks_ZA_East_vDC_vnet_name'), 'GatewaySubnet')]",
+                        "properties": {
+                            "addressPrefix": "10.20.0.0/24",
+                            "serviceEndpoints": [
+                                {
+                                    "service": "Microsoft.Storage",
+                                    "locations": [
+                                        "southafricanorth",
+                                        "southafricawest"
+                                    ]
+                                }
+                            ],
+                            "delegations": [],
+                            "privateEndpointNetworkPolicies": "Disabled",
+                            "privateLinkServiceNetworkPolicies": "Enabled",
+                            "defaultOutboundAccess": false
+                        },
+                        "type": "Microsoft.Network/virtualNetworks/subnets"
+                    },
+                    {
+                        "name": "ZA-East-Hub",
+                        "id": "[resourceId('Microsoft.Network/virtualNetworks/subnets', parameters('virtualNetworks_ZA_East_vDC_vnet_name'), 'ZA-East-Hub')]",
+                        "properties": {
+                            "addressPrefix": "10.20.1.0/24",
+                            "serviceEndpoints": [
+                                {
+                                    "service": "Microsoft.Storage",
+                                    "locations": [
+                                        "southafricanorth",
+                                        "southafricawest"
+                                    ]
+                                }
+                            ],
+                            "delegations": [],
+                            "privateEndpointNetworkPolicies": "Disabled",
+                            "privateLinkServiceNetworkPolicies": "Disabled",
+                            "defaultOutboundAccess": false
+                        },
+                        "type": "Microsoft.Network/virtualNetworks/subnets"
+                    }
+                ],
+                "virtualNetworkPeerings": [
+                    {
+                        "name": "Peer-to-Spoke-2",
+                        "id": "[resourceId('Microsoft.Network/virtualNetworks/virtualNetworkPeerings', parameters('virtualNetworks_ZA_East_vDC_vnet_name'), 'Peer-to-Spoke-2')]",
+                        "properties": {
+                            "peeringState": "Connected",
+                            "peeringSyncLevel": "FullyInSync",
+                            "remoteVirtualNetwork": {
+                                "id": "[parameters('virtualNetworks_ZA_East_Spoke_2_externalid')]"
+                            },
+                            "allowVirtualNetworkAccess": true,
+                            "allowForwardedTraffic": true,
+                            "allowGatewayTransit": true,
+                            "useRemoteGateways": false,
+                            "doNotVerifyRemoteGateways": false,
+                            "peerCompleteVnets": true,
+                            "remoteAddressSpace": {
+                                "addressPrefixes": [
+                                    "10.22.0.0/22"
+                                ]
+                            },
+                            "remoteVirtualNetworkAddressSpace": {
+                                "addressPrefixes": [
+                                    "10.22.0.0/22"
+                                ]
+                            }
+                        },
+                        "type": "Microsoft.Network/virtualNetworks/virtualNetworkPeerings"
+                    },
+                    {
+                        "name": "Peer-to-Spoke-1",
+                        "id": "[resourceId('Microsoft.Network/virtualNetworks/virtualNetworkPeerings', parameters('virtualNetworks_ZA_East_vDC_vnet_name'), 'Peer-to-Spoke-1')]",
+                        "properties": {
+                            "peeringState": "Connected",
+                            "peeringSyncLevel": "FullyInSync",
+                            "remoteVirtualNetwork": {
+                                "id": "[parameters('virtualNetworks_ZA_East_Spoke_1_externalid')]"
+                            },
+                            "allowVirtualNetworkAccess": true,
+                            "allowForwardedTraffic": true,
+                            "allowGatewayTransit": true,
+                            "useRemoteGateways": false,
+                            "doNotVerifyRemoteGateways": false,
+                            "peerCompleteVnets": true,
+                            "remoteAddressSpace": {
+                                "addressPrefixes": [
+                                    "10.21.0.0/22"
+                                ]
+                            },
+                            "remoteVirtualNetworkAddressSpace": {
+                                "addressPrefixes": [
+                                    "10.21.0.0/22"
+                                ]
+                            }
+                        },
+                        "type": "Microsoft.Network/virtualNetworks/virtualNetworkPeerings"
+                    }
+                ],
+                "enableDdosProtection": false,
+                "bgpCommunities": {
+                    "virtualNetworkCommunity": "12076:20002"
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Network/virtualNetworks/subnets",
+            "apiVersion": "2024-07-01",
+            "name": "[concat(parameters('virtualNetworks_ZA_East_vDC_vnet_name'), '/AppGW-SubNet')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Network/virtualNetworks', parameters('virtualNetworks_ZA_East_vDC_vnet_name'))]"
+            ],
+            "properties": {
+                "addressPrefix": "10.20.9.0/24",
+                "delegations": [
+                    {
+                        "name": "AppGW-SubNet",
+                        "id": "[concat(resourceId('Microsoft.Network/virtualNetworks/subnets', parameters('virtualNetworks_ZA_East_vDC_vnet_name'), 'AppGW-SubNet'), '/delegations/AppGW-SubNet')]",
+                        "properties": {
+                            "serviceName": "Microsoft.Network/applicationGateways"
+                        },
+                        "type": "Microsoft.Network/virtualNetworks/subnets/delegations"
+                    }
+                ],
+                "privateEndpointNetworkPolicies": "Disabled",
+                "privateLinkServiceNetworkPolicies": "Enabled",
+                "defaultOutboundAccess": false
+            }
+        },
+        {
+            "type": "Microsoft.Network/virtualNetworks/subnets",
+            "apiVersion": "2024-07-01",
+            "name": "[concat(parameters('virtualNetworks_ZA_East_vDC_vnet_name'), '/AzureBastionSubnet')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Network/virtualNetworks', parameters('virtualNetworks_ZA_East_vDC_vnet_name'))]"
+            ],
+            "properties": {
+                "addressPrefix": "10.20.2.0/26",
+                "networkSecurityGroup": {
+                    "id": "[parameters('networkSecurityGroups_ZA_East_vDC_vnet_AzureBastionSubnet_nsg_southafricanorth_externalid')]"
+                },
+                "serviceEndpoints": [
+                    {
+                        "service": "Microsoft.Storage",
+                        "locations": [
+                            "southafricanorth",
+                            "southafricawest"
+                        ]
+                    }
+                ],
+                "delegations": [],
+                "privateEndpointNetworkPolicies": "Disabled",
+                "privateLinkServiceNetworkPolicies": "Enabled",
+                "defaultOutboundAccess": false
+            }
+        },
+        {
+            "type": "Microsoft.Network/virtualNetworks/subnets",
+            "apiVersion": "2024-07-01",
+            "name": "[concat(parameters('virtualNetworks_ZA_East_vDC_vnet_name'), '/AzureFirewallManagementSubnet')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Network/virtualNetworks', parameters('virtualNetworks_ZA_East_vDC_vnet_name'))]"
+            ],
+            "properties": {
+                "addressPrefix": "10.20.7.0/24",
+                "serviceEndpoints": [
+                    {
+                        "service": "Microsoft.Storage",
+                        "locations": [
+                            "southafricanorth",
+                            "southafricawest"
+                        ]
+                    }
+                ],
+                "delegations": [],
+                "privateEndpointNetworkPolicies": "Disabled",
+                "privateLinkServiceNetworkPolicies": "Enabled",
+                "defaultOutboundAccess": false
+            }
+        },
+        {
+            "type": "Microsoft.Network/virtualNetworks/subnets",
+            "apiVersion": "2024-07-01",
+            "name": "[concat(parameters('virtualNetworks_ZA_East_vDC_vnet_name'), '/AzureFirewallSubnet')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Network/virtualNetworks', parameters('virtualNetworks_ZA_East_vDC_vnet_name'))]"
+            ],
+            "properties": {
+                "addressPrefixes": [
+                    "10.20.6.64/26"
+                ],
+                "serviceEndpoints": [
+                    {
+                        "service": "Microsoft.Storage",
+                        "locations": [
+                            "southafricanorth",
+                            "southafricawest"
+                        ]
+                    }
+                ],
+                "delegations": [],
+                "privateEndpointNetworkPolicies": "Disabled",
+                "privateLinkServiceNetworkPolicies": "Enabled",
+                "defaultOutboundAccess": false
+            }
+        },
+        {
+            "type": "Microsoft.Network/virtualNetworks/subnets",
+            "apiVersion": "2024-07-01",
+            "name": "[concat(parameters('virtualNetworks_ZA_East_vDC_vnet_name'), '/CloudShell')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Network/virtualNetworks', parameters('virtualNetworks_ZA_East_vDC_vnet_name'))]"
+            ],
+            "properties": {
+                "addressPrefix": "10.20.10.0/24",
+                "delegations": [],
+                "privateEndpointNetworkPolicies": "Disabled",
+                "privateLinkServiceNetworkPolicies": "Enabled",
+                "defaultOutboundAccess": false
+            }
+        },
+        {
+            "type": "Microsoft.Network/virtualNetworks/subnets",
+            "apiVersion": "2024-07-01",
+            "name": "[concat(parameters('virtualNetworks_ZA_East_vDC_vnet_name'), '/GatewaySubnet')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Network/virtualNetworks', parameters('virtualNetworks_ZA_East_vDC_vnet_name'))]"
+            ],
+            "properties": {
+                "addressPrefix": "10.20.0.0/24",
+                "serviceEndpoints": [
+                    {
+                        "service": "Microsoft.Storage",
+                        "locations": [
+                            "southafricanorth",
+                            "southafricawest"
+                        ]
+                    }
+                ],
+                "delegations": [],
+                "privateEndpointNetworkPolicies": "Disabled",
+                "privateLinkServiceNetworkPolicies": "Enabled",
+                "defaultOutboundAccess": false
+            }
+        },
+        {
+            "type": "Microsoft.Network/virtualNetworks/subnets",
+            "apiVersion": "2024-07-01",
+            "name": "[concat(parameters('virtualNetworks_ZA_East_vDC_vnet_name'), '/InBound-EP')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Network/virtualNetworks', parameters('virtualNetworks_ZA_East_vDC_vnet_name'))]"
+            ],
+            "properties": {
+                "addressPrefix": "10.20.2.64/28",
+                "networkSecurityGroup": {
+                    "id": "[parameters('networkSecurityGroups_ZA_East_vDC_vnet_InBound_EP_nsg_southafricanorth_externalid')]"
+                },
+                "delegations": [],
+                "privateEndpointNetworkPolicies": "Disabled",
+                "privateLinkServiceNetworkPolicies": "Enabled",
+                "defaultOutboundAccess": false
+            }
+        },
+        {
+            "type": "Microsoft.Network/virtualNetworks/subnets",
+            "apiVersion": "2024-07-01",
+            "name": "[concat(parameters('virtualNetworks_ZA_East_vDC_vnet_name'), '/NVA')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Network/virtualNetworks', parameters('virtualNetworks_ZA_East_vDC_vnet_name'))]"
+            ],
+            "properties": {
+                "addressPrefixes": [
+                    "10.20.6.32/27"
+                ],
+                "delegations": [],
+                "privateEndpointNetworkPolicies": "Disabled",
+                "privateLinkServiceNetworkPolicies": "Enabled",
+                "defaultOutboundAccess": false
+            }
+        },
+        {
+            "type": "Microsoft.Network/virtualNetworks/subnets",
+            "apiVersion": "2024-07-01",
+            "name": "[concat(parameters('virtualNetworks_ZA_East_vDC_vnet_name'), '/OutBound-EP1')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Network/virtualNetworks', parameters('virtualNetworks_ZA_East_vDC_vnet_name'))]"
+            ],
+            "properties": {
+                "addressPrefix": "10.20.2.80/28",
+                "delegations": [
+                    {
+                        "name": "Microsoft.Network.dnsResolvers",
+                        "id": "[concat(resourceId('Microsoft.Network/virtualNetworks/subnets', parameters('virtualNetworks_ZA_East_vDC_vnet_name'), 'OutBound-EP1'), '/delegations/Microsoft.Network.dnsResolvers')]",
+                        "properties": {
+                            "serviceName": "Microsoft.Network/dnsResolvers"
+                        },
+                        "type": "Microsoft.Network/virtualNetworks/subnets/delegations"
+                    }
+                ],
+                "privateEndpointNetworkPolicies": "Disabled",
+                "privateLinkServiceNetworkPolicies": "Enabled",
+                "defaultOutboundAccess": false
+            }
+        },
+        {
+            "type": "Microsoft.Network/virtualNetworks/subnets",
+            "apiVersion": "2024-07-01",
+            "name": "[concat(parameters('virtualNetworks_ZA_East_vDC_vnet_name'), '/PEP')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Network/virtualNetworks', parameters('virtualNetworks_ZA_East_vDC_vnet_name'))]"
+            ],
+            "properties": {
+                "addressPrefix": "10.20.6.0/27",
+                "serviceEndpoints": [
+                    {
+                        "service": "Microsoft.Storage",
+                        "locations": [
+                            "southafricanorth",
+                            "southafricawest"
+                        ]
+                    }
+                ],
+                "delegations": [],
+                "privateEndpointNetworkPolicies": "Disabled",
+                "privateLinkServiceNetworkPolicies": "Enabled",
+                "defaultOutboundAccess": false
+            }
+        },
+        {
+            "type": "Microsoft.Network/virtualNetworks/subnets",
+            "apiVersion": "2024-07-01",
+            "name": "[concat(parameters('virtualNetworks_ZA_East_vDC_vnet_name'), '/Ping-test')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Network/virtualNetworks', parameters('virtualNetworks_ZA_East_vDC_vnet_name'))]"
+            ],
+            "properties": {
+                "addressPrefix": "10.20.8.0/24",
+                "networkSecurityGroup": {
+                    "id": "[parameters('networkSecurityGroups_ZA_East_vDC_vnet_Ping_test_nsg_southafricanorth_externalid')]"
+                },
+                "natGateway": {
+                    "id": "[parameters('natGateways_NAT_GW1_externalid')]"
+                },
+                "serviceEndpoints": [
+                    {
+                        "service": "Microsoft.Storage",
+                        "locations": [
+                            "southafricanorth",
+                            "southafricawest"
+                        ]
+                    }
+                ],
+                "delegations": [],
+                "privateEndpointNetworkPolicies": "Disabled",
+                "privateLinkServiceNetworkPolicies": "Enabled",
+                "defaultOutboundAccess": false
+            }
+        },
+        {
+            "type": "Microsoft.Network/virtualNetworks/subnets",
+            "apiVersion": "2024-07-01",
+            "name": "[concat(parameters('virtualNetworks_ZA_East_vDC_vnet_name'), '/ZA-East-Hub')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Network/virtualNetworks', parameters('virtualNetworks_ZA_East_vDC_vnet_name'))]"
+            ],
+            "properties": {
+                "addressPrefix": "10.20.1.0/24",
+                "serviceEndpoints": [
+                    {
+                        "service": "Microsoft.Storage",
+                        "locations": [
+                            "southafricanorth",
+                            "southafricawest"
+                        ]
+                    }
+                ],
+                "delegations": [],
+                "privateEndpointNetworkPolicies": "Disabled",
+                "privateLinkServiceNetworkPolicies": "Disabled",
+                "defaultOutboundAccess": false
+            }
+        },
+        {
+            "type": "Microsoft.Network/virtualNetworks/subnets",
+            "apiVersion": "2024-07-01",
+            "name": "[concat(parameters('virtualNetworks_ZA_East_vDC_vnet_name'), '/ZA-East-Subnet-1')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Network/virtualNetworks', parameters('virtualNetworks_ZA_East_vDC_vnet_name'))]"
+            ],
+            "properties": {
+                "addressPrefix": "10.20.3.0/24",
+                "networkSecurityGroup": {
+                    "id": "[parameters('networkSecurityGroups_ZA_East_vDC_vnet_ZA_East_Subnet_1_nsg_southafricanorth_externalid')]"
+                },
+                "serviceEndpoints": [
+                    {
+                        "service": "Microsoft.Storage",
+                        "locations": [
+                            "southafricanorth",
+                            "southafricawest"
+                        ]
+                    }
+                ],
+                "delegations": [],
+                "privateEndpointNetworkPolicies": "Disabled",
+                "privateLinkServiceNetworkPolicies": "Disabled",
+                "defaultOutboundAccess": false
+            }
+        },
+        {
+            "type": "Microsoft.Network/virtualNetworks/subnets",
+            "apiVersion": "2024-07-01",
+            "name": "[concat(parameters('virtualNetworks_ZA_East_vDC_vnet_name'), '/ZA-East-Subnet-2')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Network/virtualNetworks', parameters('virtualNetworks_ZA_East_vDC_vnet_name'))]"
+            ],
+            "properties": {
+                "addressPrefix": "10.20.5.0/24",
+                "networkSecurityGroup": {
+                    "id": "[parameters('networkSecurityGroups_ZA_East_vDC_vnet_ZA_East_Subnet_2_nsg_southafricanorth_externalid')]"
+                },
+                "serviceEndpoints": [
+                    {
+                        "service": "Microsoft.Storage",
+                        "locations": [
+                            "southafricanorth",
+                            "southafricawest"
+                        ]
+                    }
+                ],
+                "delegations": [],
+                "privateEndpointNetworkPolicies": "Disabled",
+                "privateLinkServiceNetworkPolicies": "Enabled",
+                "defaultOutboundAccess": false
+            }
+        },
+        {
+            "type": "Microsoft.Network/virtualNetworks/virtualNetworkPeerings",
+            "apiVersion": "2024-07-01",
+            "name": "[concat(parameters('virtualNetworks_ZA_East_vDC_vnet_name'), '/Peer-to-Spoke-1')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Network/virtualNetworks', parameters('virtualNetworks_ZA_East_vDC_vnet_name'))]"
+            ],
+            "properties": {
+                "peeringState": "Connected",
+                "peeringSyncLevel": "FullyInSync",
+                "remoteVirtualNetwork": {
+                    "id": "[parameters('virtualNetworks_ZA_East_Spoke_1_externalid')]"
+                },
+                "allowVirtualNetworkAccess": true,
+                "allowForwardedTraffic": true,
+                "allowGatewayTransit": true,
+                "useRemoteGateways": false,
+                "doNotVerifyRemoteGateways": false,
+                "peerCompleteVnets": true,
+                "remoteAddressSpace": {
+                    "addressPrefixes": [
+                        "10.21.0.0/22"
+                    ]
+                },
+                "remoteVirtualNetworkAddressSpace": {
+                    "addressPrefixes": [
+                        "10.21.0.0/22"
+                    ]
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Network/virtualNetworks/virtualNetworkPeerings",
+            "apiVersion": "2024-07-01",
+            "name": "[concat(parameters('virtualNetworks_ZA_East_vDC_vnet_name'), '/Peer-to-Spoke-2')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Network/virtualNetworks', parameters('virtualNetworks_ZA_East_vDC_vnet_name'))]"
+            ],
+            "properties": {
+                "peeringState": "Connected",
+                "peeringSyncLevel": "FullyInSync",
+                "remoteVirtualNetwork": {
+                    "id": "[parameters('virtualNetworks_ZA_East_Spoke_2_externalid')]"
+                },
+                "allowVirtualNetworkAccess": true,
+                "allowForwardedTraffic": true,
+                "allowGatewayTransit": true,
+                "useRemoteGateways": false,
+                "doNotVerifyRemoteGateways": false,
+                "peerCompleteVnets": true,
+                "remoteAddressSpace": {
+                    "addressPrefixes": [
+                        "10.22.0.0/22"
+                    ]
+                },
+                "remoteVirtualNetworkAddressSpace": {
+                    "addressPrefixes": [
+                        "10.22.0.0/22"
+                    ]
+                }
+            }
+        }
+    ]
+}

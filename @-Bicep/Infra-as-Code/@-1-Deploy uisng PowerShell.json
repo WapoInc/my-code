@@ -1,0 +1,34 @@
+
+// Build Resource Group + Deploy Bicep file to Resource Group //
+
+# Az PowerShell:
+// using JSON file //
+#---------------------------------------------------------------------------------------------------------------------------------------------------
+New-AzResourceGroup -Name 'Bicep-GitHub-1'-Location 'SouthAfricaNorth' 
+New-AzResourceGroupDeployment -TemplateFile .\vwan-shared-services\main.json -ResourceGroupName Bicep-GitHub-2
+#---------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+
+
+
+
+
+# Azure PowerShell:
+// using .bicep file using built in Param//
+#---------------------------------------------------------------------------------------------------------------------------------------------------
+New-AzResourceGroupDeployment -TemplateFile ./main.bicep -ResourceGroupName my-rg -location SouthAfricaNorth
+#---------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+
+# Azure PowerShell:
+// using .bicep file injecting a Param //
+#---------------------------------------------------------------------------------------------------------------------------------------------------
+New-AzResourceGroupDeployment -TemplateFile ./main.bicep -ResourceGroupName my-rg -location SouthAfricaNorth -storageAccountName uniquelogstorage001
+#---------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+// Use a local parameters JSON file //
+Bicep supports providing all of the parameters for a template via a JSON file. There is no new "Bicep style" syntax for passing parameters. It is the same parameters file you would use for an ARM template deployment. You can take a look at this parameters tutorial to learn how the parameters file is structured.
+

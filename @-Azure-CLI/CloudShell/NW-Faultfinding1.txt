@@ -1,0 +1,26 @@
+ResourceGroup="ZA-East-vDC"
+Location="SouthAfricaNorth"
+vnetName="ZA-East-vDC-vnet"
+subnetName="Ping-test"
+vmName="NW-check-1"
+
+az vm create --resource-group $ResourceGroup --name $vmName --image Ubuntu2204 --vnet-name $vnetName --subnet $subnetName --admin-username rootadmin --admin-password P@ssw0rd123! --location $Location
+az vm boot-diagnostics enable --name $vmName --resource-group $ResourceGroup
+
+az vm list-ip-addresses --name $vmName -o table
+
+ssh rootadmin@4.221.156.150
+
+===========
+| sudo su |
+===========================
+| hping3 -S -p 22 x.x.x.x |
+| hping3 --icmp x.x.x.x   |
+===========================
+
+sudo apt update
+sudo apt install -y hping3
+
+sudo apt install inetutils-traceroute
+sudo apt install traceroute  
+

@@ -1,0 +1,12 @@
+https://docs.microsoft.com/en-us/azure/architecture/reference-architectures/hybrid-networking/hub-spoke?tabs=bicep
+
+
+
+az group create --name hub-spoke-three --location SouthAfricaNorth
+
+curl https://raw.githubusercontent.com/mspnp/samples/master/solutions/azure-hub-spoke/bicep/main.bicep > az-fw-2-spokes-main.bicep
+
+
+az deployment group create --resource-group hub-spoke-three --template-file az-fw-2-spokes-main.bicep
+
+

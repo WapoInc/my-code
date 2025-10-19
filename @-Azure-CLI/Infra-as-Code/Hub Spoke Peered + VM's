@@ -1,0 +1,45 @@
+
+
+#Build a Hub + 2 Spokes with VNET + Subnet
+
+resourceGroup='Hub-2-Spokes-with-peerings-1'
+locationName='southafricanorth'
+
+vnetName1='Hub'
+vnetName2='Spoke-1'
+vnetName3='Spoke-2'
+
+subnetName1='Hub-SubNet-1'
+subnetName2='Spoke-1-SubNet-1'
+subnetName3='Spoke-2-SubNet-1'
+
+
+az group create --name $resourceGroup --location $locationName
+
+az network vnet create --name $vnetName1  --resource-group $resourceGroup --location $locationName --address-prefixes 10.10.0.0/22
+az network vnet subnet create --address-prefix 10.10.1.0/24 --name $subnetName1 --resource-group $resourceGroup --vnet-name $vnetName1
+
+az network vnet create --name $vnetName2 --resource-group $resourceGroup  --location $locationName --address-prefixes 10.20.0.0/22
+az network vnet subnet create --address-prefix 10.20.1.0/24 --name $subnetName2 --resource-group $resourceGroup --vnet-name $vnetName2
+
+az network vnet create --name $vnetName3 --resource-group $resourceGroup  --location $locationName --address-prefixes 10.30.0.0/22
+az network vnet subnet create --address-prefix 10.30.1.0/24 --name $subnetName3 --resource-group $resourceGroup --vnet-name $vnetName3
+
+
+#VNET peering
+
+#Hub to Spoke-1
+az network vnet peering create --resource-group $resourceGroup --name Hub-to-Spoke-1 --vnet-name $vnetName1 --remote-vnet $vnetName2 --allow-vnet-access
+az network vnet peering create --resource-group $resourceGroup --name Spoke-1-to-Hub --vnet-name $vnetName2 --remote-vnet $vnetName1 --allow-vnet-access
+
+#Hub to Spoke-2
+az network vnet peering create --resource-group $resourceGroup --name Hub-to-Spoke-2 --vnet-name $vnetName1 --remote-vnet $vnetName3 --allow-vnet-access
+az network vnet peering create --resource-group $resourceGroup --name Spoke-2-to-Hub --vnet-name $vnetName3 --remote-vnet $vnetName1 --allow-vnet-access
+
+
+
+#az vm create --resource-group Hub-2-Spokes-with-peerings --name AzCLI-VM1 --image UbuntuLTS --admin-username rootadmin --admin-password myPassword --public-ip-sku Standard 
+az vm create --resource-group $resourceGroup --name AzCLI-VM1 --image UbuntuLTS --admin-username rootadmin --admin-password Perme550123! --public-ip-sku Standard --vnet-name Hub --subnet Hub-SubNet-1
+az vm create --resource-group $resourceGroup --name AzCLI-VM2 --image UbuntuLTS --admin-username rootadmin --admin-password Perme550123! --public-ip-sku Standard --vnet-name Spoke-1 --subnet Spoke-1-SubNet-1
+az vm create --resource-group $resourceGroup --name AzCLI-VM3 --image UbuntuLTS --admin-username rootadmin --admin-password Perme550123! --public-ip-sku Standard --vnet-name Spoke-2 --subnet Spoke-2-SubNet-1
+

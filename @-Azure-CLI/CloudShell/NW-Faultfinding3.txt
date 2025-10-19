@@ -1,0 +1,40 @@
+// Enter the correct info from your Azure Subscription
+
+ResourceGroup="ZA-East-vDC"
+Location="SouthAfricaNorth"
+vnetName="ZA-East-vDC-vnet"
+subnetName="Ping-test"
+vmName="nw-jumpbox-2"
+
+az vm create \
+ --resource-group $ResourceGroup \
+ --name $vmName \
+ --image Ubuntu2204 \
+ --vnet-name $vnetName \
+ --subnet $subnetName \
+ --admin-username azureadmin \
+ --generate-ssh-keys \
+ --location $Location
+ 
+az vm boot-diagnostics enable --name $vmName --resource-group $ResourceGroup
+az vm list-ip-addresses --name $vmName -o table
+
+ssh rootadmin@w.x.y.z
+passwd azureadmin
+===========
+| sudo su |
+===========
+
+sudo apt update
+sudo apt install -y hping3
+
+sudo apt install inetutils-traceroute
+sudo apt install traceroute
+
+tcpdump -ni eth0 icmp
+tcpdump -ni eth0 src host 192.168.2.1
+az network nic show-effective-route-table -g za-east-vdc -n nw-jumpbox-2VMNic  -o table
+===========================
+| hping3 -S -p 22 x.x.x.x |
+| hping3 --icmp x.x.x.x   |
+===========================

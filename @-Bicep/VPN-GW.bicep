@@ -1,0 +1,165 @@
+
+
+resource symbolicname 'Microsoft.Network/vpnGateways@2021-05-01' = {
+    name: 'string'
+    location: 'string'
+    tags: {
+      tagName1: 'tagValue1'
+      tagName2: 'tagValue2'
+    }
+    properties: {
+      bgpSettings: {
+        asn: int
+        bgpPeeringAddress: 'string'
+        bgpPeeringAddresses: [
+          {
+            customBgpIpAddresses: [
+              'string'
+            ]
+            ipconfigurationId: 'string'
+          }
+        ]
+        peerWeight: int
+      }
+      connections: [
+        {
+          id: 'string'
+          name: 'string'
+          properties: {
+            connectionBandwidth: int
+            dpdTimeoutSeconds: int
+            enableBgp: bool
+            enableInternetSecurity: bool
+            enableRateLimiting: bool
+            ipsecPolicies: [
+              {
+                dhGroup: 'string'
+                ikeEncryption: 'string'
+                ikeIntegrity: 'string'
+                ipsecEncryption: 'string'
+                ipsecIntegrity: 'string'
+                pfsGroup: 'string'
+                saDataSizeKilobytes: int
+                saLifeTimeSeconds: int
+              }
+            ]
+            remoteVpnSite: {
+              id: 'string'
+            }
+            routingConfiguration: {
+              associatedRouteTable: {
+                id: 'string'
+              }
+              propagatedRouteTables: {
+                ids: [
+                  {
+                    id: 'string'
+                  }
+                ]
+                labels: [
+                  'string'
+                ]
+              }
+              vnetRoutes: {
+                staticRoutes: [
+                  {
+                    addressPrefixes: [
+                      'string'
+                    ]
+                    name: 'string'
+                    nextHopIpAddress: 'string'
+                  }
+                ]
+              }
+            }
+            routingWeight: int
+            sharedKey: 'string'
+            trafficSelectorPolicies: [
+              {
+                localAddressRanges: [
+                  'string'
+                ]
+                remoteAddressRanges: [
+                  'string'
+                ]
+              }
+            ]
+            useLocalAzureIpAddress: bool
+            usePolicyBasedTrafficSelectors: bool
+            vpnConnectionProtocolType: 'string'
+            vpnLinkConnections: [
+              {
+                id: 'string'
+                name: 'string'
+                properties: {
+                  connectionBandwidth: int
+                  egressNatRules: [
+                    {
+                      id: 'string'
+                    }
+                  ]
+                  enableBgp: bool
+                  enableRateLimiting: bool
+                  ingressNatRules: [
+                    {
+                      id: 'string'
+                    }
+                  ]
+                  ipsecPolicies: [
+                    {
+                      dhGroup: 'string'
+                      ikeEncryption: 'string'
+                      ikeIntegrity: 'string'
+                      ipsecEncryption: 'string'
+                      ipsecIntegrity: 'string'
+                      pfsGroup: 'string'
+                      saDataSizeKilobytes: int
+                      saLifeTimeSeconds: int
+                    }
+                  ]
+                  routingWeight: int
+                  sharedKey: 'string'
+                  useLocalAzureIpAddress: bool
+                  usePolicyBasedTrafficSelectors: bool
+                  vpnConnectionProtocolType: 'string'
+                  vpnLinkConnectionMode: 'string'
+                  vpnSiteLink: {
+                    id: 'string'
+                  }
+                }
+              }
+            ]
+          }
+        }
+      ]
+      enableBgpRouteTranslationForNat: bool
+      isRoutingPreferenceInternet: bool
+      natRules: [
+        {
+          id: 'string'
+          name: 'string'
+          properties: {
+            externalMappings: [
+              {
+                addressSpace: 'string'
+                portRange: 'string'
+              }
+            ]
+            internalMappings: [
+              {
+                addressSpace: 'string'
+                portRange: 'string'
+              }
+            ]
+            ipConfigurationId: 'string'
+            mode: 'string'
+            type: 'string'
+          }
+        }
+      ]
+      virtualHub: {
+        id: 'string'
+      }
+      vpnGatewayScaleUnit: int
+    }
+  }

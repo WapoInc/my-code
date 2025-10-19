@@ -1,0 +1,65 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "_generator": {
+      "name": "bicep",
+      "version": "0.4.613.9944",
+      "templateHash": "8093477738833054571"
+    }
+  },
+  "parameters": {
+    "vnetPrefix": {
+      "type": "string",
+      "defaultValue": "172.20.0.0/16"
+    },
+    "suffix": {
+      "type": "string",
+      "defaultValue": "Shemo-Again2"
+    }
+  },
+  "functions": [],
+  "variables": {
+    "vnetName": "[format('vnet-{0}', parameters('suffix'))]"
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Network/virtualNetworks",
+      "apiVersion": "2019-12-01",
+      "name": "[variables('vnetName')]",
+      "location": "[resourceGroup().location]",
+      "tags": {
+        "Owner": "vmr",
+        "CostCenter": "0181",
+        "CostValue": "$100"
+      },
+      "properties": {
+        "addressSpace": {
+          "addressPrefixes": [
+            "[parameters('vnetPrefix')]"
+          ]
+        },
+        "subnets": [
+          {
+            "name": "SubNet-01",
+            "properties": {
+              "addressPrefix": "172.20.1.0/24"
+            }
+          },
+          {
+            "name": "SubNet-02",
+            "properties": {
+              "addressPrefix": "172.20.2.0/24"
+            }
+          },
+          {
+            "name": "Gatewaysubnet",
+            "properties": {
+              "addressPrefix": "172.20.0.0/24"
+            }
+          }
+        ]
+      }
+    }
+  ]
+}
