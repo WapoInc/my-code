@@ -1,0 +1,2 @@
+# az ad sp create-for-rbac --name "<sp-name>" --role Contributor --scopes /subscriptions/<subscription-id>
+az ad sp create-for-rbac --name "vmr-sp1" --role Contributor --scopes /subscriptions/0cfd0d2a-2b38-4c93-ba14-cf79185bc683
