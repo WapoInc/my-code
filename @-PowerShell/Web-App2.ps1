@@ -16,8 +16,8 @@ $location            = "South Africa North"
 $appServicePlanName  = "asp-webapp-helloworld"
 $webAppName          = "webapp-helloworld-wapo"
 $currentDate         = "2025-10-20"
-$currentTime         = "07:23:27"
-$currentUser         = "WapoInc"
+# $currentTime         = "07:23:27"
+# $currentUser         = "WapoInc"
 
 # Local image directory & candidate filenames
 $localImageDir       = "/Users/vinceresente/Library/CloudStorage/OneDrive-Personal/Github/My-Repos/my-code-vmr/@-PowerShell"
