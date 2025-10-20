@@ -8,7 +8,7 @@
 set -e
 
 # Configuration
-RESOURCE_GROUP="rg-ubuntu-vms3"
+RESOURCE_GROUP="rg-ubuntu-vms"
 LOCATION="southafricanorth"
 USERNAME="azureadmin"
 SSH_KEY_PATH="$HOME/.ssh/id_rsa.pub"  # Path to your public SSH key
@@ -24,6 +24,7 @@ UBUNTU_IMAGE="Ubuntu2204"  # Explicit Ubuntu 22.04 image
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # Verify prerequisites
@@ -90,19 +91,32 @@ create_vm() {
     local vm_number=$1
     local vm_name="${VM_PREFIX}-${vm_number}"
     local nic_name="${vm_name}-nic"
+    local pip_name="${vm_name}-pip"
     
     echo -e "${YELLOW}[INFO - VM $vm_number]${NC} Creating VM: $vm_name..."
     
-    # Create network interface
+    # Create public IP
+    echo -e "${BLUE}[INFO - VM $vm_number]${NC} Creating public IP: $pip_name..."
+    az network public-ip create \
+        --resource-group "$RESOURCE_GROUP" \
+        --name "$pip_name" \
+        --sku Standard \
+        --allocation-method Static \
+        --output none
+    
+    # Create network interface with public IP
+    echo -e "${BLUE}[INFO - VM $vm_number]${NC} Creating network interface: $nic_name..."
     az network nic create \
         --resource-group "$RESOURCE_GROUP" \
         --name "$nic_name" \
         --vnet-name "$VNET_NAME" \
         --subnet "$SUBNET_NAME" \
         --network-security-group "$NSG_NAME" \
+        --public-ip-address "$pip_name" \
         --output none
     
     # Create VM with SSH key
+    echo -e "${BLUE}[INFO - VM $vm_number]${NC} Provisioning VM instance..."
     az vm create \
         --resource-group "$RESOURCE_GROUP" \
         --name "$vm_name" \
@@ -115,7 +129,7 @@ create_vm() {
         --os-disk-size-gb 30 \
         --output none
     
-    echo -e "${GREEN}[SUCCESS - VM $vm_number]${NC} VM created: $vm_name"
+    echo -e "${GREEN}[SUCCESS - VM $vm_number]${NC} VM created: $vm_name with public IP: $pip_name"
 }
 
 # Create VMs in parallel
@@ -132,18 +146,21 @@ wait
 echo ""
 echo -e "${GREEN}[SUCCESS]${NC} All VMs created successfully!"
 
-# Display VM information
+# Display VM information with public IPs
 echo ""
-echo -e "${YELLOW}[INFO]${NC} VM Information:"
+echo -e "${YELLOW}[INFO]${NC} VMs and Public IPs:"
 echo ""
-az vm list-ip-addresses \
-    --resource-group "$RESOURCE_GROUP" \
-    --output table
 
-echo ""
-echo -e "${GREEN}[SUMMARY]${NC}"
-echo "Resource Group: $RESOURCE_GROUP"
-echo "Location: $LOCATION"
-echo "VMs Created: $VM_COUNT"
-echo "Ubuntu Image: $UBUNTU_IMAGE"
-echo "VM Size: $VM
+for ((i=1; i<=VM_COUNT; i++)); do
+    vm_name="${VM_PREFIX}-${i}"
+    pip_name="${vm_name}-pip"
+    
+    public_ip=$(az network public-ip show \
+        --resource-group "$RESOURCE_GROUP" \
+        --name "$pip_name" \
+        --query "ipAddress" -o tsv)
+    
+    private_ip=$(az network nic show \
+        --resource-group "$RESOURCE_GROUP" \
+        --name "${vm_name}-nic" \
+        --query "ipConfigurations[0].privateIp
