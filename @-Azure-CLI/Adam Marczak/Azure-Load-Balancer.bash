@@ -3,6 +3,7 @@ az group create -g $group -l southafricanorth
 username=adminroot
 password='P@ssw0rd123!'
 
+
 az network vnet create \
   -n vm-vnet \
   -g $group \
