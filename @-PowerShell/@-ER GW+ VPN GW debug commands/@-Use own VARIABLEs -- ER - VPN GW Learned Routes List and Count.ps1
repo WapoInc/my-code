@@ -24,7 +24,7 @@ $GateWayName = "2-ZAN-ER-GW-Migration-Test-for-Shoppies"
 $RG = "za-east-vdc"
 
 $RG = "ER-LTSA-RG"
-$GateWayName = "ER-GateWay-SA-North" 
+$GateWayName = "ER-GateWay-SA-North-Standard" 
 $ER_Circuit_Name = "ER-LIT-SA-North"
 Get-AzVirtualNetworkGatewayLearnedRoute -ResourceGroupName $RG -VirtualNetworkGatewayname $GateWayName
 Get-AzExpressRouteCircuit -ResourceGroupName $RG -Name $ER_Circuit_Name
@@ -33,7 +33,7 @@ Get-AzExpressRouteCircuit -ResourceGroupName $RG -Name $ER_Circuit_Name
 
 #- SA West -------------------------------------------------------------------------------------
 $RG = "SA-West-RG"
-$GateWayName = "ER-GateWay-SA-West"
+$GateWayName = "ER-GateWay-SA-West-Standard"
 $ER_Circuit_Name = "ER-LTSA-SA-West"
 Get-AzVirtualNetworkGatewayLearnedRoute -ResourceGroupName $RG -VirtualNetworkGatewayname $GateWayName
 Get-AzExpressRouteCircuit -ResourceGroupName $RG -Name $ER_Circuit_Name
@@ -122,7 +122,7 @@ AzExpressRouteCircuitARPTable -ResourceGroupName $RG -ExpressRouteCircuitName $E
 
 =======================================================================================================  
 #Filter an IP prefix
-Get-AzVirtualNetworkGatewayLearnedRoute -ResourceGroupName $RG -VirtualNetworkGatewayname $GateWayName | Where-Object -Property Network -Match 172.27.1.0
+Get-AzVirtualNetworkGatewayLearnedRoute -ResourceGroupName $RG -VirtualNetworkGatewayname $GateWayName | Where-Object -Property Network -Match 10.111.1.0
 
 
 
