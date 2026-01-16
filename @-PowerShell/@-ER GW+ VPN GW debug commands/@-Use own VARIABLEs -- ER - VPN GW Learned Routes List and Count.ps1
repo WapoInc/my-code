@@ -20,31 +20,21 @@ $ER_Circuit_Name = "Enter your ER Circuit name"
 Select-AzSubscription -SubscriptionName "viresent New AIRS" -Tenant MngEnv461963.onmicrosoft.com
 
 #- SA North -------------------------------------------------------------------------------------
-$GateWayName = "2-ZAN-ER-GW-Migration-Test-for-Shoppies" 
-$RG = "za-east-vdc"
-
 $RG = "ER-LTSA-RG"
 $GateWayName = "ER-GateWay-SA-North-Standard" 
 $ER_Circuit_Name = "ER-LIT-SA-North"
 Get-AzVirtualNetworkGatewayLearnedRoute -ResourceGroupName $RG -VirtualNetworkGatewayname $GateWayName
 Get-AzExpressRouteCircuit -ResourceGroupName $RG -Name $ER_Circuit_Name
-
-
-
 #- SA West -------------------------------------------------------------------------------------
-$RG = "SA-West-RG"
+$RG = "ER-LTSA-RG"
 $GateWayName = "ER-GateWay-SA-West-Standard"
 $ER_Circuit_Name = "ER-LTSA-SA-West"
 Get-AzVirtualNetworkGatewayLearnedRoute -ResourceGroupName $RG -VirtualNetworkGatewayname $GateWayName
 Get-AzExpressRouteCircuit -ResourceGroupName $RG -Name $ER_Circuit_Name
-
-
 #--------------------------------------------------------------------------------------
 $RG = "ZA-East-vDC"
 $GateWayName = "ZA-East-vDC-VPN-GW" 
 Get-AzVirtualNetworkGatewayLearnedRoute -ResourceGroupName $RG -VirtualNetworkGatewayname $GateWayName
-
-
 #PoC Gateways
 #--------------------------------------------------------------------------------------
 $RG = "AVS-ZA-North"
