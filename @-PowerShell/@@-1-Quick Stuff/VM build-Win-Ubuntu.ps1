@@ -4,24 +4,19 @@ Select-AzSubscription -SubscriptionName "Enter your Sub name"
 
 #Enter your variables
 
-$RG = "Enter your Resource Group name"
-$GateWayName = "Enter your ER or VPN Gateway name" 
-$ER_Circuit_Name = "Enter your ER Circuit name"
-
-
 #My own variables
 Select-AzSubscription -SubscriptionName "viresent New AIRS" -Tenant MngEnv461963.onmicrosoft.com
 
 
 # Variables for common values
-$resourceGroup = "Bicep-VNET2"
+$resourceGroup = "ZA-East-vDC"
 $location = "SouthAfricaNorth"
-$vmName = "VM-10-222-64-1"
+$vmName = "VM1-Spoke-1"
 $VM_Sku = "Standard_B2s"
 
 #VNET + SubNet
-$VNET ="10-222-64-0--19"
-$SubNet1 = "SubNet-1"
+$VNET_NAME ="neu-vnet-spoke-1"
+$SubNet1 = "default"
 
 # Create a resource group
 New-AzResourceGroup -Name $resourceGroup -Location $location
@@ -29,7 +24,7 @@ New-AzResourceGroup -Name $resourceGroup -Location $location
 # Create user object
 $cred = Get-Credential -Message "Enter a username and password for the virtual machine."
 
-# Create a VM
+# Create a Windows Server VM
 New-AzVM `
   -ResourceGroupName $resourceGroup `
   -Name $vmName `
@@ -43,3 +38,16 @@ New-AzVM `
   -Credential $cred `
   -OpenPorts 3389
 
+# Create a Ubuntu VM 
+New-AzVM `
+  -ResourceGroupName $resourceGroup `
+  -Name $vmName `
+  -Location $location `
+  -Credential $cred `
+  -Image "Ubuntu2204" `
+  -Size $VM_Sku `
+  -VirtualNetworkName $VNET_NAME `
+  -SubnetName $SubNet1 `
+  -PublicIpAddressName "$vmNAME-Pub-IP" `
+  -SecurityGroupName "$vmName-NSG" `
+  -OpenPorts 22
