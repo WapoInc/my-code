@@ -134,7 +134,7 @@ Get-AzVirtualNetworkGatewayLearnedRoute -ResourceGroupName $RG -VirtualNetworkGa
 
 
 ==============================================================================================================================================================================
-# ARP table for Azure private peering - Primary + Secondary paths
+# ARP table for Azure private peering - Primary + Secondary paths               
 ==============================================================================================================================================================================
 # ARP table for Azure private peering - Primary path
 Get-AzExpressRouteCircuitARPTable -ResourceGroupName $RG -ExpressRouteCircuitName $ER_Circuit_Name -PeeringType AzurePrivatePeering -DevicePath Primary
