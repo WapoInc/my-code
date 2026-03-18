@@ -39,24 +39,22 @@ az network vnet subnet create --address-prefix 10.40.1.0/24 --name $subnetName4 
 #----------------------------------------------------------------------------------------------------------------------------------------------
 #Hub to Spoke-1
 az network vnet peering create --resource-group $resourceGroup --name Hub-to-Spoke-1 --vnet-name $vnetName1 --remote-vnet $vnetName2 --allow-vnet-access --allow-forwarded-traffic --allow-gateway-transit --no-wait
-az network vnet peering create --resource-group $resourceGroup --name Spoke-1-to-Hub --vnet-name $vnetName2 --remote-vnet $vnetName1 --allow-vnet-access --allow-forwarded-traffic --no-wait
+az network vnet peering create --resource-group $resourceGroup --name Spoke-1-to-Hub --vnet-name $vnetName2 --remote-vnet $vnetName1 --allow-vnet-access --allow-forwarded-traffic --no-wait --use-remote-gateways
 
 #Hub to Spoke-2
 az network vnet peering create --resource-group $resourceGroup --name Hub-to-Spoke-2 --vnet-name $vnetName1 --remote-vnet $vnetName3 --allow-vnet-access --allow-forwarded-traffic --allow-gateway-transit --no-wait
-az network vnet peering create --resource-group $resourceGroup --name Spoke-2-to-Hub --vnet-name $vnetName3 --remote-vnet $vnetName1 --allow-vnet-access --allow-forwarded-traffic --no-wait
+az network vnet peering create --resource-group $resourceGroup --name Spoke-2-to-Hub --vnet-name $vnetName3 --remote-vnet $vnetName1 --allow-vnet-access --allow-forwarded-traffic --no-wait --use-remote-gateways
 
 #Hub to Spoke-3
 az network vnet peering create --resource-group $resourceGroup --name Hub-to-Spoke-3 --vnet-name $vnetName1 --remote-vnet $vnetName4 --allow-vnet-access --allow-forwarded-traffic --allow-gateway-transit --no-wait
-az network vnet peering create --resource-group $resourceGroup --name Spoke-3-to-Hub --vnet-name $vnetName4 --remote-vnet $vnetName1 --allow-vnet-access --allow-forwarded-traffic --no-wait
+az network vnet peering create --resource-group $resourceGroup --name Spoke-3-to-Hub --vnet-name $vnetName4 --remote-vnet $vnetName1 --allow-vnet-access --allow-forwarded-traffic --no-wait --use-remote-gateways
 #----------------------------------------------------------------------------------------------------------------------------------------------
 # Create VM's
 #----------------------------------------------------------------------------------------------------------------------------------------------
-#az vm create --resource-group Hub2-2-Spokes-with-peerings --name AzCLI-VM1 --image Ubuntu2404 --admin-username rootadmin --admin-password myPassword --public-ip-sku Standard 
-az vm create --resource-group $resourceGroup --name AzCLI-VM0 --image Ubuntu2404 --admin-username rootadmin --admin-password Perme550123! --public-ip-sku Standard --vnet-name $vnetName1 --subnet $subnetName1 --no-wait
-
-az vm create --resource-group $resourceGroup --name AzCLI-VM1 --image Ubuntu2404 --admin-username rootadmin --admin-password Perme550123! --public-ip-sku Standard --vnet-name $vnetName2 --subnet $subnetName1 --no-wait
-az vm create --resource-group $resourceGroup --name AzCLI-VM2 --image Ubuntu2404 --admin-username rootadmin --admin-password Perme550123! --public-ip-sku Standard --vnet-name $vnetName3 --subnet $subnetName2 --no-wait
-az vm create --resource-group $resourceGroup --name AzCLI-VM3 --image Ubuntu2404 --admin-username rootadmin --admin-password Perme550123! --public-ip-sku Standard --vnet-name $vnetName4 --subnet $subnetName3 --no-wait
+#az vm create --resource-group Hub2-2-Spokes-with-peerings --name AzCLI-VM1 --image UbuntuLTS --admin-username rootadmin --admin-password myPassword --public-ip-sku Standard 
+az vm create --resource-group $resourceGroup --name AzCLI-VM1 --image UbuntuLTS --admin-username rootadmin --admin-password Perme550123! --public-ip-sku Standard --vnet-name $vnetName2 --subnet $subnetName1 --no-wait
+az vm create --resource-group $resourceGroup --name AzCLI-VM2 --image UbuntuLTS --admin-username rootadmin --admin-password Perme550123! --public-ip-sku Standard --vnet-name $vnetName3 --subnet $subnetName2 --no-wait
+az vm create --resource-group $resourceGroup --name AzCLI-VM3 --image UbuntuLTS --admin-username rootadmin --admin-password Perme550123! --public-ip-sku Standard --vnet-name $vnetName4 --subnet $subnetName3 --no-wait
 #----------------------------------------------------------------------------------------------------------------------------------------------
 
 # resourceGroup='ZA-East-vDC'
