@@ -1,5 +1,5 @@
 #!/bin/bash
-
+#
 # Variables
 RG_NAME="claude-vnet-poc2"
 LOCATION="southafricanorth"
