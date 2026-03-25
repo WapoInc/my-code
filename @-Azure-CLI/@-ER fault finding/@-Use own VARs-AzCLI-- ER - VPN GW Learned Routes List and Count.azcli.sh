@@ -21,15 +21,15 @@ ER_Circuit_Name="Enter your ER Circuit name"
 #My own variables
 az account set --subscription "viresent New AIRS"
 
-#- SA North -------------------------------------------------------------------------------------
+#- SA North List Learned Routes -------------------------------------------------------------------------------------
 RG="ER-LTSA-RG"
 GateWayName="ER-GateWay-SA-North-Standard"
 ER_Circuit_Name="ER-LIT-SA-North"
 az network vnet-gateway list-learned-routes --resource-group "$RG" --name "$GateWayName" -o table
 az network express-route show --resource-group "$RG" --name "$ER_Circuit_Name" -o table
 
-#- SA West -------------------------------------------------------------------------------------
-RG="ER-LTSA-RG"
+#- SA West List Learned Routes -------------------------------------------------------------------------------------
+RG="SA-West-rg"
 GateWayName="ER-GateWay-SA-West-Standard"
 ER_Circuit_Name="ER-LTSA-SA-West"
 az network vnet-gateway list-learned-routes --resource-group "$RG" --name "$GateWayName" -o table
@@ -57,22 +57,29 @@ az network nic show-effective-route-table --resource-group ">>>Resource-Group-Na
 ==================================================================================================
 #ExpressRoute Circuit Status and show S-Tag
 ==================================================================================================
+RG="ER-LTSA-RG"
+GateWayName="ER-GateWay-SA-North-Standard"
+ER_Circuit_Name="ER-LIT-SA-North"
 az network express-route show --resource-group "$RG" --name "$ER_Circuit_Name" -o jsonc
+
 
 =============================================================================================================================================================================
 #ER Circuit verification , get all details of ER Links + MSEE Port details
 =============================================================================================================================================================================
-az network express-route peering show --resource-group "$RG" --circuit-name "$ER_Circuit_Name" --name AzurePrivatePeering -o jsonc
+RG="ER-LTSA-RG"
+GateWayName="ER-GateWay-SA-North-Standard"
+ER_Circuit_Name="ER-LIT-SA-North"
+az network express-route peering show --resource-group "$RG" --circuit-name "$ER_Circuit_Name" --name AzurePrivatePeering -o table
 
 
 =============================================================================================================================================================================
 #ER Circuit Private Peering Enable/Disable
 =============================================================================================================================================================================
 # Enable:
-az network express-route peering update --resource-group "ER-LTSA-RG" --circuit-name "ER-LIT-SA-North" --name AzurePrivatePeering --set state=Enabled -o jsonc
+az network express-route peering update --resource-group "ER-LTSA-RG" --circuit-name "ER-LIT-SA-North" --name AzurePrivatePeering --set state=Enabled -o table
 
 # Disable:
-az network express-route peering update --resource-group "ER-LTSA-RG" --circuit-name "ER-LIT-SA-North" --name AzurePrivatePeering --set state=Disabled -o jsonc
+az network express-route peering update --resource-group "ER-LTSA-RG" --circuit-name "ER-LIT-SA-North" --name AzurePrivatePeering --set state=Disabled -o table
 
 
 
@@ -84,7 +91,7 @@ az network vnet-gateway list-learned-routes --resource-group "$RG" --name "$Gate
 
 
 
-=======================================================================================================
+=======================================================================================================192
 #Run to see list and count Learned Routes and Sort by Network
 =======================================================================================================
 az network vnet-gateway list-learned-routes --resource-group "$RG" --name "$GateWayName" --query "sort_by(value,&network)" -o table
@@ -95,7 +102,7 @@ az network vnet-gateway list-learned-routes --resource-group "$RG" --name "$Gate
 =======================================================================================================
 #Run to count Learned Routes
 =======================================================================================================
-az network vnet-gateway list-learned-routes --resource-group "$RG" --name "$GateWayName" --query "length(value)" -o tsv
+az network vnet-gateway list-learned-routes --resource-group "$RG" --name "$GateWayName" --query "length(value)" -o table
 
 
 
@@ -109,7 +116,7 @@ az network express-route list-arp-tables --resource-group "$RG" --name "$ER_Circ
 
 =======================================================================================================
 #Filter an IP prefix
-az network vnet-gateway list-learned-routes --resource-group "$RG" --name "$GateWayName" --query "value[?contains(network, '10.10.0.0/16')]" -o table
+az network vnet-gateway list-learned-routes --resource-group "$RG" --name "$GateWayName" --query "value[?contains(network, '192.168')]" -o table
 
 
 
