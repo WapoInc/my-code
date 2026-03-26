@@ -1,0 +1,304 @@
+================================================================================
+VPN TUNNEL BUILDING CODE INVENTORY
+================================================================================
+Repository: WapoInc/my-code
+Generated: $(date)
+================================================================================
+
+SUMMARY:
+This repository contains 40+ files related to VPN tunnel building across
+multiple technologies and deployment methods.
+
+================================================================================
+KEY VPN TUNNEL BUILDING SCRIPTS BY TYPE:
+================================================================================
+
+1. AZURE CLI (BASH) SCRIPTS - 13 files
+   Location: @-Azure-CLI/
+   
+   Primary Scripts:
+   ✓ Claude/S2S-VPN-GW-LNG-v2.sh
+     - Complete S2S VPN setup
+     - VPN Gateway + Local Network Gateway + Connection
+     - 30-45 min deployment time
+   
+   ✓ Infra-as-Code/OnPrem-to-Azure-S2S-v6.sh
+     - Most comprehensive script
+     - Dual VPN gateways (simulates on-prem and Azure)
+     - Azure Firewall integration
+     - Multiple VMs for testing
+     - Parallel deployment optimization
+   
+   ✓ Claude/vWAN-Site+S2S-VPN.sh
+     - Virtual WAN with S2S VPN
+     - Multi-hub architecture
+   
+   Diagnostics:
+   ✓ vpn-gw-packet-capture/azure-vpngw-packet-capture_Version2.sh
+     - Packet capture for troubleshooting
+
+2. BICEP TEMPLATES (IaC) - 5 files
+   Location: @-Bicep/
+   
+   ✓ Infra-as-Code/Networking/@4-S2S+LNG+Connection+VPN-GW.bicep
+     - Complete S2S VPN infrastructure
+     - Virtual Network + Gateway + Local Network Gateway + Connection
+     - Parameterized for reusability
+   
+   ✓ Infra-as-Code/Networking/2-vpn-gw-S2S-IPSec-with-bgp.bicep
+     - VNet-to-VNet with BGP enabled
+     - Dual VPN gateways
+     - Dynamic routing configuration
+   
+   ✓ VPN-GW.bicep
+     - VPN Gateway deployment template
+
+3. POWERSHELL SCRIPTS - 25+ files
+   Location: @-PowerShell/
+   
+   Core Scripts:
+   ✓ 3-Create and manage S2S VPN connections.ps1
+     - Complete S2S VPN connection creation
+     - BGP configuration
+     - Custom IPsec/IKE policy
+     - Shared key management
+   
+   ✓ 2-Config a VPN GW with 2 SubNets GW Subnet and Pub-IP.ps1
+     - VPN Gateway with multiple subnets
+   
+   ✓ Build ER GW in same VNET as VPN GW sharing same GateWay Subnet.ps1
+     - VPN + ExpressRoute coexistence
+   
+   ✓ BGP-LTSA-VPN-GW-test- Config a VPN GW in same GateWay SubNet as ER GW.ps1
+     - BGP-enabled VPN Gateway
+   
+   Diagnostics & Troubleshooting:
+   ✓ VPN Tunnel Packet Capture/Daniel-Mauser-vWAN-VPN-Packet-Capture.ps1
+     - Packet capture on vWAN VPN Gateway
+   
+   ✓ @-ER GW+ VPN GW debug commands/ER - VPN GW Learned Routes List and Count.ps1
+     - BGP route diagnostics
+     - Connection health monitoring
+
+4. VIRTUAL WAN SCRIPTS - 6 files
+   Locations: @-Azure-CLI/Claude/, @-PowerShell/Fabrizio/
+   
+   ✓ Claude-vWAN-2-hubs-2-vnets-2VM-VPN-GW+ER-GW-v2.sh
+     - Multi-hub Virtual WAN
+     - Multiple VNets with VPN and ER gateways
+   
+   ✓ Fabrizio/vWAN Power Shell Scripts/s2s/
+     - Multiple step-by-step vWAN S2S deployment scripts
+
+================================================================================
+VPN TUNNEL TECHNOLOGIES COVERED:
+================================================================================
+
+✓ Site-to-Site (S2S) IPsec VPN Tunnels
+  - IKEv2 protocol
+  - Shared key authentication
+  - RouteBased VPN (recommended)
+  - PolicyBased VPN (legacy)
+
+✓ VNet-to-VNet Connections
+  - Azure-to-Azure VPN tunnels
+  - BGP-enabled routing
+
+✓ Virtual WAN VPN
+  - Hub-and-spoke topology
+  - Multi-region connectivity
+  - Scalable architecture
+
+✓ BGP (Border Gateway Protocol)
+  - Dynamic routing
+  - ASN configuration
+  - Route learning and propagation
+  - Automatic failover
+
+✓ IPsec/IKE Policy Configuration
+  - Encryption algorithms (AES128, AES256)
+  - Integrity algorithms (SHA1, SHA256)
+  - DH Groups (DHGroup14, etc.)
+  - PFS Groups
+  - SA Lifetime configuration
+
+✓ VPN Gateway + ExpressRoute Coexistence
+  - Shared Gateway Subnet
+  - Hybrid connectivity patterns
+
+================================================================================
+DEPLOYMENT METHODS:
+================================================================================
+
+1. Azure CLI (Bash)
+   - Quick deployment
+   - Scriptable automation
+   - Cross-platform support
+   - Best for: Linux/Mac users, CI/CD pipelines
+
+2. Azure PowerShell
+   - Windows-native
+   - Rich object manipulation
+   - Detailed output
+   - Best for: Windows users, complex scenarios
+
+3. Bicep (Infrastructure as Code)
+   - Declarative syntax
+   - Reusable templates
+   - Version control friendly
+   - Best for: Production deployments, GitOps
+
+================================================================================
+VPN GATEWAY SKUs SUPPORTED:
+================================================================================
+
+✓ VpnGw1 - Standard performance (650 Mbps)
+✓ VpnGw2 - Higher performance (1 Gbps)
+✓ VpnGw3 - High performance (1.25 Gbps)
+✓ VpnGw4 - Enterprise (5 Gbps)
+✓ VpnGw5 - High enterprise (10 Gbps)
+✓ Standard - Legacy
+✓ HighPerformance - Legacy
+
+Active-Active mode supported on VpnGw SKUs
+
+================================================================================
+KEY FEATURES ACROSS SCRIPTS:
+================================================================================
+
+Network Configuration:
+✓ Virtual Network creation
+✓ Gateway Subnet (must be named "GatewaySubnet")
+✓ Multiple subnet support
+✓ Address space planning (avoiding overlaps)
+
+VPN Gateway:
+✓ Public IP allocation (Static/Dynamic)
+✓ Route-Based VPN configuration
+✓ BGP enablement
+✓ Active-Active configuration
+✓ Zone redundancy (AZ SKUs)
+
+Local Network Gateway:
+✓ On-premises public IP configuration
+✓ Multiple address prefix support
+✓ BGP peer configuration
+
+VPN Connection:
+✓ IPsec tunnel creation
+✓ Shared key configuration
+✓ Connection protocol (IKEv2)
+✓ Custom IPsec/IKE policies
+✓ Routing weight configuration
+
+Security:
+✓ Shared key authentication
+✓ AES encryption
+✓ IKEv2 protocol
+✓ Custom cryptographic algorithms
+✓ Secure parameter handling
+
+Monitoring & Diagnostics:
+✓ Packet capture capability
+✓ BGP route inspection
+✓ Connection status monitoring
+✓ Bandwidth utilization tracking
+✓ Learned routes analysis
+
+Integration:
+✓ Azure Firewall integration
+✓ VNet peering with gateway transit
+✓ ExpressRoute coexistence
+✓ Virtual WAN hub connections
+✓ User-Defined Routes (UDR)
+
+================================================================================
+TESTING & VALIDATION:
+================================================================================
+
+Scripts include:
+✓ VM creation for connectivity testing
+✓ Parallel resource deployment
+✓ Wait commands for gateway completion
+✓ Public IP retrieval
+✓ Connection status verification
+✓ BGP peer status checks
+✓ Route table inspection
+
+================================================================================
+DOCUMENTATION PROVIDED:
+================================================================================
+
+1. VPN-TUNNEL-CODE-REFERENCE.md (419 lines)
+   - Comprehensive reference guide
+   - All script locations and descriptions
+   - Feature comparison
+   - Usage examples
+   - Security best practices
+   - Testing procedures
+
+2. VPN-QUICKSTART-GUIDE.md (229 lines)
+   - Quick start for each deployment method
+   - Step-by-step instructions
+   - Common configuration values
+   - Troubleshooting guide
+   - Deployment timeline
+   - Security checklist
+
+3. README.md (updated)
+   - Quick links to all documentation
+   - Repository overview
+   - Technology summary
+
+================================================================================
+NETWORK ARCHITECTURES SUPPORTED:
+================================================================================
+
+✓ Hub-and-Spoke with VPN Gateway in hub
+✓ Multi-region with Virtual WAN
+✓ Hybrid (VPN + ExpressRoute)
+✓ Mesh topology (multiple S2S connections)
+✓ Transit routing via Azure Firewall
+✓ VNet peering with gateway transit
+
+================================================================================
+RECOMMENDED USAGE:
+================================================================================
+
+For Quick Testing:
+→ @-Azure-CLI/Claude/S2S-VPN-GW-LNG-v2.sh
+
+For Production IaC:
+→ @-Bicep/Infra-as-Code/Networking/@4-S2S+LNG+Connection+VPN-GW.bicep
+
+For Comprehensive Demo:
+→ @-Azure-CLI/Infra-as-Code/OnPrem-to-Azure-S2S-v6.sh
+
+For BGP-Enabled VPN:
+→ @-Bicep/Infra-as-Code/Networking/2-vpn-gw-S2S-IPSec-with-bgp.bicep
+
+For PowerShell Automation:
+→ @-PowerShell/3-Create and manage S2S VPN connections.ps1
+
+For Virtual WAN:
+→ @-Azure-CLI/Claude/Claude-vWAN-2-hubs-2-vnets-2VM-VPN-GW+ER-GW-v2.sh
+
+For Troubleshooting:
+→ @-PowerShell/VPN Tunnel Packet Capture/
+→ @-PowerShell/@-ER GW+ VPN GW debug commands/
+
+================================================================================
+TYPICAL DEPLOYMENT TIME:
+================================================================================
+
+VPN Gateway Creation: 30-45 minutes
+Local Network Gateway: < 1 minute
+VPN Connection: 2-5 minutes
+Connection Active: 2-5 minutes after creation
+Total S2S VPN: ~45-60 minutes
+
+Tip: Use --no-wait flag for parallel deployments
+
+================================================================================
+END OF INVENTORY
+================================================================================
