@@ -1,5 +1,21 @@
 #!/usr/bin/env bash
 set -euo pipefail
+# AI prompt
+#==============================================================================================
+#================================================================================================
+extract the variables , and show the az commands
+list the variables , left flush and show the 2 az commands in the same page
+add the variables and the az commands on same page
+use format of az commadn as all on the same line
+#================================================================================================
+RG="Enter your Resource Group name"
+GateWayName="Enter your ER or VPN Gateway name"
+ER_Circuit_Name="Enter your ER Circuit name"
+
+az network vnet-gateway list-learned-routes --resource-group "$RG" --name "$GateWayName" -o table
+az network express-route show --resource-group "$RG" --name "$ER_Circuit_Name" -o table
+#=================================================================================================
+#=================================================================================================
 
 # Login to Azure
 az login --tenant MngEnv461963.onmicrosoft.com
