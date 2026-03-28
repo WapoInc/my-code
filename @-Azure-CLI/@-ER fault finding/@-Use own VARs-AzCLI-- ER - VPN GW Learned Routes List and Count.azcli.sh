@@ -133,7 +133,7 @@ az network express-route list-arp-tables --resource-group "$RG" --name "$ER_Circ
 
 =======================================================================================================
 #Filter an IP prefix
-az network vnet-gateway list-learned-routes --resource-group "$RG" --name "$GateWayName" --query "value[?contains(network, '192.168')]" -o table
+az network vnet-gateway list-learned-routes --resource-group "$RG" --name "$GateWayName" --query "value[?contains(network, '172.22.1.0/24')]" -o table
 
 
 
