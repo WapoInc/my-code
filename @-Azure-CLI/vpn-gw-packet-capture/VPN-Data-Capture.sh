@@ -7,7 +7,7 @@
 set -euo pipefail
 
 # ── Variables ────────────────────────────────────────────────────────────────
-VPN_CONN_NAME="SS-Connection-to-ZA-East-vDC"
+VPN_CONN_NAME="S2S-Connection-to-ZA-East-vDC"
 VPN_CONN_RG="za-east-vdc"
 STGNAME="myhdstash"
 STGRG="My-HD-Stash"
