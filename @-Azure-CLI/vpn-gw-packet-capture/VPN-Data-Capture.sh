@@ -4,7 +4,7 @@
 # Captures traffic on an S2S VPN connection and saves the .pcap to Azure Blob Storage.
 # Usage: ./VPN-Data-Capture.sh
 
-set -e
+set -euo pipefail
 
 # ── Variables ────────────────────────────────────────────────────────────────
 VPN_CONN_NAME="SS-Connection-to-ZA-East-vDC"
@@ -50,6 +50,18 @@ SAS_TOKEN=$(az storage container generate-sas \
   -o tsv)
 
 STGURL="https://${STGNAME}.blob.core.windows.net/${STGCONTAINERNAME}?${SAS_TOKEN}"
+
+# ── Pre-flight: verify connection exists ──────────────────────────────────────
+echo -e "\033[1;33mVerifying VPN connection: ${VPN_CONN_NAME} in ${VPN_CONN_RG}...\033[0m"
+if ! az network vpn-connection show \
+     --resource-group "$VPN_CONN_RG" \
+     --name "$VPN_CONN_NAME" \
+     --output none 2>/dev/null; then
+  echo -e "\033[1;31mERROR: VPN connection '${VPN_CONN_NAME}' was not found in resource group '${VPN_CONN_RG}'.\033[0m"
+  echo "  • Verify the connection name:   az network vpn-connection list --resource-group \"${VPN_CONN_RG}\" -o table"
+  echo "  • Verify the resource group:    az group list -o table"
+  exit 1
+fi
 
 # ── Start capture ─────────────────────────────────────────────────────────────
 echo -e "\033[1;33mStarting packet capture on connection: ${VPN_CONN_NAME}\033[0m"
