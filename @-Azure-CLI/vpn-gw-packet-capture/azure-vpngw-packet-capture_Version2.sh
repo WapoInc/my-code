@@ -9,7 +9,7 @@ VPNGWNAME="ZA-East-vDC-VPN-GW"
 VPNGWRG="za-east-vdc"
 STGNAME="myhdstash"
 STGRG="My-HD-Stash"
-STGCONTAINERNAME="vpngateway-capture"
+STGCONTAINERNAME="vpncaptures"
 
 if [[ -z "$VPNGWNAME" || -z "$VPNGWRG" || -z "$STGNAME" || -z "$STGRG" || -z "$STGCONTAINERNAME" ]]; then
     echo "Usage: $0 <VPNGWName> <VPNGWRG> <StgName> <StgRG> <StgContainerName>"
