@@ -29,7 +29,15 @@ else
 fi
 
 # Get Storage Account key
+echo -e "\033[1;33mFetching storage credentials...\033[0m"
 STGKEY=$(az storage account keys list --resource-group "$STGRG" --account-name "$STGNAME" --query "[0].value" -o tsv)
+
+# Ensure the container exists
+az storage container create \
+  --account-name "$STGNAME" \
+  --account-key "$STGKEY" \
+  --name "$STGCONTAINERNAME" \
+  --output none
 
 # Get SAS Token for container
 SAS_TOKEN=$(az storage container generate-sas \
@@ -61,3 +69,5 @@ az network vnet-gateway packet-capture stop \
 echo -e "\033[1;33mRetrieve packet captures using Storage Explorer over:\033[0m"
 echo "Storage account: $STGNAME"
 echo "Blob container: $STGCONTAINERNAME"
+echo -e "\033[1;32mDone. Capture saved to: https://${STGNAME}.blob.core.windows.net/${STGCONTAINERNAME}/\033[0m"
+echo "Download the .pcap file and open with Wireshark."
