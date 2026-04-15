@@ -15,10 +15,9 @@ STGCONTAINERNAME="vpncaptures"
 CAPTURE_DURATION=60   # seconds
 
 # ── Filter ───────────────────────────────────────────────────────────────────
-# Captures all traffic (both directions, all protocols).
-# To restrict to specific IPs, swap in a filter like:
-# FILTER='{"CaptureSingleDirectionTrafficOnly":false,"Protocol":0,"LocalVpnSiteResourceId":[],"InnerIpPort":[],"SourceSubnets":["10.0.0.0/24"],"DestinationSubnets":["10.1.0.0/24"]}'
-FILTER='{"CaptureSingleDirectionTrafficOnly":false,"Protocol":0,"LocalVpnSiteResourceId":[],"InnerIpPort":[]}'
+# Note: az network vpn-connection packet-capture start does not support --filter-data.
+# Filtering is only available for gateway-level capture (az network vnet-gateway packet-capture).
+# The connection-level capture always captures all traffic on the connection.
 
 # ── Credentials & SAS token ──────────────────────────────────────────────────
 # Cross-platform date: macOS uses -v, Linux uses -d
@@ -56,8 +55,7 @@ STGURL="https://${STGNAME}.blob.core.windows.net/${STGCONTAINERNAME}?${SAS_TOKEN
 echo -e "\033[1;33mStarting packet capture on connection: ${VPN_CONN_NAME}\033[0m"
 az network vpn-connection packet-capture start \
   --resource-group "$VPN_CONN_RG" \
-  --name "$VPN_CONN_NAME" \
-  --filter-data "$FILTER"
+  --name "$VPN_CONN_NAME"
 
 echo -e "\033[1;33mCapture running for ${CAPTURE_DURATION} seconds...\033[0m"
 sleep "$CAPTURE_DURATION"
