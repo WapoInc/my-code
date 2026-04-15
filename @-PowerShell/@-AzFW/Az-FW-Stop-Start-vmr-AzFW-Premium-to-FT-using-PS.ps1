@@ -32,7 +32,7 @@ $RG =           "ZA-East-vDC"
 $VNETName =     "ZA-East-vDC-vnet"
 $AzFWName =     "AzFW-ZA-East-vDC"
 $AzFWName_PIP = "AzFW-ZA-East-vDC-Pub-IP"
-$AzFWName_PIP = "My-AzFW-Pub-IP1"
+#$AzFWName_PIP = "My-AzFW-Pub-IP1"
 
 ########################################################################################
 # Stop an existing firewall in New AIRS ZA-East-vDC

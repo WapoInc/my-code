@@ -83,7 +83,11 @@ Set-AzExpressRouteCircuit -ExpressRouteCircuit $ckt
 Get-AzVirtualNetworkGatewayLearnedRoute -ResourceGroupName $RG -VirtualNetworkGatewayname $GateWayName
 Get-AzVirtualNetworkGatewayLearnedRoute -ResourceGroupName $RG -VirtualNetworkGatewayname $GateWayName | ForEach-Object Network | Measure-Object | Select-Object Count
 
-
+=======================================================================================================
+#Run2 to see list and count Learned Routes (used VSCode and Claude Sonnet 4.6)
+=======================================================================================================
+$gw = Get-AzVirtualNetworkGateway -ResourceGroupName "ER-LTSA-RG" | Where-Object { $_.GatewayType -eq "ExpressRoute" }
+Get-AzVirtualNetworkGatewayLearnedRoute -VirtualNetworkGatewayName $gw.Name -ResourceGroupName "ER-LTSA-RG" | Format-Table
 
 
 =======================================================================================================
