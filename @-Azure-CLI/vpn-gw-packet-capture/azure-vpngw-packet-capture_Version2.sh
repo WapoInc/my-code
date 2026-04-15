@@ -17,11 +17,16 @@ if [[ -z "$VPNGWNAME" || -z "$VPNGWRG" || -z "$STGNAME" || -z "$STGRG" || -z "$S
 fi
 
 # Filters
-# FILTER1='{"TracingFlags": 11,"MaxPacketBufferSize": 120,"MaxFileSize": 500,"Filters": [{"CaptureSingleDirectionTrafficOnly": false}]}'
+FILTER1='{"TracingFlags": 11,"MaxPacketBufferSize": 120,"MaxFileSize": 500,"Filters": [{"CaptureSingleDirectionTrafficOnly": false}]}'
 # FILTER2='{"TracingFlags": 11,"MaxPacketBufferSize": 120,"MaxFileSize": 500,"Filters":[{"SourceSubnets":["10.60.4.4/32","10.200.1.5/32"],"DestinationSubnets":["10.60.4.4/32","10.200.1.5/32"],"CaptureSingleDirectionTrafficOnly": false}]}'
 
 STARTTIME=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-ENDTIME=$(date -u -v+1d +"%Y-%m-%dT%H:%M:%SZ")
+# Cross-platform date: macOS uses -v, Linux uses -d
+if date -v+1d > /dev/null 2>&1; then
+  ENDTIME=$(date -u -v+1d +"%Y-%m-%dT%H:%M:%SZ")
+else
+  ENDTIME=$(date -u -d "+1 day" +"%Y-%m-%dT%H:%M:%SZ")
+fi
 
 # Get Storage Account key
 STGKEY=$(az storage account keys list --resource-group "$STGRG" --account-name "$STGNAME" --query "[0].value" -o tsv)
