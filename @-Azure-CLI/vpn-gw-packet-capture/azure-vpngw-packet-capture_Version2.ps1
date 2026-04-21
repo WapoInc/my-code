@@ -64,7 +64,7 @@ $SAStokenURL = New-AzStorageContainerSASToken  -Context $ctx -Container $StgCont
 # Get full VPN Gateway Capture
 ## Start Packet Capture
 Write-Host "Please wait, starting VPN Gateway packet capture..." -ForegroundColor Yellow
-Start-AzVirtualnetworkGatewayPacketCapture -ResourceGroupName $VPNGWRG -Name $VPNGWName -FilterData $Filter2
+Start-AzVirtualnetworkGatewayPacketCapture -ResourceGroupName $VPNGWRG -Name $VPNGWName -FilterData $Filter1
 
 ## Stop Packet Capture
 Write-Host -NoNewLine 'Reproduce your issue and press any key to stop to capture...' -ForegroundColor Yellow;
