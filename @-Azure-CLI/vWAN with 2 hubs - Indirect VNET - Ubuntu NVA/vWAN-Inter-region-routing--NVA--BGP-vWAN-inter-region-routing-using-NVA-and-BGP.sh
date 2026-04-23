@@ -12,7 +12,7 @@ az extension update --name virtual-wan
 # Parameters (make changes based on your requirements)
 region1=southafricanorth
 region2=uksouth
-rg=lab-vwan-nvabgp-2
+rg=lab-vwan-nvabgp-3
 vwanname=vwan-nvabgp
 hub1name=hub1
 hub2name=hub2
@@ -101,12 +101,12 @@ az network vnet subnet create -g $rg --vnet-name branch1 -n GatewaySubnet --addr
 az network vnet subnet create -g $rg --vnet-name branch2 -n GatewaySubnet --address-prefixes 10.200.100.0/26 --output none
 
 # Creating pips for VPN GW's in each branch
-az network public-ip create -n branch1-vpngw-pip -g $rg --location $region1 --output none
-az network public-ip create -n branch2-vpngw-pip -g $rg --location $region2 --output none
+az network public-ip create -n branch1-vpngw-pip -g $rg --location $region1 --sku Standard --allocation-method Static --zone 1 2 3 --output none
+az network public-ip create -n branch2-vpngw-pip -g $rg --location $region2 --sku Standard --allocation-method Static --zone 1 2 3 --output none
 
 # Creating VPN gateways
-az network vnet-gateway create -n branch1-vpngw --public-ip-addresses branch1-vpngw-pip -g $rg --vnet branch1 --asn 65510 --gateway-type Vpn -l $region1 --sku VpnGw1 --vpn-gateway-generation Generation1 --no-wait 
-az network vnet-gateway create -n branch2-vpngw --public-ip-addresses branch2-vpngw-pip -g $rg --vnet branch2 --asn 65509 --gateway-type Vpn -l $region2 --sku VpnGw1 --vpn-gateway-generation Generation1 --no-wait
+az network vnet-gateway create -n branch1-vpngw --public-ip-addresses branch1-vpngw-pip -g $rg --vnet branch1 --asn 65510 --gateway-type Vpn -l $region1 --sku VpnGw1AZ --vpn-gateway-generation Generation1 --no-wait 
+az network vnet-gateway create -n branch2-vpngw --public-ip-addresses branch2-vpngw-pip -g $rg --vnet branch2 --asn 65509 --gateway-type Vpn -l $region2 --sku VpnGw1AZ --vpn-gateway-generation Generation1 --no-wait
 
 echo Checking Hub1 provisioning status...
 # Checking Hub1 provisioning and routing state 
@@ -204,7 +204,7 @@ az network vnet subnet create -g $rg --vnet-name spoke2 -n nvasubnet --address-p
 for nvaname in $nvanames
 do
  # Enable routing, NAT and BGP on Linux NVA:
- az network public-ip create --name $nvaname-pip --resource-group $rg --location $region1 --sku Standard --output none --only-show-errors
+ az network public-ip create --name $nvaname-pip --resource-group $rg --location $region1 --sku Standard --allocation-method Static --zone 1 2 3 --output none --only-show-errors
  az network nic create --name $nvaname-nic --resource-group $rg --subnet $nvasubnetname --vnet $nvavnetnamer1 --public-ip-address $nvaname-pip --ip-forwarding true --location $region1 -o none
  az vm create --resource-group $rg --location $region1 --name $nvaname --size $vmsize --nics $nvaname-nic  --image Ubuntu2204 --admin-username $username --admin-password $password -o none --only-show-errors
 
@@ -270,7 +270,7 @@ nvanames=$(i=1;while [ $i -le $instances ];do echo $nvavnetnamer2-$nvaintname$i;
 for nvaname in $nvanames
 do
  # Enable routing, NAT and BGP on Linux NVA:
- az network public-ip create --name $nvaname-pip --resource-group $rg --location $region2 --sku Standard --output none --only-show-errors
+ az network public-ip create --name $nvaname-pip --resource-group $rg --location $region2 --sku Standard --allocation-method Static --zone 1 2 3 --output none --only-show-errors
  az network nic create --name $nvaname-nic --resource-group $rg --subnet $nvasubnetname --vnet $nvavnetnamer2 --public-ip-address $nvaname-pip --ip-forwarding true --location $region2 -o none
  az vm create --resource-group $rg --location $region2 --name $nvaname --size $vmsize --nics $nvaname-nic  --image Ubuntu2204 --admin-username $username --admin-password $password -o none --only-show-errors
 
@@ -415,7 +415,7 @@ if [[ $prState == 'Failed' ]];
 then
     echo VPN Gateway is in fail state. Deleting and rebuilding.
     az network vnet-gateway delete -n branch1-vpngw -g $rg
-    az network vnet-gateway create -n branch1-vpngw --public-ip-addresses branch1-vpngw-pip -g $rg --vnet branch1 --asn 65510 --gateway-type Vpn -l $region1 --sku VpnGw1 --vpn-gateway-generation Generation1 --no-wait 
+    az network vnet-gateway create -n branch1-vpngw --public-ip-addresses branch1-vpngw-pip -g $rg --vnet branch1 --asn 65510 --gateway-type Vpn -l $region1 --sku VpnGw1AZ --vpn-gateway-generation Generation1 --no-wait 
     sleep 5
 else
     prState=''
@@ -432,7 +432,7 @@ if [[ $prState == 'Failed' ]];
 then
     echo VPN Gateway is in fail state. Deleting and rebuilding.
     az network vnet-gateway delete -n branch2-vpngw -g $rg
-    az network vnet-gateway create -n branch2-vpngw --public-ip-addresses branch2-vpngw-pip -g $rg --vnet branch2 --asn 65509 --gateway-type Vpn -l $region2 --sku VpnGw1 --vpn-gateway-generation Generation1 --no-wait 
+    az network vnet-gateway create -n branch2-vpngw --public-ip-addresses branch2-vpngw-pip -g $rg --vnet branch2 --asn 65509 --gateway-type Vpn -l $region2 --sku VpnGw1AZ --vpn-gateway-generation Generation1 --no-wait 
     sleep 5
 else
     prState=''
