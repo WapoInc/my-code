@@ -1,5 +1,6 @@
 #!/bin/bash
 # Reference: https://docs.microsoft.com/en-us/azure/virtual-wan/scenario-route-through-nva
+# https://github.com/dmauser/azure-virtualwan/blob/main/inter-region-nvabgp/media/inter-region-nvabgp.drawio
 # This lab deploys two Linux NVAs on Spoke2 and Spoke4 with ILB.
 
 # Pre-Requisite
@@ -11,13 +12,13 @@ fi
 
 # Parameters (make changes based on your requirements)
 region1=southafricanorth
-region2=southafricawest
-rg=lab2-vwan-nvabgp
+region2=northeurope
+rg=lab2-vwan-nvabgp-1
 vwanname=vwan-nvabgp
 hub1name=hub1
 hub2name=hub2
 username=azureuser
-password="AzPAP@ssw0rd" #Please change your password
+password="P@ssw0rd123!" #Please change your password
 vmsize=Standard_B2s #Standard_B1s
 
 #Variables
@@ -104,12 +105,12 @@ az network vnet subnet create -g $rg --vnet-name branch1 -n GatewaySubnet --addr
 az network vnet subnet create -g $rg --vnet-name branch2 -n GatewaySubnet --address-prefixes 10.200.100.0/26 --output none
 
 # Creating pips for VPN GW's in each branch
-az network public-ip create -n branch1-vpngw-pip -g $rg --location $region1 --output none
-az network public-ip create -n branch2-vpngw-pip -g $rg --location $region2 --output none
+az network public-ip create -n branch1-vpngw-pip -g $rg --location $region1 --sku Standard --allocation-method Static --output none
+az network public-ip create -n branch2-vpngw-pip -g $rg --location $region2 --sku Standard --allocation-method Static --output none
 
 # Creating VPN gateways
-az network vnet-gateway create -n branch1-vpngw --public-ip-addresses branch1-vpngw-pip -g $rg --vnet branch1 --asn 65510 --gateway-type Vpn -l $region1 --sku VpnGw1 --vpn-gateway-generation Generation1 --no-wait 
-az network vnet-gateway create -n branch2-vpngw --public-ip-addresses branch2-vpngw-pip -g $rg --vnet branch2 --asn 65509 --gateway-type Vpn -l $region2 --sku VpnGw1 --vpn-gateway-generation Generation1 --no-wait
+az network vnet-gateway create -n branch1-vpngw --public-ip-addresses branch1-vpngw-pip -g $rg --vnet branch1 --asn 65510 --gateway-type Vpn -l $region1 --sku VPNGW1AZ --vpn-gateway-generation Generation1 --no-wait 
+az network vnet-gateway create -n branch2-vpngw --public-ip-addresses branch2-vpngw-pip -g $rg --vnet branch2 --asn 65509 --gateway-type Vpn -l $region2 --sku VPNGW1AZ --vpn-gateway-generation Generation1 --no-wait
 
 echo Checking Hub1 provisioning status...
 # Checking Hub1 provisioning and routing state 
@@ -339,8 +340,12 @@ echo Waiting VMs to complete provisioning...
 az vm wait -g $rg --created --ids $(az vm list -g $rg --query '[].{id:id}' -o tsv) --only-show-errors -o none
 #Enabling boot diagnostics for all VMs in the resource group 
 echo Enabling boot diagnostics for all VMs in the resource group...
-# enable boot diagnostics for all VMs in the resource group
-az vm boot-diagnostics enable --ids $(az vm list -g $rg --query '[].{id:id}' -o tsv) -o none
+# Enable boot diagnostics one VM at a time to avoid cross-resource update mismatches.
+vm_names=$(az vm list -g $rg --query '[].name' -o tsv)
+for vm_name in $vm_names
+do
+    az vm boot-diagnostics enable -g $rg -n $vm_name --only-show-errors -o none
+done
 
 #Set NIC and LB as variables
 spk2nvaip=$(az network nic show -n spoke2-linux-nva1-nic -g $rg --query 'ipConfigurations[0].privateIPAddress' -o tsv)
@@ -418,7 +423,7 @@ if [[ $prState == 'Failed' ]];
 then
     echo VPN Gateway is in fail state. Deleting and rebuilding.
     az network vnet-gateway delete -n branch1-vpngw -g $rg
-    az network vnet-gateway create -n branch1-vpngw --public-ip-addresses branch1-vpngw-pip -g $rg --vnet branch1 --asn 65510 --gateway-type Vpn -l $region1 --sku VpnGw1 --vpn-gateway-generation Generation1 --no-wait 
+    az network vnet-gateway create -n branch1-vpngw --public-ip-addresses branch1-vpngw-pip -g $rg --vnet branch1 --asn 65510 --gateway-type Vpn -l $region1 --sku VPNGW1AZ --vpn-gateway-generation Generation1 --no-wait 
     sleep 5
 else
     prState=''
@@ -435,7 +440,7 @@ if [[ $prState == 'Failed' ]];
 then
     echo VPN Gateway is in fail state. Deleting and rebuilding.
     az network vnet-gateway delete -n branch2-vpngw -g $rg
-    az network vnet-gateway create -n branch2-vpngw --public-ip-addresses branch2-vpngw-pip -g $rg --vnet branch2 --asn 65509 --gateway-type Vpn -l $region2 --sku VpnGw1 --vpn-gateway-generation Generation1 --no-wait 
+    az network vnet-gateway create -n branch2-vpngw --public-ip-addresses branch2-vpngw-pip -g $rg --vnet branch2 --asn 65509 --gateway-type Vpn -l $region2 --sku VPNGW1AZ --vpn-gateway-generation Generation1 --no-wait 
     sleep 5
 else
     prState=''

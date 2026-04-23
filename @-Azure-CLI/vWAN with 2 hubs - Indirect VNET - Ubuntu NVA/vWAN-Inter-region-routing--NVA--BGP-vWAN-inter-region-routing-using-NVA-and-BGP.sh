@@ -12,7 +12,7 @@ az extension update --name virtual-wan
 # Parameters (make changes based on your requirements)
 region1=southafricanorth
 region2=uksouth
-rg=lab-vwan-nvabgp
+rg=lab-vwan-nvabgp-2
 vwanname=vwan-nvabgp
 hub1name=hub1
 hub2name=hub2
