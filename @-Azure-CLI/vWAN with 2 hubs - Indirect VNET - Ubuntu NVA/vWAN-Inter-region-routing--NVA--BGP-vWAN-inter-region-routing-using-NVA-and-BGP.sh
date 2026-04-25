@@ -12,13 +12,13 @@ az extension update --name virtual-wan
 # Parameters (make changes based on your requirements)
 region1=southafricanorth
 region2=uksouth
-rg=lab-vwan-nvabgp-3
+rg=lab-vwan-nvabgp-6
 vwanname=vwan-nvabgp
 hub1name=hub1
 hub2name=hub2
 username=azureuser
 password="Msft123Msft123" #Please change your password
-vmsize=Standard_DS1_v2 #Standard_B1s
+vmsize=Standard_D2_v3
 
 #Variables
 mypip=$(curl -4 ifconfig.io -s)
@@ -334,10 +334,11 @@ done
 # Continue only if all VMs are created
 echo Waiting VMs to complete provisioning...
 az vm wait -g $rg --created --ids $(az vm list -g $rg --query '[].{id:id}' -o tsv) --only-show-errors -o none
-#Enabling boot diagnostics for all VMs in the resource group 
-echo Enabling boot diagnostics for all VMs in the resource group...
-# enable boot diagnostics for all VMs in the resource group
-az vm boot-diagnostics enable --ids $(az vm list -g $rg --query '[].{id:id}' -o tsv) -o none
+
+# #Enabling boot diagnostics for all VMs in the resource group 
+# echo Enabling boot diagnostics for all VMs in the resource group...
+# # enable boot diagnostics for all VMs in the resource group
+# az vm boot-diagnostics enable --ids $(az vm list -g $rg --query '[].{id:id}' -o tsv) -o none
 
 #Set NIC and LB as variables
 spk2nvaip=$(az network nic show -n spoke2-linux-nva1-nic -g $rg --query 'ipConfigurations[0].privateIPAddress' -o tsv)
