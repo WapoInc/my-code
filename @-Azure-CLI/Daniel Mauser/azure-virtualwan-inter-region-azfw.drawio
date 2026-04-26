@@ -1,6 +1,6 @@
 <mxfile host="Electron" agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/28.0.6 Chrome/138.0.7204.100 Electron/37.2.3 Safari/537.36" version="28.0.6">
   <diagram id="VUlZrNLKj0H3eoXomR7d" name="Page-1">
-    <mxGraphModel dx="1452" dy="1199" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1100" pageHeight="850" background="#FFFFFF" math="0" shadow="0">
+    <mxGraphModel dx="1213" dy="1199" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1100" pageHeight="850" background="#FFFFFF" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
@@ -18,7 +18,7 @@
         <mxCell id="14" style="edgeStyle=none;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.769;entryY=0.313;entryDx=0;entryDy=0;entryPerimeter=0;endArrow=none;endFill=0;fontSize=13;" parent="1" source="4" target="12" edge="1">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="4" value="&lt;b style=&quot;font-size: 13px;&quot;&gt;Spoke2&lt;/b&gt;&lt;br style=&quot;font-size: 13px;&quot;&gt;10.2.0.0/24&lt;br style=&quot;font-size: 13px;&quot;&gt;&lt;br style=&quot;font-size: 13px;&quot;&gt;&lt;b style=&quot;font-size: 13px;&quot;&gt;AZFW 10.2.0.68&lt;/b&gt;" style="whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;dashed=1;fontSize=13;" parent="1" vertex="1">
+        <mxCell id="4" value="&lt;b style=&quot;font-size: 13px;&quot;&gt;Spoke2&lt;/b&gt;&lt;br style=&quot;font-size: 13px;&quot;&gt;10.2.0.0/24&lt;br style=&quot;font-size: 13px;&quot;&gt;&lt;br style=&quot;font-size: 13px;&quot;&gt;&lt;b style=&quot;font-size: 13px;&quot;&gt;AZFW 10.2.0.68&lt;/b&gt;" style="whiteSpace=wrap;html=1;fillColor=#e51400;strokeColor=#B20000;dashed=1;fontSize=13;fontColor=#ffffff;" parent="1" vertex="1">
           <mxGeometry x="424.35" y="322" width="160" height="100" as="geometry" />
         </mxCell>
         <mxCell id="5" value="" style="aspect=fixed;html=1;points=[];align=center;image;fontSize=13;image=img/lib/azure2/networking/Virtual_Networks.svg;dashed=1;" parent="1" vertex="1">
@@ -95,7 +95,7 @@
         <mxCell id="28" style="edgeStyle=none;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.769;entryY=0.313;entryDx=0;entryDy=0;entryPerimeter=0;endArrow=none;endFill=0;fontSize=13;" parent="1" source="29" target="39" edge="1">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="29" value="Spoke4&lt;br style=&quot;font-size: 13px;&quot;&gt;10.4.0.0/24&lt;br style=&quot;font-size: 13px;&quot;&gt;&lt;br style=&quot;font-size: 13px;&quot;&gt;&lt;b style=&quot;font-size: 13px;&quot;&gt;AZFW 10.4.0.68&lt;/b&gt;" style="whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;dashed=1;fontSize=13;" parent="1" vertex="1">
+        <mxCell id="29" value="Spoke4&lt;br style=&quot;font-size: 13px;&quot;&gt;10.4.0.0/24&lt;br style=&quot;font-size: 13px;&quot;&gt;&lt;br style=&quot;font-size: 13px;&quot;&gt;&lt;b style=&quot;font-size: 13px;&quot;&gt;AZFW 10.4.0.68&lt;/b&gt;" style="whiteSpace=wrap;html=1;fillColor=#e51400;strokeColor=#B20000;dashed=1;fontSize=13;fontColor=#ffffff;" parent="1" vertex="1">
           <mxGeometry x="981.1" y="322" width="160" height="100" as="geometry" />
         </mxCell>
         <mxCell id="30" value="" style="aspect=fixed;html=1;points=[];align=center;image;fontSize=13;image=img/lib/azure2/networking/Virtual_Networks.svg;dashed=1;" parent="1" vertex="1">

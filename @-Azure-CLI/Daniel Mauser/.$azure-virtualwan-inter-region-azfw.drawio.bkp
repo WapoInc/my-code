@@ -134,7 +134,7 @@
         <mxCell id="wggMR91FoH1JLYyHe9jz-56" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="39" target="40">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="39" value="&lt;b style=&quot;font-size: 13px;&quot;&gt;Hub2&lt;br style=&quot;font-size: 13px;&quot;&gt;192.168.2.0/24&lt;/b&gt;" style="aspect=fixed;html=1;points=[];align=center;image;fontSize=13;image=img/lib/azure2/networking/Virtual_WANs.svg;" parent="1" vertex="1">
+        <mxCell id="39" value="&lt;b style=&quot;font-size: 13px;&quot;&gt;Hub2&lt;br style=&quot;font-size: 13px;&quot;&gt;192.168.2.0/24&lt;/b&gt;&lt;div&gt;&lt;b style=&quot;font-size: 13px;&quot;&gt;North Europe&lt;/b&gt;&lt;/div&gt;" style="aspect=fixed;html=1;points=[];align=center;image;fontSize=13;image=img/lib/azure2/networking/Virtual_WANs.svg;" parent="1" vertex="1">
           <mxGeometry x="931.1" y="492" width="79.22" height="78" as="geometry" />
         </mxCell>
         <mxCell id="40" value="&lt;b style=&quot;font-size: 13px;&quot;&gt;Branch 2&lt;/b&gt;&lt;br style=&quot;font-size: 13px;&quot;&gt;10.100.0.0/16&lt;br style=&quot;font-size: 13px;&quot;&gt;&lt;br style=&quot;font-size: 13px;&quot;&gt;&lt;b style=&quot;font-size: 13px;&quot;&gt;VM 10.200.0.4&lt;/b&gt;" style="whiteSpace=wrap;html=1;fillColor=#eeeeee;strokeColor=#36393d;dashed=1;fontSize=13;" parent="1" vertex="1">
