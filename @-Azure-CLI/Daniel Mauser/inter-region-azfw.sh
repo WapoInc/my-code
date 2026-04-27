@@ -4,7 +4,7 @@
 # cd '/Users/vinceresente/My-Github-Repos/my-code/@-Azure-CLI/Daniel Mauser/'
 region1=southafricanorth
 region2=northeurope
-rg=lab-vwan-irazfw4
+rg=lab-vwan-irazfw6
 vwanname=vwan-irazfw
 hub1name=hub1
 hub2name=hub2
@@ -130,11 +130,15 @@ az vm create -n spoke8VM  -g $rg --image Ubuntu2204 --public-ip-sku standard --s
 # Continue only if all VMs are created
 echo Waiting for VMs to be created...
 az vm wait -g $rg --created --ids $(az vm list -g $rg --query '[].{id:id}' -o tsv) --only-show-errors -o none
-#Enabling boot diagnostics for all VMs in the resource group 
-echo Enabling boot diagnostics for all VMs in the resource group...
-# enable boot diagnostics for all VMs in the resource group
-az vm boot-diagnostics enable --ids $(az vm list -g $rg --query '[].{id:id}' -o tsv) -o none
+#Enabling boot diagnostics for all VMs in the resource group
+
+
+# echo Enabling boot diagnostics for all VMs in the resource group...
+# # enable boot diagnostics for all VMs in the resource group
+# az vm boot-diagnostics enable --ids $(az vm list -g $rg --query '[].{id:id}' -o tsv) -o none
+
 ### Installing tools for networking connectivity validation such as traceroute, tcptraceroute, iperf and others (check link below for more details) 
+
 echo Installing tools for networking connectivity validation such as traceroute, tcptraceroute, iperf and others...
 nettoolsuri="https://raw.githubusercontent.com/dmauser/azure-vm-net-tools/main/script/nettools.sh"
 for vm in `az vm list -g $rg --query "[?contains(storageProfile.imageReference.publisher,'Canonical')].name" -o tsv`
