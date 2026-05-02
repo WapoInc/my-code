@@ -17,7 +17,7 @@ fi
 # Parameters (make changes based on your requirements)
 region1=southafricanorth
 region2=northeurope
-rg=lab2-vwan-nvabgp-v7
+rg=lab2-vwan-nvabgp-v8
 vwanname=vwan-nvabgp
 hub1name=hub1
 hub2name=hub2
@@ -97,25 +97,27 @@ az network public-ip create -n branch2-vpngw-pip -g $rg --location $region2 --sk
 wait
 echo "VNET peerings, NSGs, GatewaySubnets, and PIPs complete."
 
-# ─── WAVE 4: NSG rules + branch VPN GW creation ─────────────────────────────
-echo "Adding NSG rules and starting branch VPN Gateways..."
-# NSG rules (parallel)
+# ─── WAVE 4: NSG rules, then NSG subnet associations, then branch VPN GWs ────
+# IMPORTANT: NSG subnet association must complete BEFORE branch VPN GWs are
+# started with --no-wait. Azure locks the entire VNET into "Updating" state
+# while a VPN Gateway is provisioning, which causes subnet updates to fail.
+echo "Adding NSG rules..."
 az network nsg rule create -g $rg --nsg-name default-nsg-$region1 -n 'default-allow-ssh' --direction Inbound --priority 100 --source-address-prefixes $mypip --source-port-ranges '*' --destination-address-prefixes '*' --destination-port-ranges 22 --access Allow --protocol Tcp --description "Allow inbound SSH" --output none &
 az network nsg rule create -g $rg --nsg-name default-nsg-$region2 -n 'default-allow-ssh' --direction Inbound --priority 100 --source-address-prefixes $mypip --source-port-ranges '*' --destination-address-prefixes '*' --destination-port-ranges 22 --access Allow --protocol Tcp --description "Allow inbound SSH" --output none &
-
-# Branch VPN Gateways (GatewaySubnets and PIPs now exist)
-echo "Creating VPN Gateways in both branches (--no-wait)..."
-az network vnet-gateway create -n branch1-vpngw --public-ip-addresses branch1-vpngw-pip -g $rg --vnet branch1 --asn 65510 --gateway-type Vpn -l $region1 --sku VPNGW1AZ --vpn-gateway-generation Generation1 --no-wait
-az network vnet-gateway create -n branch2-vpngw --public-ip-addresses branch2-vpngw-pip -g $rg --vnet branch2 --asn 65509 --gateway-type Vpn -l $region2 --sku VPNGW1AZ --vpn-gateway-generation Generation1 --no-wait
 wait
 echo "NSG rules added."
 
-# NSG association to spoke/branch subnets (NSG rules now exist)
+# NSG association to spoke/branch subnets (must complete before VPN GWs start)
 echo "Associating NSGs to VNET subnets in parallel..."
 az network vnet subnet update --id $(az network vnet list -g $rg --query '[?location==`'$region1'`].{id:subnets[0].id}' -o tsv) --network-security-group default-nsg-$region1 -o none &
 az network vnet subnet update --id $(az network vnet list -g $rg --query '[?location==`'$region2'`].{id:subnets[0].id}' -o tsv) --network-security-group default-nsg-$region2 -o none &
 wait
 echo "NSG associations complete."
+
+# Branch VPN Gateways (GatewaySubnets, PIPs, and NSG associations now complete)
+echo "Creating VPN Gateways in both branches (--no-wait)..."
+az network vnet-gateway create -n branch1-vpngw --public-ip-addresses branch1-vpngw-pip -g $rg --vnet branch1 --asn 65510 --gateway-type Vpn -l $region1 --sku VPNGW1AZ --vpn-gateway-generation Generation1 --no-wait
+az network vnet-gateway create -n branch2-vpngw --public-ip-addresses branch2-vpngw-pip -g $rg --vnet branch2 --asn 65509 --gateway-type Vpn -l $region2 --sku VPNGW1AZ --vpn-gateway-generation Generation1 --no-wait
 
 # ─── WAVE 5: Wait for BOTH hubs simultaneously, then create hub VPN GWs + spoke connections ───
 echo "Waiting for Hub1 and Hub2 provisioning in parallel..."
