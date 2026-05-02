@@ -1,6 +1,6 @@
 Validation
 # Parameters 
-rg=lab2-vwan-nvabgp-v5 #set resource group
+rg=lab2-vwan-nvabgp-v6 #set resource group
 
 #### Validate connectivity between VNETs and Branches
 
@@ -30,7 +30,8 @@ az network nic show-effective-route-table -g $rg --name $nicname --output table
 echo -e 
 done
 
-# 3) Dump all vHUBs route tables.
+# 3) Dump all vHUBs route tables
+az config set extension.dynamic_install_allow_preview=false
 for vhubname in `az network vhub list -g $rg --query "[].id" -o tsv | rev | cut -d'/' -f1 | rev`
 do
   for routetable in `az network vhub route-table list --vhub-name $vhubname -g $rg --query "[].id" -o tsv`
