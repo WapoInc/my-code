@@ -1,15 +1,20 @@
 Validation
 # Parameters 
-rg=lab2-vwan-nvabgp-v6 #set resource group
+rg=lab2-vwan-nvabgp-v8 #set resource group
 
 #### Validate connectivity between VNETs and Branches
 
 # 1) Test connectivity between VMs (they can be accessible via SSH over Public IP or Serial Console)
 
 #List of VMs Public IP for SSH access
+echo ""
+echo ""
+echo "Public IP's"
 az network public-ip list -g $rg --query "[].{name:name,ip:ipAddress}" -o table 
-
+echo ""
 #List of VMs Private IPs
+echo "Private IP's"
+echo ""
 for nicname in `az network nic list -g $rg --query [].name -o tsv`
 do 
 echo -e $nicname private IP:

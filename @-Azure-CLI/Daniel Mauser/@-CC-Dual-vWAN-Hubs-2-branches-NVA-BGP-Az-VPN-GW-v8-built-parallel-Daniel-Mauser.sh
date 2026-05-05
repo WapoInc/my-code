@@ -59,6 +59,73 @@ az network vnet create --address-prefixes 10.4.2.0/24  -n spoke8 -g $rg -l $regi
 wait
 echo "All VNETs created."
 
+# ─── BACKGROUND Step 11: local gateways + branch-side VPN connections ────────
+# Launched immediately after VNETs exist. Polls until all 4 VPN GWs succeed,
+# then creates local gateways and branch-side connections concurrently with
+# Waves 3-10. The main flow does a final `wait` for this job before finishing.
+(
+    echo "[Step11-bg] Polling for all 4 VPN gateways to succeed (in parallel)..."
+    (
+        prState=''
+        while [[ $prState != 'Succeeded' ]]; do
+            prState=$(az network vnet-gateway show -g $rg -n branch1-vpngw --query provisioningState -o tsv 2>/dev/null)
+            echo "[Step11-bg] branch1-vpngw provisioningState=$prState"
+            sleep 5
+        done
+    ) &
+    (
+        prState=''
+        while [[ $prState != 'Succeeded' ]]; do
+            prState=$(az network vnet-gateway show -g $rg -n branch2-vpngw --query provisioningState -o tsv 2>/dev/null)
+            echo "[Step11-bg] branch2-vpngw provisioningState=$prState"
+            sleep 5
+        done
+    ) &
+    (
+        prState=''
+        while [[ $prState != 'Succeeded' ]]; do
+            prState=$(az network vpn-gateway show -g $rg -n $hub1name-vpngw --query provisioningState -o tsv 2>/dev/null)
+            echo "[Step11-bg] $hub1name-vpngw provisioningState=$prState"
+            sleep 5
+        done
+    ) &
+    (
+        prState=''
+        while [[ $prState != 'Succeeded' ]]; do
+            prState=$(az network vpn-gateway show -g $rg -n $hub2name-vpngw --query provisioningState -o tsv 2>/dev/null)
+            echo "[Step11-bg] $hub2name-vpngw provisioningState=$prState"
+            sleep 5
+        done
+    ) &
+    wait
+    echo "[Step11-bg] All 4 VPN gateways succeeded. Collecting hub GW BGP/IP settings..."
+
+    vwanh1gwbgp1=$(az network vpn-gateway show -n $hub1name-vpngw -g $rg --query 'bgpSettings.bgpPeeringAddresses[0].defaultBgpIpAddresses[0]' -o tsv)
+    vwanh1gwpip1=$(az network vpn-gateway show -n $hub1name-vpngw -g $rg --query 'bgpSettings.bgpPeeringAddresses[0].tunnelIpAddresses[0]' -o tsv)
+    vwanh1gwbgp2=$(az network vpn-gateway show -n $hub1name-vpngw -g $rg --query 'bgpSettings.bgpPeeringAddresses[1].defaultBgpIpAddresses[0]' -o tsv)
+    vwanh1gwpip2=$(az network vpn-gateway show -n $hub1name-vpngw -g $rg --query 'bgpSettings.bgpPeeringAddresses[1].tunnelIpAddresses[0]' -o tsv)
+    vwanh2gwbgp1=$(az network vpn-gateway show -n $hub2name-vpngw -g $rg --query 'bgpSettings.bgpPeeringAddresses[0].defaultBgpIpAddresses[0]' -o tsv)
+    vwanh2gwpip1=$(az network vpn-gateway show -n $hub2name-vpngw -g $rg --query 'bgpSettings.bgpPeeringAddresses[0].tunnelIpAddresses[0]' -o tsv)
+    vwanh2gwbgp2=$(az network vpn-gateway show -n $hub2name-vpngw -g $rg --query 'bgpSettings.bgpPeeringAddresses[1].defaultBgpIpAddresses[0]' -o tsv)
+    vwanh2gwpip2=$(az network vpn-gateway show -n $hub2name-vpngw -g $rg --query 'bgpSettings.bgpPeeringAddresses[1].tunnelIpAddresses[0]' -o tsv)
+
+    echo "[Step11-bg] Creating local gateways in parallel..."
+    az network local-gateway create -g $rg -n lng-$hub1name-gw1 --gateway-ip-address $vwanh1gwpip1 --asn 65515 --bgp-peering-address $vwanh1gwbgp1 -l $region1 --output none &
+    az network local-gateway create -g $rg -n lng-$hub1name-gw2 --gateway-ip-address $vwanh1gwpip2 --asn 65515 --bgp-peering-address $vwanh1gwbgp2 -l $region1 --output none &
+    az network local-gateway create -g $rg -n lng-$hub2name-gw1 --gateway-ip-address $vwanh2gwpip1 --asn 65515 --bgp-peering-address $vwanh2gwbgp1 -l $region2 --output none &
+    az network local-gateway create -g $rg -n lng-$hub2name-gw2 --gateway-ip-address $vwanh2gwpip2 --asn 65515 --bgp-peering-address $vwanh2gwbgp2 -l $region2 --output none &
+    wait
+
+    echo "[Step11-bg] Creating branch-side VPN connections in parallel..."
+    az network vpn-connection create -n branch1-to-$hub1name-gw1 -g $rg -l $region1 --vnet-gateway1 branch1-vpngw --local-gateway2 lng-$hub1name-gw1 --enable-bgp --shared-key 'abc123' --output none &
+    az network vpn-connection create -n branch1-to-$hub1name-gw2 -g $rg -l $region1 --vnet-gateway1 branch1-vpngw --local-gateway2 lng-$hub1name-gw2 --enable-bgp --shared-key 'abc123' --output none &
+    az network vpn-connection create -n branch2-to-$hub2name-gw1 -g $rg -l $region2 --vnet-gateway1 branch2-vpngw --local-gateway2 lng-$hub2name-gw1 --enable-bgp --shared-key 'abc123' --output none &
+    az network vpn-connection create -n branch2-to-$hub2name-gw2 -g $rg -l $region2 --vnet-gateway1 branch2-vpngw --local-gateway2 lng-$hub2name-gw2 --enable-bgp --shared-key 'abc123' --output none &
+    wait
+    echo "[Step11-bg] Branch-side VPN connections complete."
+) &
+STEP11_BG_PID=$!
+
 # ─── WAVE 2: Kick off all VMs immediately (VNETs exist; VMs deploy in background) ───
 # Branch and spoke VMs are started here so Azure can provision them in parallel
 # with all remaining network setup steps below.
@@ -473,20 +540,10 @@ echo "Waiting for site-branch1-conn and site-branch2-conn in parallel..."
 wait
 echo "Hub-side VPN connections succeeded."
 
-# ─── WAVE 11: Local gateways in parallel, then branch-side VPN connections in parallel ───
-echo "Creating local gateways in parallel..."
-az network local-gateway create -g $rg -n lng-$hub1name-gw1 --gateway-ip-address $vwanh1gwpip1 --asn 65515 --bgp-peering-address $vwanh1gwbgp1 -l $region1 --output none &
-az network local-gateway create -g $rg -n lng-$hub1name-gw2 --gateway-ip-address $vwanh1gwpip2 --asn 65515 --bgp-peering-address $vwanh1gwbgp2 -l $region1 --output none &
-az network local-gateway create -g $rg -n lng-$hub2name-gw1 --gateway-ip-address $vwanh2gwpip1 --asn 65515 --bgp-peering-address $vwanh2gwbgp1 -l $region2 --output none &
-az network local-gateway create -g $rg -n lng-$hub2name-gw2 --gateway-ip-address $vwanh2gwpip2 --asn 65515 --bgp-peering-address $vwanh2gwbgp2 -l $region2 --output none &
-wait
-
-echo "Creating branch-side VPN connections in parallel..."
-az network vpn-connection create -n branch1-to-$hub1name-gw1 -g $rg -l $region1 --vnet-gateway1 branch1-vpngw --local-gateway2 lng-$hub1name-gw1 --enable-bgp --shared-key 'abc123' --output none &
-az network vpn-connection create -n branch1-to-$hub1name-gw2 -g $rg -l $region1 --vnet-gateway1 branch1-vpngw --local-gateway2 lng-$hub1name-gw2 --enable-bgp --shared-key 'abc123' --output none &
-az network vpn-connection create -n branch2-to-$hub2name-gw1 -g $rg -l $region2 --vnet-gateway1 branch2-vpngw --local-gateway2 lng-$hub2name-gw1 --enable-bgp --shared-key 'abc123' --output none &
-az network vpn-connection create -n branch2-to-$hub2name-gw2 -g $rg -l $region2 --vnet-gateway1 branch2-vpngw --local-gateway2 lng-$hub2name-gw2 --enable-bgp --shared-key 'abc123' --output none &
-wait
+# Wait for the background Step 11 job (local gateways + branch-side connections)
+# that was launched after Wave 2. If it already finished, this returns instantly.
+echo "Waiting for background Step 11 (branch-side VPN connections) to complete..."
+wait $STEP11_BG_PID
 
 echo "Deployment has finished"
 # Add script ending time but hours, minutes and seconds
