@@ -66,36 +66,40 @@ echo "All VNETs created."
 (
     echo "[Step11-bg] Polling for all 4 VPN gateways to succeed (in parallel)..."
     (
-        prState=''
-        while [[ $prState != 'Succeeded' ]]; do
+        prState=''; attempts=0; maxAttempts=180
+        while [[ $prState != 'Succeeded' && $attempts -lt $maxAttempts ]]; do
+            sleep 30; attempts=$((attempts+1))
             prState=$(az network vnet-gateway show -g $rg -n branch1-vpngw --query provisioningState -o tsv 2>/dev/null)
-            echo "[Step11-bg] branch1-vpngw provisioningState=$prState"
-            sleep 5
+            [[ -n $prState ]] && echo "[Step11-bg] branch1-vpngw provisioningState=$prState" || echo "[Step11-bg] branch1-vpngw: not yet created (attempt $attempts/$maxAttempts)"
         done
+        [[ $prState != 'Succeeded' ]] && { echo "[Step11-bg] ERROR: branch1-vpngw did not reach Succeeded. Aborting Step11."; exit 1; }
     ) &
     (
-        prState=''
-        while [[ $prState != 'Succeeded' ]]; do
+        prState=''; attempts=0; maxAttempts=180
+        while [[ $prState != 'Succeeded' && $attempts -lt $maxAttempts ]]; do
+            sleep 30; attempts=$((attempts+1))
             prState=$(az network vnet-gateway show -g $rg -n branch2-vpngw --query provisioningState -o tsv 2>/dev/null)
-            echo "[Step11-bg] branch2-vpngw provisioningState=$prState"
-            sleep 5
+            [[ -n $prState ]] && echo "[Step11-bg] branch2-vpngw provisioningState=$prState" || echo "[Step11-bg] branch2-vpngw: not yet created (attempt $attempts/$maxAttempts)"
         done
+        [[ $prState != 'Succeeded' ]] && { echo "[Step11-bg] ERROR: branch2-vpngw did not reach Succeeded. Aborting Step11."; exit 1; }
     ) &
     (
-        prState=''
-        while [[ $prState != 'Succeeded' ]]; do
+        prState=''; attempts=0; maxAttempts=180
+        while [[ $prState != 'Succeeded' && $attempts -lt $maxAttempts ]]; do
+            sleep 30; attempts=$((attempts+1))
             prState=$(az network vpn-gateway show -g $rg -n $hub1name-vpngw --query provisioningState -o tsv 2>/dev/null)
-            echo "[Step11-bg] $hub1name-vpngw provisioningState=$prState"
-            sleep 5
+            [[ -n $prState ]] && echo "[Step11-bg] $hub1name-vpngw provisioningState=$prState" || echo "[Step11-bg] $hub1name-vpngw: not yet created (attempt $attempts/$maxAttempts)"
         done
+        [[ $prState != 'Succeeded' ]] && { echo "[Step11-bg] ERROR: $hub1name-vpngw did not reach Succeeded. Aborting Step11."; exit 1; }
     ) &
     (
-        prState=''
-        while [[ $prState != 'Succeeded' ]]; do
+        prState=''; attempts=0; maxAttempts=180
+        while [[ $prState != 'Succeeded' && $attempts -lt $maxAttempts ]]; do
+            sleep 30; attempts=$((attempts+1))
             prState=$(az network vpn-gateway show -g $rg -n $hub2name-vpngw --query provisioningState -o tsv 2>/dev/null)
-            echo "[Step11-bg] $hub2name-vpngw provisioningState=$prState"
-            sleep 5
+            [[ -n $prState ]] && echo "[Step11-bg] $hub2name-vpngw provisioningState=$prState" || echo "[Step11-bg] $hub2name-vpngw: not yet created (attempt $attempts/$maxAttempts)"
         done
+        [[ $prState != 'Succeeded' ]] && { echo "[Step11-bg] ERROR: $hub2name-vpngw did not reach Succeeded. Aborting Step11."; exit 1; }
     ) &
     wait
     echo "[Step11-bg] All 4 VPN gateways succeeded. Collecting hub GW BGP/IP settings..."
