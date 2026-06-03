@@ -4,7 +4,7 @@
 # This script creates all necessary resources for a site-to-site VPN connection
 
 # Variables - Modify these as needed
-RESOURCE_GROUP="Claude-rg4"
+RESOURCE_GROUP="Claude-rg5"
 LOCATION="southafricanorth"
 VNET_NAME="vnet-azure-hub"
 VNET_PREFIX="10.50.0.0/22"
@@ -24,54 +24,60 @@ fmt_duration() {
     [ $secs -ge 60 ] && printf "%dm %ds" $((secs/60)) $((secs%60)) || printf "%ds" $secs
 }
 
-log_resource() {
-    local label="$1" start_fmt="$2" end_fmt="$3" duration="$4"
-    printf "%-30s  Start: %s  End: %s  Duration: %s\n" "$label" "$start_fmt" "$end_fmt" "$(fmt_duration $duration)"
+begin_resource() {
+    local label="$1"
+    printf "Deploying: %s...\n" "$label"
+    _S=$(date +%s); _SF=$(date "+%H:%M:%S")
+}
+
+end_resource() {
+    local E=$(date +%s)
+    printf "  Start: %s  End: %s  Duration: %s\n\n" "$_SF" "$(date "+%H:%M:%S")" "$(fmt_duration $((E-_S)))"
 }
 
 echo "Starting Azure Site-to-Site VPN deployment..."
 echo "================================================"
 
 # Resource Group
-S=$(date +%s); SF=$(date "+%H:%M:%S")
+begin_resource "Resource Group"
 az group create --name $RESOURCE_GROUP --location $LOCATION > /dev/null 2>&1
-E=$(date +%s); log_resource "Resource Group" "$SF" "$(date "+%H:%M:%S")" $((E-S))
+end_resource
 
 # Virtual Network
-S=$(date +%s); SF=$(date "+%H:%M:%S")
+begin_resource "Virtual Network"
 az network vnet create --resource-group $RESOURCE_GROUP --name $VNET_NAME --address-prefix $VNET_PREFIX --location $LOCATION > /dev/null 2>&1
-E=$(date +%s); log_resource "Virtual Network" "$SF" "$(date "+%H:%M:%S")" $((E-S))
+end_resource
 
 # Gateway Subnet
-S=$(date +%s); SF=$(date "+%H:%M:%S")
+begin_resource "Gateway Subnet"
 az network vnet subnet create --resource-group $RESOURCE_GROUP --vnet-name $VNET_NAME --name GatewaySubnet --address-prefix $GATEWAY_SUBNET_PREFIX > /dev/null 2>&1
-E=$(date +%s); log_resource "Gateway Subnet" "$SF" "$(date "+%H:%M:%S")" $((E-S))
+end_resource
 
 # Internal Subnet
-S=$(date +%s); SF=$(date "+%H:%M:%S")
+begin_resource "Internal Subnet"
 az network vnet subnet create --resource-group $RESOURCE_GROUP --vnet-name $VNET_NAME --name $INTERNAL_SUBNET_NAME --address-prefix $INTERNAL_SUBNET_PREFIX > /dev/null 2>&1
-E=$(date +%s); log_resource "Internal Subnet" "$SF" "$(date "+%H:%M:%S")" $((E-S))
+end_resource
 
 # Public IP
-S=$(date +%s); SF=$(date "+%H:%M:%S")
+begin_resource "Public IP (VPN Gateway)"
 az network public-ip create --resource-group $RESOURCE_GROUP --name $VPN_GATEWAY_PIP_NAME --allocation-method Static --sku Standard > /dev/null 2>&1
-E=$(date +%s); log_resource "Public IP (VPN GW)" "$SF" "$(date "+%H:%M:%S")" $((E-S))
+end_resource
 
 # VPN Gateway (30-45 min)
-S=$(date +%s); SF=$(date "+%H:%M:%S")
+begin_resource "VPN Gateway"
 az network vnet-gateway create --resource-group $RESOURCE_GROUP --name $VPN_GATEWAY_NAME --vnet $VNET_NAME --public-ip-address $VPN_GATEWAY_PIP_NAME --gateway-type Vpn --vpn-type RouteBased --sku VpnGw1 --no-wait > /dev/null 2>&1
 az network vnet-gateway wait --resource-group $RESOURCE_GROUP --name $VPN_GATEWAY_NAME --created > /dev/null 2>&1
-E=$(date +%s); log_resource "VPN Gateway" "$SF" "$(date "+%H:%M:%S")" $((E-S))
+end_resource
 
 # Local Network Gateway
-S=$(date +%s); SF=$(date "+%H:%M:%S")
+begin_resource "Local Network Gateway"
 az network local-gateway create --resource-group $RESOURCE_GROUP --name $LOCAL_GATEWAY_NAME --gateway-ip-address $LOCAL_GATEWAY_PUBLIC_IP --local-address-prefixes $LOCAL_NETWORK_PREFIX > /dev/null 2>&1
-E=$(date +%s); log_resource "Local Network Gateway" "$SF" "$(date "+%H:%M:%S")" $((E-S))
+end_resource
 
 # VPN Connection
-S=$(date +%s); SF=$(date "+%H:%M:%S")
+begin_resource "VPN Connection (IPSec)"
 az network vpn-connection create --resource-group $RESOURCE_GROUP --name $CONNECTION_NAME --vnet-gateway1 $VPN_GATEWAY_NAME --local-gateway2 $LOCAL_GATEWAY_NAME --shared-key $SHARED_KEY --location $LOCATION > /dev/null 2>&1
-E=$(date +%s); log_resource "VPN Connection (IPSec)" "$SF" "$(date "+%H:%M:%S")" $((E-S))
+end_resource
 
 echo "================================================"
 echo "Deployment complete."

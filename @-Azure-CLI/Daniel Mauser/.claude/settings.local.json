@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(chmod +x \"/Users/vinceresente/My-Github-Repos/my-code/@-Azure-CLI/Daniel Mauser/deploy-ubuntu-vm-south-africa.sh\")"
+    ]
+  }
+}

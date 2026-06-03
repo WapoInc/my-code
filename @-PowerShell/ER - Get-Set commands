@@ -1,0 +1,7 @@
+
+Select-AzSubscription -SubscriptionName "viresent-New-AIRS"
+ 
+Get-AzExpressRouteCircuit -Name "ER-LIT-SA-North" -ResourceGroupName "ER-LTSA-RG" | Set-AzExpressRouteCircuit
+
+
+az network express-route peering delete --resource-group ER-LTSA-RG --circuit-name ER-LIT-SA-North --name AzurePrivatePeering

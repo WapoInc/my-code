@@ -8,13 +8,12 @@ Select-AzSubscription -SubscriptionName "Replace_with_your_subscription_name"
 
 
 
-
 ##================================================================================================
 # Run the following commands to retrieve your ExpressRoute circuit.
 Get-AzExpressRouteCircuit -ResourceGroupName "ER-LTSA-RG"
 
 ##================================================================================================
-$ckt = Get-AzExpressRouteCircuit -Name "ER-LTSA-SA-North" -ResourceGroupName "ER-LTSA-RG"
+$ckt = Get-AzExpressRouteCircuit -Name "ER-LIT-SA-North" -ResourceGroupName "ER-LTSA-RG"
 $ckt = Get-AzExpressRouteCircuit -Name "ER-LTSA-SA-West" -ResourceGroupName "ER-LTSA-RG"
 #$ckt = Get-AzExpressRouteCircuit -Name "ExpressRouteARMCircuit" -ResourceGroupName "ExpressRouteResourceGroup"
 
