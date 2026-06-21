@@ -36,7 +36,7 @@
 # VARIABLES
 # =============================================================================
 
-RG="vwan-san-ne-azfw-final-rg"
+RG="vwan-san-ne-azfw-final2-rg"
 VWAN="vwan-san-ne-azfw"
 
 # Hub 1 – South Africa North
