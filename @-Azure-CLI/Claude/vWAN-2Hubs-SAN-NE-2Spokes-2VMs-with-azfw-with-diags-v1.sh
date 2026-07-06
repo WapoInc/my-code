@@ -20,9 +20,6 @@
 #   - Azure Firewall Policy per hub (Standard) with ICMP allow rule (cross-spoke ping)
 #   - Azure Firewall (Standard) deployed inside each hub
 #   - Routing Intent (PrivateTraffic → Azure Firewall) on each hub
-#   - Log Analytics Workspace for firewall diagnostics
-#   - Diagnostic settings on both firewalls (AzureFirewallNetworkRule / AZFWNetworkRule
-#     / AZFWFlowTrace / AZFWFatFlow) – captures all network traffic (AzNWTraffic)
 #
 # Pre-requisite: Azure CLI with virtual-wan and azure-firewall extensions
 #   az extension add --name virtual-wan
@@ -39,7 +36,7 @@
 # VARIABLES
 # =============================================================================
 
-RG="vwan-san-ne-azfw-final2-rg"
+RG="vwan-san-ne-azfw-with-diags-v2-rg"
 VWAN="vwan-san-ne-azfw"
 
 # Hub 1 – South Africa North
@@ -89,8 +86,9 @@ FW_POLICY2_NAME="azfw-policy-hub2-ne"
 # Rule Collection Group (shared name used in both policies)
 FW_RCG_NAME="DefaultNetworkRuleCollectionGroup"
 
-# Log Analytics Workspace (for Firewall Diagnostics / AzNWTraffic)
-LAW_NAME="law-azfw-diag"
+# Log Analytics Workspaces (one per firewall – Resource Specific diagnostics)
+LAW1_NAME="law-azfw-hub1-san"
+LAW2_NAME="law-azfw-hub2-ne"
 DIAG_NAME1="azfw1-diag-settings"
 DIAG_NAME2="azfw2-diag-settings"
 
@@ -612,72 +610,7 @@ az network vhub connection wait \
 check "Spoke 2 connection ready"
 
 # =============================================================================
-# STEP 13 – Log Analytics Workspace (stores firewall diagnostic logs)
-# =============================================================================
-echo ""
-echo "=== Step 13: Creating Log Analytics Workspace: $LAW_NAME ==="
-
-az monitor log-analytics workspace create \
-    --resource-group "$RG" \
-    --workspace-name "$LAW_NAME" \
-    --location "$HUB1_LOCATION" \
-    --output none
-check "Log Analytics Workspace create"
-
-LAW_ID=$(az monitor log-analytics workspace show \
-    --resource-group "$RG" \
-    --workspace-name "$LAW_NAME" \
-    --query id -o tsv)
-check "Log Analytics Workspace ID lookup"
-echo "  Log Analytics Workspace ready: $LAW_ID"
-
-# =============================================================================
-# STEP 14 – Diagnostic Settings on both Azure Firewalls
-# Enables traffic logs (what Azure calls AzNWTraffic):
-#   AzureFirewallNetworkRule  – legacy table, every network rule hit (incl. ICMP)
-#   AZFWNetworkRule           – resource-specific table equivalent
-#   AZFWFlowTrace             – detailed per-flow trace
-#   AZFWFatFlow               – high-throughput flow aggregation
-#   AzureFirewallApplicationRule / AZFWApplicationRule – app rule hits
-#   AllMetrics                – throughput, SNAT, health metrics
-# =============================================================================
-echo ""
-echo "=== Step 14: Enabling Diagnostic Settings on Azure Firewalls ==="
-
-# Firewall IDs (re-fetched in case script is run standalone)
-AZF1_ID=$(az network firewall show \
-    --resource-group "$RG" \
-    --name "$AZF1_NAME" \
-    --query id -o tsv)
-check "Azure Firewall 1 ID lookup"
-
-AZF2_ID=$(az network firewall show \
-    --resource-group "$RG" \
-    --name "$AZF2_NAME" \
-    --query id -o tsv)
-check "Azure Firewall 2 ID lookup"
-
-echo "  Enabling diagnostics on $AZF1_NAME..."
-az monitor diagnostic-settings create \
-    --resource "$AZF1_ID" \
-    --workspace "$LAW_ID" \
-    --name "$DIAG_NAME1" \
-    --logs '[{"category":"AzureFirewallNetworkRule","enabled":true},{"category":"AzureFirewallApplicationRule","enabled":true},{"category":"AZFWNetworkRule","enabled":true},{"category":"AZFWApplicationRule","enabled":true},{"category":"AZFWFlowTrace","enabled":true},{"category":"AZFWFatFlow","enabled":true}]' \
-    --metrics '[{"category":"AllMetrics","enabled":true}]' \
-    --output none
-check "Firewall 1 diagnostic settings"
-echo "  $AZF1_NAME diagnostics → enabled."
-
-echo "  Enabling diagnostics on $AZF2_NAME..."
-az monitor diagnostic-settings create \
-    --resource "$AZF2_ID" \
-    --workspace "$LAW_ID" \
-    --name "$DIAG_NAME2" \
-    --logs '[{"category":"AzureFirewallNetworkRule","enabled":true},{"category":"AzureFirewallApplicationRule","enabled":true},{"category":"AZFWNetworkRule","enabled":true},{"category":"AZFWApplicationRule","enabled":true},{"category":"AZFWFlowTrace","enabled":true},{"category":"AZFWFatFlow","enabled":true}]' \
-    --metrics '[{"category":"AllMetrics","enabled":true}]' \
-    --output none
-check "Firewall 2 diagnostic settings"
-echo "  $AZF2_NAME diagnostics → enabled."
+# SUMMARY
 # =============================================================================
 VM1_PIP=$(az vm list-ip-addresses \
     --resource-group "$RG" \
@@ -702,6 +635,92 @@ VM2_PVT=$(az vm show \
     --name "$VM2_NAME" \
     --show-details \
     --query "privateIps" -o tsv)
+
+# =============================================================================
+# STEP 13 – Log Analytics Workspace
+# =============================================================================
+echo ""
+echo "=== Step 13: Creating Log Analytics Workspaces (one per firewall) ==="
+
+az monitor log-analytics workspace create \
+    --resource-group "$RG" \
+    --workspace-name "$LAW1_NAME" \
+    --location "$HUB1_LOCATION" \
+    --output none
+check "Log Analytics Workspace 1 create"
+
+LAW1_ID=$(az monitor log-analytics workspace show \
+    --resource-group "$RG" \
+    --workspace-name "$LAW1_NAME" \
+    --query id -o tsv)
+check "Log Analytics Workspace 1 ID lookup"
+echo "  LAW 1 ready: $LAW1_NAME"
+
+az monitor log-analytics workspace create \
+    --resource-group "$RG" \
+    --workspace-name "$LAW2_NAME" \
+    --location "$HUB2_LOCATION" \
+    --output none
+check "Log Analytics Workspace 2 create"
+
+LAW2_ID=$(az monitor log-analytics workspace show \
+    --resource-group "$RG" \
+    --workspace-name "$LAW2_NAME" \
+    --query id -o tsv)
+check "Log Analytics Workspace 2 ID lookup"
+echo "  LAW 2 ready: $LAW2_NAME"
+
+# =============================================================================
+# STEP 14 – Diagnostic Settings on both Azure Firewalls
+# Mode: Resource Specific (--export-to-resource-specific)
+#   → Logs go to dedicated AZFW* tables, NOT the legacy AzureDiagnostics table
+# Categories enabled:
+#   AZFWNetworkRule     – every network rule hit (incl. ICMP) → AzNWTraffic
+#   AZFWApplicationRule – application rule hits
+#   AZFWNatRule         – DNAT rule hits
+#   AZFWThreatIntel     – threat intelligence alerts
+#   AZFWFlowTrace       – detailed per-flow trace
+#   AZFWFatFlow         – high-throughput flow aggregation
+#   AllMetrics          – throughput, SNAT port usage, health
+# =============================================================================
+echo ""
+echo "=== Step 14: Enabling Diagnostic Settings on Azure Firewalls ==="
+
+AZF1_ID=$(az network firewall show \
+    --resource-group "$RG" \
+    --name "$AZF1_NAME" \
+    --query id -o tsv)
+check "Azure Firewall 1 ID lookup"
+
+AZF2_ID=$(az network firewall show \
+    --resource-group "$RG" \
+    --name "$AZF2_NAME" \
+    --query id -o tsv)
+check "Azure Firewall 2 ID lookup"
+
+echo "  Enabling diagnostics on $AZF1_NAME (Resource Specific → $LAW1_NAME)..."
+az monitor diagnostic-settings create \
+    --resource "$AZF1_ID" \
+    --workspace "$LAW1_ID" \
+    --name "$DIAG_NAME1" \
+    --export-to-resource-specific \
+    --logs '[{"category":"AZFWNetworkRule","enabled":true},{"category":"AZFWApplicationRule","enabled":true},{"category":"AZFWNatRule","enabled":true},{"category":"AZFWThreatIntel","enabled":true},{"category":"AZFWFlowTrace","enabled":true},{"category":"AZFWFatFlow","enabled":true}]' \
+    --metrics '[{"category":"AllMetrics","enabled":true}]' \
+    --output none
+check "Firewall 1 diagnostic settings"
+echo "  $AZF1_NAME diagnostics → enabled (Resource Specific)."
+
+echo "  Enabling diagnostics on $AZF2_NAME (Resource Specific → $LAW2_NAME)..."
+az monitor diagnostic-settings create \
+    --resource "$AZF2_ID" \
+    --workspace "$LAW2_ID" \
+    --name "$DIAG_NAME2" \
+    --export-to-resource-specific \
+    --logs '[{"category":"AZFWNetworkRule","enabled":true},{"category":"AZFWApplicationRule","enabled":true},{"category":"AZFWNatRule","enabled":true},{"category":"AZFWThreatIntel","enabled":true},{"category":"AZFWFlowTrace","enabled":true},{"category":"AZFWFatFlow","enabled":true}]' \
+    --metrics '[{"category":"AllMetrics","enabled":true}]' \
+    --output none
+check "Firewall 2 diagnostic settings"
+echo "  $AZF2_NAME diagnostics → enabled (Resource Specific)."
 
 echo ""
 echo "==============================================================================="
@@ -738,20 +757,22 @@ echo " Cross-hub ping test:"
 echo "   From VM1 → ssh $ADMIN_USERNAME@$VM1_PIP  then:  ping $VM2_PVT"
 echo "   From VM2 → ssh $ADMIN_USERNAME@$VM2_PIP  then:  ping $VM1_PVT"
 echo ""
-echo " Diagnostics (AzNWTraffic / network traffic logs):"
-echo "   Log Analytics Workspace : $LAW_NAME"
-echo "   Diag setting FW1        : $DIAG_NAME1"
-echo "   Diag setting FW2        : $DIAG_NAME2"
+echo " Diagnostics (Resource Specific mode – AZFW* tables):"
+echo "   FW1 Log Analytics Workspace : $LAW1_NAME (southafricanorth)"
+echo "   FW2 Log Analytics Workspace : $LAW2_NAME (northeurope)"
+echo "   Diag setting FW1            : $DIAG_NAME1"
+echo "   Diag setting FW2            : $DIAG_NAME2"
 echo ""
-echo " KQL – view ICMP traffic through firewalls (run in Log Analytics):"
-echo '   AzureFirewallNetworkRule'
-echo '   | where Protocol == "ICMP"'
-echo '   | project TimeGenerated, SourceIp, DestinationIp, Action, msg_s'
-echo '   | order by TimeGenerated desc'
+echo " NOTE: Allow 5-10 min for first logs to appear in Log Analytics."
 echo ""
-echo " KQL – resource-specific table:"
+echo " KQL – ICMP traffic (Resource Specific table, run in each LAW):"
 echo '   AZFWNetworkRule'
 echo '   | where Protocol == "ICMP"'
 echo '   | project TimeGenerated, SourceIp, DestinationIp, Action'
 echo '   | order by TimeGenerated desc'
+echo ""
+echo " KQL – All network rule hits:"
+echo '   AZFWNetworkRule'
+echo '   | summarize count() by SourceIp, DestinationIp, Protocol, Action'
+echo '   | order by count_ desc'
 echo "==============================================================================="
