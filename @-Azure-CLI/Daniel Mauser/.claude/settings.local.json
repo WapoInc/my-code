@@ -29,7 +29,10 @@
       "Bash(curl -s -o /dev/null -w \"HTTP %{http_code}\\\\n\" --max-time 10 \"http://20.164.212.253/\")",
       "Bash(curl -s --max-time 10 \"http://20.164.212.253/\")",
       "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\('deploymentStatus:', d.get\\('deploymentStatus'\\)\\); print\\('provisioningState:', d.get\\('provisioningState'\\)\\)\")",
-      "Bash(curl -s \"https://wapoinc-0cfd0d2a-are4enhngcfff4h8.b02.azurefd.net/\")"
+      "Bash(curl -s \"https://wapoinc-0cfd0d2a-are4enhngcfff4h8.b02.azurefd.net/\")",
+      "Bash(chmod +x \"/Users/vinceresente/My-Github-Repos/my-code/@-Azure-CLI/Claude/deploy-wapoinc-frontdoor-solution-v3.sh\")",
+      "Bash(bash -n \"/Users/vinceresente/My-Github-Repos/my-code/@-Azure-CLI/Claude/deploy-wapoinc-frontdoor-solution-v3.sh\")",
+      "Bash(python3 -c \"import xml.etree.ElementTree as ET; ET.parse\\('/Users/vinceresente/My-Github-Repos/my-code/@-Azure-CLI/Claude/wapoinc-frontdoor-deployment.drawio'\\); print\\('XML valid'\\)\")"
     ]
   }
 }

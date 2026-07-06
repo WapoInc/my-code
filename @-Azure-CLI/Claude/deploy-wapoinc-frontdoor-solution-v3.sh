@@ -14,22 +14,23 @@
 set -euo pipefail
 
 # ─── Shared Variables ────────────────────────────────────────────────────────
-RG="rg-wapoinc"
-LOCATION="eastus2"   # eastus had no VM SKU capacity for this subscription
+RG="rg-wapoinc-v3"
+LOCATION="southafricanorth"
 # Deterministic suffix (not $RANDOM) so re-running the script targets the
 # same WebApp / Front Door endpoint names instead of creating new ones.
 SUFFIX=$(az account show --query id -o tsv | tr -d '-' | cut -c1-8)
 
 # WebApp
 APP_PLAN="plan-wapoinc"
-APP_NAME="app-wapoinc-$SUFFIX"
+APP_NAME="app-${RG}-${SUFFIX}"   # tied to $RG so it can't collide with a WebApp
+                                  # left over in a different resource group
 SKU_APP="F1"                    # Free tier
-RUNTIME="NODE:20-lts"
+RUNTIME="NODE:22-lts"
 
 # VM
 VM_NAME="vm-wapoinc-apache"
 ADMIN_USER="azureuser"
-VM_SIZE="Standard_D2s_v5"
+VM_SIZE="Standard_B2s"
 IMAGE="Ubuntu2404"
 PUBLIC_IP_NAME="pip-wapoinc-vm"
 NSG_NAME="nsg-wapoinc-vm"
@@ -38,7 +39,8 @@ SUBNET_NAME="subnet-wapoinc"
 
 # Azure Front Door (Standard)
 AFD_PROFILE="afd-wapoinc"
-AFD_ENDPOINT="wapoinc-$SUFFIX"   # must be globally unique
+AFD_ENDPOINT="${RG}-${SUFFIX}"   # tied to $RG so it can't collide with an
+                                  # endpoint reserved by a different resource group
 AFD_ORIGIN_GROUP="og-wapoinc"    # backend pool equivalent
 AFD_ORIGIN_WEBAPP="origin-webapp"
 AFD_ORIGIN_VM="origin-vm"
@@ -388,15 +390,38 @@ AFD_HOSTNAME=$(az afd endpoint show \
   --query "hostName" \
   --output tsv)
 
+# ─── Wait for Front Door edge propagation ───────────────────────────────────
+# New/changed Front Door config can take up to 20 minutes to reach the edge
+# network (up to 40 minutes after back-to-back changes), so poll the live
+# endpoint instead of just assuming it's ready.
+echo ""
+echo "Waiting for Front Door endpoint https://$AFD_HOSTNAME/ to go live..."
+FD_READY=false
+MAX_ATTEMPTS=60
+for i in $(seq 1 $MAX_ATTEMPTS); do
+  HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 "https://$AFD_HOSTNAME/" || true)
+  if [ "$HTTP_CODE" = "200" ]; then
+    echo "  [$i/$MAX_ATTEMPTS] HTTP $HTTP_CODE — Front Door is live."
+    FD_READY=true
+    break
+  fi
+  echo "  [$i/$MAX_ATTEMPTS] HTTP $HTTP_CODE — not ready yet, waiting 20s..."
+  sleep 20
+done
+
 # ─── Output ──────────────────────────────────────────────────────────────────
 echo ""
 echo "==========================================="
-echo " Deployment complete!"
+if [ "$FD_READY" = true ]; then
+  echo " Deployment complete! Front Door is live."
+else
+  echo " Deployment complete, but Front Door hadn't gone live after 20 minutes."
+  echo " This can happen after back-to-back config changes (up to 40 min)."
+  echo " Re-check with: curl -I https://$AFD_HOSTNAME/"
+fi
 echo " Front Door URL : https://$AFD_HOSTNAME"
 echo "   (backend pool load-balances between the WebApp and the VM)"
 echo " Web App URL    : https://$WEBAPP_HOSTNAME"
 echo " VM Public IP   : http://$VM_PUBLIC_IP"
 echo " SSH to VM      : ssh $ADMIN_USER@$VM_PUBLIC_IP"
-echo ""
-echo " Note: Front Door endpoint propagation can take a few minutes."
 echo "==========================================="
