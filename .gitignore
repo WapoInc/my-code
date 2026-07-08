@@ -1,2 +1,17 @@
-# Apple DS files
+# macOS
 .DS_Store
+**/.DS_Store
+
+# Editor/IDE
+.vscode/
+.idea/
+
+# Logs and temp files
+*.log
+*.tmp
+
+# Secrets and credentials — never commit these
+.env
+*.pem
+*.key
+azureProfile.json
