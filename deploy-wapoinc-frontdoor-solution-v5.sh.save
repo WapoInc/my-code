@@ -4,7 +4,7 @@
 #   1. A Linux App Service (WebApp)
 #   2. An Ubuntu VM running Apache
 #
-# v4 — Added: per-resource deployment prompts, start/end timestamps,
+# v5 — Added: per-resource deployment prompts, start/end timestamps,
 #       and elapsed time tracking for each resource.
 #
 # NOTE: Azure Front Door (classic) stopped accepting new profile creation
@@ -33,7 +33,7 @@ format_duration() {
   local remaining_seconds=$((seconds % 60))
   if [ "$minutes" -gt 0 ]; then
     echo "${minutes}m ${remaining_seconds}s"
-  else
+xx3  else
     echo "${remaining_seconds}s"
   fi
 }
@@ -42,10 +42,11 @@ deploy_start() {
   local resource_type=$1
   local resource_name=$2
   echo ""
-  echo "│ DEPLOYING: $resource_type"
-  echo "│ Name:      $resource_name"
-  echo "│ Started:   $(timestamp)"
-  echo "└──────────────────────────────────────────────────────────────────────"
+  echo -e "\033[32m──────────────────────────────────────────────────────────────────────────\033[0m"
+  echo " DEPLOYING: $resource_type"
+  echo " Name:      $resource_name"
+  echo " Started:   $(timestamp)"
+  echo -e "\033[32m──────────────────────────────────────────────────────────────────────────\033[0m"
   date +%s
 }
 
@@ -65,14 +66,14 @@ SCRIPT_START_TIME=$(timestamp)
 SCRIPT_START_EPOCH=$(date +%s)
 
 echo "╔══════════════════════════════════════════════════════════════════════════╗"
-echo "║        WapoInc Front Door Solution — Deployment Script v4              ║"
+echo "║        WapoInc Front Door Solution — Deployment Script v5              ║"
 echo "╠══════════════════════════════════════════════════════════════════════════╣"
 echo "║  Start Date/Time: $SCRIPT_START_TIME                          ║"
 echo "╚══════════════════════════════════════════════════════════════════════════╝"
 echo ""
 
 # ─── Shared Variables ────────────────────────────────────────────────────────
-RG="rg-wapoinc-v4"
+RG="rg-wapoinc-v5"
 LOCATION="southafricanorth"
 # Deterministic suffix (not $RANDOM) so re-running the script targets the
 # same WebApp / Front Door endpoint names instead of creating new ones.
@@ -478,10 +479,11 @@ AFD_HOSTNAME=$(az afd endpoint show \
 # network (up to 40 minutes after back-to-back changes), so poll the live
 # endpoint instead of just assuming it's ready.
 echo ""
-echo "│ WAITING: Front Door Edge Propagation"
-echo "│ Endpoint: https://$AFD_HOSTNAME/"
-echo "│ Started:  $(timestamp)"
-echo "└──────────────────────────────────────────────────────────────────────"
+echo -e "\033[32m──────────────────────────────────────────────────────────────────────────\033[0m"
+echo " WAITING: Front Door Edge Propagation"
+echo " Endpoint: https://$AFD_HOSTNAME/"
+echo " Started:  $(timestamp)"
+echo -e "\033[32m──────────────────────────────────────────────────────────────────────────\033[0m"
 PROP_START_EPOCH=$(date +%s)
 FD_READY=false
 MAX_ATTEMPTS=60
@@ -512,7 +514,7 @@ if [ "$FD_READY" = true ]; then
   echo "║  Status         : ✓ SUCCESS — Front Door is live                       ║"
 else
   echo "║  Status         : ⚠ COMPLETE (Front Door not yet live after 20 min)    ║"
-  printf "║%-74s║\n" "                   Re-check: curl -I https://$AFD_HOSTNAME/"
+  echo "║                   Re-check: curl -I https://$AFD_HOSTNAME/"
 fi
 echo "╠══════════════════════════════════════════════════════════════════════════╣"
 echo "║  Start Date/Time : $SCRIPT_START_TIME                                    ║"
