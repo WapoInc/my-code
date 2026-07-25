@@ -23,7 +23,7 @@ set -euo pipefail
 ###############################################################################
 LOCATION="southafricanorth"
 SUBSCRIPTION=""                       # optional; leave "" to use current default
-RG="mneu-rg-prod-mrk-001"             # RG is not in the diagram -- adjust to taste
+RG="mneu-rg-prod-mrk-001-v2"          # RG is not in the diagram -- adjust to taste
 
 ###############################################################################
 # 1. RESOURCE NAMES (exactly as per the HLD)
@@ -32,26 +32,26 @@ RG="mneu-rg-prod-mrk-001"             # RG is not in the diagram -- adjust to ta
 #          (no hyphens) -- so the 'mkt' SQL name is folded into 'mneustprodmkt001'.
 #          Add a suffix to either if the name is already taken.
 ###############################################################################
-AGW_NAME="mneu-agw-prod-mrk-001"
-API_APP="mneu-api-prod-mrk-001"
-STORAGE_ACCT="mneustprodmkt001"       # backend static website (was the SQL server)
-VM_NAME="mneu-vm-prod-mrk-001"
+AGW_NAME="mneu-agw-prod-mrk-001-v2"
+API_APP="mneu-api-prod-mrk-001-v2"
+STORAGE_ACCT="mneustprodmkt001v2"     # backend static website (was the SQL server)
+VM_NAME="mneu-vm-prod-mrk-001-v2"
 
 ###############################################################################
 # 2. NETWORKING
 ###############################################################################
-VNET="mneu-vnet-prod-mrk-001"
+VNET="mneu-vnet-prod-mrk-001-v2"
 VNET_CIDR="10.20.0.0/16"
-SUBNET_AGW="snet-agw";       SUBNET_AGW_CIDR="10.20.1.0/24"   # App Gateway (dedicated)
-SUBNET_APP="snet-appsvc";    SUBNET_APP_CIDR="10.20.3.0/24"   # App Service VNet integration
-SUBNET_WORKLOAD="snet-workload"; SUBNET_WORKLOAD_CIDR="10.20.4.0/24"  # extra subnet, same VNet as AGW (holds the VM)
+SUBNET_AGW="snet-agw-v2";       SUBNET_AGW_CIDR="10.20.1.0/24"   # App Gateway (dedicated)
+SUBNET_APP="snet-appsvc-v2";    SUBNET_APP_CIDR="10.20.3.0/24"   # App Service VNet integration
+SUBNET_WORKLOAD="snet-workload-v2"; SUBNET_WORKLOAD_CIDR="10.20.4.0/24"  # extra subnet, same VNet as AGW (holds the VM)
 AGW_PRIVATE_IP="10.20.1.10"           # static private frontend IP; must be inside SUBNET_AGW_CIDR
-WAF_POLICY="mneu-wafpol-prod-mrk-001"
+WAF_POLICY="mneu-wafpol-prod-mrk-001-v2"
 
 ###############################################################################
 # 3. SKUs / SIZES  -- reasonable prod defaults, tune as needed
 ###############################################################################
-APP_PLAN="mneu-asp-prod-mrk-001"
+APP_PLAN="mneu-asp-prod-mrk-001-v2"
 APP_PLAN_SKU="P1v3"                   # Linux App Service plan
 APP_RUNTIME="DOTNETCORE:8.0"          # change to NODE:20-lts, PYTHON:3.12, etc.
 VM_SIZE="Standard_B2s"
@@ -61,7 +61,7 @@ VM_ADMIN="adminroot"
 # !! source control) and Azure's banned-password check may reject a common value
 # !! like this at deploy time. Prefer a runtime prompt or Key Vault for anything real.
 VM_ADMIN_PASSWORD='P@ssw0rd123!'
-VM_NSG="mneu-nsg-vm-prod-mrk-001"       # NSG protecting the VM
+VM_NSG="mneu-nsg-vm-prod-mrk-001-v2"    # NSG protecting the VM
 
 ###############################################################################
 # --- Helpers ---
@@ -205,7 +205,7 @@ http.createServer((_req, res) => {
 <html lang="en"><head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Hello Shemo</title>
+<title>Hello from castlegate</title>
 <style>
   body { margin:0; height:100vh; display:flex; align-items:center;
          justify-content:center; font-family:system-ui,sans-serif;
@@ -213,7 +213,7 @@ http.createServer((_req, res) => {
   h1 { font-size:clamp(2rem,8vw,5rem); }
 </style>
 </head><body>
-  <h1>Hello Shemo</h1>
+  <h1>Hello from castlegate</h1>
 </body></html>`);
 }).listen(port, () => console.log('Listening on port ' + port));
 APPEOF
@@ -224,8 +224,13 @@ PKGEOF
 # Switch runtime to Node:20-lts (idempotent)
 az webapp config set -g "$RG" -n "$API_APP" \
   --linux-fx-version "NODE|20-lts" -o none
+# Enable Oryx build during zip deploy (installs deps / runs start script for Linux)
+az webapp config appsettings set -g "$RG" -n "$API_APP" \
+  --settings SCM_DO_BUILD_DURING_DEPLOYMENT=true -o none
+# --track-status false avoids the 404 from the deploymentStatus polling endpoint,
+# which is a known Azure CLI issue where tracking fails even though the zip deploy succeeds.
 az webapp deploy -g "$RG" -n "$API_APP" \
-  --src-path "$TMP_APP_DIR/app.zip" --type zip -o none
+  --src-path "$TMP_APP_DIR/app.zip" --type zip --track-status false -o none
 rm -rf "$TMP_APP_DIR"
 made "Node.js PoC app deployed to $API_APP"
 
@@ -352,7 +357,7 @@ if exists az vm show -g "$RG" -n "$VM_NAME"; then
   found "VM $VM_NAME"
 else
   az vm create -g "$RG" -n "$VM_NAME" -l "$LOCATION" \
-    --computer-name "mneu-vm-mrk-001" \
+    --computer-name "mneu-vm-mrk-v2" \
     --image "$VM_IMAGE" --size "$VM_SIZE" \
     --vnet-name "$VNET" --subnet "$SUBNET_WORKLOAD" \
     --admin-username "$VM_ADMIN" --admin-password "$VM_ADMIN_PASSWORD" \
