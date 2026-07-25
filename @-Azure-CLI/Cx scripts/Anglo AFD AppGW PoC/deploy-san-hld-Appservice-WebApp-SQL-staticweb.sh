@@ -61,9 +61,7 @@ VM_ADMIN="adminroot"
 # !! source control) and Azure's banned-password check may reject a common value
 # !! like this at deploy time. Prefer a runtime prompt or Key Vault for anything real.
 VM_ADMIN_PASSWORD='P@ssw0rd123!'
-VM_PIP="mneu-pip-vm-prod-mrk-001"       # public IP for RDP access
-VM_NSG="mneu-nsg-vm-prod-mrk-001"       # NSG allowing RDP from the fixed source
-RDP_SOURCE_IP="156.155.28.158"
+VM_NSG="mneu-nsg-vm-prod-mrk-001"       # NSG protecting the VM
 
 ###############################################################################
 # --- Helpers ---
@@ -284,6 +282,16 @@ else
     --vnet-name "$VNET" --subnet "$SUBNET_AGW" -o none
   made "App Service access restriction: allow $SUBNET_AGW only"
 fi
+# Also lock the SCM (Kudu) endpoint — prevents direct public access to the deploy API.
+if az webapp config access-restriction show -g "$RG" -n "$API_APP" --scm-site true \
+    --query "ipSecurityRestrictions[?name=='Allow-AGW-Subnet-SCM']" -o tsv 2>/dev/null | grep -q .; then
+  found "App Service SCM access restriction Allow-AGW-Subnet-SCM"
+else
+  az webapp config access-restriction add -g "$RG" -n "$API_APP" --scm-site true \
+    --rule-name "Allow-AGW-Subnet-SCM" --action Allow --priority 100 \
+    --vnet-name "$VNET" --subnet "$SUBNET_AGW" -o none
+  made "App Service SCM access restriction: allow $SUBNET_AGW only"
+fi
 
 say "Storage account (backend static website): $STORAGE_ACCT"
 if exists az storage account show -g "$RG" -n "$STORAGE_ACCT"; then
@@ -321,32 +329,12 @@ az storage account update -g "$RG" -n "$STORAGE_ACCT" \
   --default-action Deny --bypass AzureServices -o none
 made "Storage firewall: allow $SUBNET_AGW + $SUBNET_WORKLOAD + $SUBNET_APP"
 
-say "Public IP for VM RDP: $VM_PIP"
-if exists az network public-ip show -g "$RG" -n "$VM_PIP"; then
-  found "Public IP $VM_PIP"
-else
-  az network public-ip create -g "$RG" -n "$VM_PIP" -l "$LOCATION" \
-    --sku Standard --allocation-method Static -o none
-  made "Public IP $VM_PIP created"
-fi
-
-say "NSG for VM RDP (allow $RDP_SOURCE_IP -> 3389): $VM_NSG"
+say "NSG for VM (VNet-internal protection): $VM_NSG"
 if exists az network nsg show -g "$RG" -n "$VM_NSG"; then
   found "NSG $VM_NSG"
 else
   az network nsg create -g "$RG" -n "$VM_NSG" -l "$LOCATION" -o none
   made "NSG $VM_NSG created"
-fi
-# Idempotent: add/update the RDP allow rule
-if exists az network nsg rule show -g "$RG" --nsg-name "$VM_NSG" -n "Allow-RDP-Source"; then
-  found "NSG rule Allow-RDP-Source"
-else
-  az network nsg rule create -g "$RG" --nsg-name "$VM_NSG" \
-    -n "Allow-RDP-Source" --priority 100 \
-    --source-address-prefixes "${RDP_SOURCE_IP}/32" \
-    --destination-port-ranges 3389 --protocol Tcp \
-    --access Allow --direction Inbound -o none
-  made "NSG rule Allow-RDP-Source created (src ${RDP_SOURCE_IP}/32 -> TCP 3389)"
 fi
 # Allow outbound HTTP + HTTPS so the VM can browse to the storage static site
 if exists az network nsg rule show -g "$RG" --nsg-name "$VM_NSG" -n "Allow-Web-Outbound"; then
@@ -368,23 +356,19 @@ else
     --image "$VM_IMAGE" --size "$VM_SIZE" \
     --vnet-name "$VNET" --subnet "$SUBNET_WORKLOAD" \
     --admin-username "$VM_ADMIN" --admin-password "$VM_ADMIN_PASSWORD" \
-    --public-ip-address "$VM_PIP" --nsg "$VM_NSG" -o none
+    --public-ip-address "" --nsg "$VM_NSG" -o none
   made "VM $VM_NAME created"
   waitmsg "VM $VM_NAME to finish provisioning"
   az vm wait -g "$RG" -n "$VM_NAME" --created -o none
 fi
-# Idempotent: ensure public IP and NSG are wired to the NIC (handles existing VM case)
+# Idempotent: ensure NSG is wired to the NIC
 VM_NIC=$(az vm show -g "$RG" -n "$VM_NAME" \
   --query "networkProfile.networkInterfaces[0].id" -o tsv | xargs basename)
 az network nic update -g "$RG" -n "$VM_NIC" --network-security-group "$VM_NSG" -o none
-az network nic ip-config update -g "$RG" --nic-name "$VM_NIC" \
-  -n ipconfig1 --public-ip-address "$VM_PIP" -o none
-made "NIC $VM_NIC: NSG and public IP ensured"
+made "NIC $VM_NIC: NSG ensured (no public IP)"
 
 echo ""
 echo "=== Done ==="
-VM_PUBLIC_IP=$(az network public-ip show -g "$RG" -n "$VM_PIP" --query ipAddress -o tsv 2>/dev/null || echo "(pending)")
 echo "App Gateway private frontend IP: ${AGW_PRIVATE_IP} (reachable only inside the VNet / via peering / VPN / ER)"
-echo "VM RDP:       ${VM_PUBLIC_IP}:3389  (allowed from ${RDP_SOURCE_IP} only)"
-echo "API app URL:  https://${API_APP}.azurewebsites.net"
-echo "App Service:  https://${API_APP}.azurewebsites.net  (serves 'Hello Shemo' via AGW at ${AGW_PRIVATE_IP})"
+echo "VM:           private only (no public IP) -- use Bastion or VPN to connect"
+echo "API app URL:  https://${API_APP}.azurewebsites.net (accessible via AGW only)"
