@@ -209,7 +209,7 @@ http.createServer((_req, res) => {
 <html lang="en"><head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Hello from castlegate</title>
+<title>Hello from castlegate to home</title>
 <style>
   body { margin:0; height:100vh; display:flex; align-items:center;
          justify-content:center; font-family:system-ui,sans-serif;
