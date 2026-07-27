@@ -23,8 +23,7 @@ set -euo pipefail
 ###############################################################################
 LOCATION="southafricanorth"
 SUBSCRIPTION=""                       # optional; leave "" to use current default
-RG="mneu-rg-prod-mrk-001"             # RG is not in the diagram -- adjust to taste
-
+RG="2-deploy-AppGw-AppService-backend-StorageAccWebApp-2"             # RG
 ###############################################################################
 # 1. RESOURCE NAMES (exactly as per the HLD)
 #    NOTE: API_APP must be GLOBALLY unique (*.azurewebsites.net) and STORAGE_ACCT
@@ -32,25 +31,25 @@ RG="mneu-rg-prod-mrk-001"             # RG is not in the diagram -- adjust to ta
 #          (no hyphens) -- so the 'mkt' SQL name is folded into 'mneustprodmkt001'.
 #          Add a suffix to either if the name is already taken.
 ###############################################################################
-AGW_NAME="mneu-agw-prod-mrk-001"
-API_APP="mneu-api-prod-mrk-001"
-VM_NAME="mneu-vm-prod-mrk-001"
+AGW_NAME="mneu-agw-prod-mrk-001-2"
+API_APP="mneu-api-prod-mrk-001-2"
+VM_NAME="mneu-vm-prod-mrk-001-2"
 
 ###############################################################################
 # 2. NETWORKING
 ###############################################################################
-VNET="mneu-vnet-prod-mrk-001"
+VNET="mneu-vnet-prod-mrk-001-2"
 VNET_CIDR="10.20.0.0/16"
-SUBNET_AGW="snet-agw";       SUBNET_AGW_CIDR="10.20.1.0/24"   # App Gateway (dedicated)
-SUBNET_APP="snet-appsvc";    SUBNET_APP_CIDR="10.20.3.0/24"   # App Service VNet integration
-SUBNET_WORKLOAD="snet-workload"; SUBNET_WORKLOAD_CIDR="10.20.4.0/24"  # extra subnet, same VNet as AGW (holds the VM)
+SUBNET_AGW="snet-agw-2";       SUBNET_AGW_CIDR="10.20.1.0/24"   # App Gateway (dedicated)
+SUBNET_APP="snet-appsvc-2";    SUBNET_APP_CIDR="10.20.3.0/24"   # App Service VNet integration
+SUBNET_WORKLOAD="snet-workload-2"; SUBNET_WORKLOAD_CIDR="10.20.4.0/24"  # extra subnet, same VNet as AGW (holds the VM)
 AGW_PRIVATE_IP="10.20.1.10"           # static private frontend IP; must be inside SUBNET_AGW_CIDR
-WAF_POLICY="mneu-wafpol-prod-mrk-001"
+WAF_POLICY="mneu-wafpol-prod-mrk-001-2"
 
 ###############################################################################
 # 3. SKUs / SIZES  -- reasonable prod defaults, tune as needed
 ###############################################################################
-APP_PLAN="mneu-asp-prod-mrk-001"
+APP_PLAN="mneu-asp-prod-mrk-001-2"
 APP_PLAN_SKU="P1v3"                   # Linux App Service plan
 APP_RUNTIME="DOTNETCORE:8.0"          # change to NODE:20-lts, PYTHON:3.12, etc.
 VM_SIZE="Standard_B2s"
@@ -60,8 +59,8 @@ VM_ADMIN="adminroot"
 # !! source control) and Azure's banned-password check may reject a common value
 # !! like this at deploy time. Prefer a runtime prompt or Key Vault for anything real.
 VM_ADMIN_PASSWORD='P@ssw0rd123!'
-VM_PIP="mneu-pip-vm-prod-mrk-001"       # public IP for RDP access
-VM_NSG="mneu-nsg-vm-prod-mrk-001"       # NSG allowing RDP from the fixed source
+VM_PIP="mneu-pip-vm-prod-mrk-001-2"       # public IP for RDP access
+VM_NSG="mneu-nsg-vm-prod-mrk-001-2"       # NSG allowing RDP from the fixed source
 RDP_SOURCE_IP="156.155.28.158"
 
 ###############################################################################
@@ -327,7 +326,7 @@ if exists az vm show -g "$RG" -n "$VM_NAME"; then
   found "VM $VM_NAME"
 else
   az vm create -g "$RG" -n "$VM_NAME" -l "$LOCATION" \
-    --computer-name "mneu-vm-mrk-001" \
+    --computer-name "mneu-vm-mrk-001-2" \
     --image "$VM_IMAGE" --size "$VM_SIZE" \
     --vnet-name "$VNET" --subnet "$SUBNET_WORKLOAD" \
     --admin-username "$VM_ADMIN" --admin-password "$VM_ADMIN_PASSWORD" \

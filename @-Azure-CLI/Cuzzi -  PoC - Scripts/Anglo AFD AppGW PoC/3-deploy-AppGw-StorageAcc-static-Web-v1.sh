@@ -17,7 +17,7 @@ set -euo pipefail
 ###############################################################################
 LOCATION="southafricanorth"
 SUBSCRIPTION=""                       # optional; leave "" to use current default
-RG="mneu-rg-prod-mrk-001-v2"
+RG="3-deploy-AppGw-StorageAcc-static-Web-v1"
 
 ###############################################################################
 # 1. RESOURCE NAMES
