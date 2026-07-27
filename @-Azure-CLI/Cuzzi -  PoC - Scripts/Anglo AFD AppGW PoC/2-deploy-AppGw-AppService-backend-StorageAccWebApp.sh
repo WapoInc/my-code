@@ -19,7 +19,7 @@
 set -euo pipefail
 
 ###############################################################################
-# 0. CORE SETTINGS  -- edit these
+# 0. CORE SETTINGS  -- edit these ###
 ###############################################################################
 LOCATION="southafricanorth"
 SUBSCRIPTION=""                       # optional; leave "" to use current default
