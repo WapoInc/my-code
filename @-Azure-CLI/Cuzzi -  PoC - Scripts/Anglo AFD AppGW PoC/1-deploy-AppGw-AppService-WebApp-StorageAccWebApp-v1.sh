@@ -3,7 +3,7 @@
 # South Africa North HLD deployment
 #
 #   [ active VM ] --> [ App Gateway (WAF) ] --> [ API App (App Service) ] --> [ Storage static website ]
-#
+##
 # IDEMPOTENT: every resource is checked first. If it already exists the script
 # prints [FOUND] and skips creation. Dependency-sensitive resources are followed
 # by an explicit wait so dependents are never built against a half-ready parent.
@@ -19,7 +19,7 @@
 set -euo pipefail
 
 ###############################################################################
-# 0. CORE SETTINGS  -- edit these
+# 0. CORE SETTINGS  -- edit these ###
 ###############################################################################
 LOCATION="southafricanorth"
 SUBSCRIPTION=""                       # optional; leave "" to use current default
