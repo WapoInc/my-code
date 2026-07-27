@@ -12,7 +12,7 @@
 # (account created but static site / firewall not finished), the account will be
 # treated as [FOUND] and that block skipped -- delete the account and re-run, or
 # finish it by hand. This is the usual trade-off of coarse per-resource skipping.
-# #########
+# #########@@@@@@Copilot
 # Run:   chmod +x deploy-san-hld.sh && ./deploy-san-hld.sh
 # Needs: az CLI >= 2.55, logged in (az login), correct subscription selected.
 ###############################################################################
