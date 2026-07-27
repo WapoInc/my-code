@@ -23,7 +23,7 @@ set -euo pipefail
 ###############################################################################
 LOCATION="southafricanorth"
 SUBSCRIPTION=""                       # optional; leave "" to use current default
-RG="2-deploy-AppGw-AppService-backend-StorageAccWebApp-2"             # RG
+RG="2-deploy-AppGw-AppService-backend-StorageAccWebApp"             # RG
 ###############################################################################
 # 1. RESOURCE NAMES (exactly as per the HLD)
 #    NOTE: API_APP must be GLOBALLY unique (*.azurewebsites.net) and STORAGE_ACCT
