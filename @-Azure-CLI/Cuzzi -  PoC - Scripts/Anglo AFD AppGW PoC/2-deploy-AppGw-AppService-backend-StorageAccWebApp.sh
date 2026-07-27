@@ -221,17 +221,21 @@ cat > "$TMP_APP_DIR/package.json" <<'PKGEOF'
 {"name":"poc-api","version":"1.0.0","main":"index.js","scripts":{"start":"node index.js"}}
 PKGEOF
 (cd "$TMP_APP_DIR" && zip -r app.zip . -x "*.zip" >/dev/null)
-# Ensure Node.js runtime and build settings are correct (idempotent)
+# Ensure Node.js runtime and app settings are correct (idempotent).
+# SCM_DO_BUILD_DURING_DEPLOYMENT=false skips Oryx -- this app has no npm deps so
+# there is nothing to build; skipping it removes the ~10-min Oryx overhead.
+# WEBSITES_PORT tells App Service which port the process listens on.
 az webapp config set -g "$RG" -n "$API_APP" \
   --linux-fx-version "NODE|20-lts" -o none
 az webapp config appsettings set -g "$RG" -n "$API_APP" \
-  --settings SCM_DO_BUILD_DURING_DEPLOYMENT=true WEBSITE_NODE_DEFAULT_VERSION="~20" -o none
-# Restart so the runtime container swap completes before the zip deploy triggers startup
-az webapp restart -g "$RG" -n "$API_APP" -o none
-waitmsg "App Service container to restart after runtime switch (30 s)"
-sleep 30
+  --settings \
+    SCM_DO_BUILD_DURING_DEPLOYMENT=false \
+    WEBSITE_NODE_DEFAULT_VERSION="~20" \
+    WEBSITES_PORT=8080 \
+  -o none
+# config set + appsettings set already restart the container; no extra restart needed.
 az webapp deploy -g "$RG" -n "$API_APP" \
-  --src-path "$TMP_APP_DIR/app.zip" --type zip --timeout 600 -o none
+  --src-path "$TMP_APP_DIR/app.zip" --type zip -o none
 rm -rf "$TMP_APP_DIR"
 made "Node.js PoC app deployed to $API_APP"
 

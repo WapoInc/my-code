@@ -23,15 +23,7 @@ set -euo pipefail
 ###############################################################################
 LOCATION="southafricanorth"
 SUBSCRIPTION=""                       # optional; leave "" to use current default
-<<<<<<<< HEAD:@-Azure-CLI/Cuzzi -  PoC - Scripts/Anglo AFD AppGW PoC/1-deploy-AppGw-AppService-WebApp-StorageAccWebApp-v1.sh
 RG="1-deploy-AppGw-AppService-WebApp-StorageAccWebApp-v1"             # RG
-========
-<<<<<<< HEAD:@-Azure-CLI/Cuzzi -  PoC - Scripts/Anglo AFD AppGW PoC/1-deploy-san-hld-Appservice-WebApp-SQL-staticweb.sh
-RG="mneu-rg-prod-mrk-001-v2"             # RG is not in the diagram -- adjust to taste
-=======
-RG="mneu-rg-prod-mrk-001-v4"          # RG is not in the diagram -- adjust to taste
->>>>>>> 32f2204 (aaz):@-Azure-CLI/Cuzzi -  PoC - Scripts/Anglo AFD AppGW PoC/1-deploy-san-hld-Appservice-SQL-staticweb.sh
->>>>>>>> afd2cb1d21847a8eb77af9d88e1058d5e40b4208:@-Azure-CLI/Cuzzi -  PoC - Scripts/Anglo AFD AppGW PoC/1-deploy-san-hld-Appservice-SQL-staticweb.sh
 
 ###############################################################################
 # 1. RESOURCE NAMES (exactly as per the HLD)
@@ -40,22 +32,14 @@ RG="mneu-rg-prod-mrk-001-v4"          # RG is not in the diagram -- adjust to ta
 #          (no hyphens) -- so the 'mkt' SQL name is folded into 'mneustprodmkt001'.
 #          Add a suffix to either if the name is already taken.
 ###############################################################################
-<<<<<<<< HEAD:@-Azure-CLI/Cuzzi -  PoC - Scripts/Anglo AFD AppGW PoC/1-deploy-AppGw-AppService-WebApp-StorageAccWebApp-v1.sh
 AGW_NAME="mneu-agw-prod-mrk-001-v1"
 API_APP="mneu-api-prod-mrk-001-v1"
 STORAGE_ACCT="mneustprodmkt001v1"     # backend static website (was the SQL server)
 VM_NAME="mneu-vm-prod-mrk-001-v1"
-========
-AGW_NAME="mneu-agw-prod-mrk-001-v4"
-API_APP="mneu-api-prod-mrk-001-v4"
-STORAGE_ACCT="mneustprodmkt001v4"     # backend static website (was the SQL server)
-VM_NAME="mneu-vm-prod-mrk-001-v4"
->>>>>>>> afd2cb1d21847a8eb77af9d88e1058d5e40b4208:@-Azure-CLI/Cuzzi -  PoC - Scripts/Anglo AFD AppGW PoC/1-deploy-san-hld-Appservice-SQL-staticweb.sh
 
 ###############################################################################
 # 2. NETWORKING
 ###############################################################################
-<<<<<<<< HEAD:@-Azure-CLI/Cuzzi -  PoC - Scripts/Anglo AFD AppGW PoC/1-deploy-AppGw-AppService-WebApp-StorageAccWebApp-v1.sh
 VNET="mneu-vnet-prod-mrk-001-v1"
 VNET_CIDR="10.20.0.0/16"
 SUBNET_AGW="snet-agw-v1";       SUBNET_AGW_CIDR="10.20.1.0/24"   # App Gateway (dedicated)
@@ -63,24 +47,11 @@ SUBNET_APP="snet-appsvc-v1";    SUBNET_APP_CIDR="10.20.3.0/24"   # App Service V
 SUBNET_WORKLOAD="snet-workload-v1"; SUBNET_WORKLOAD_CIDR="10.20.4.0/24"  # extra subnet, same VNet as AGW (holds the VM)
 AGW_PRIVATE_IP="10.20.1.10"           # static private frontend IP; must be inside SUBNET_AGW_CIDR
 WAF_POLICY="mneu-wafpol-prod-mrk-001-v1"
-========
-VNET="mneu-vnet-prod-mrk-001-v4"
-VNET_CIDR="10.20.0.0/16"
-SUBNET_AGW="snet-agw-v4";       SUBNET_AGW_CIDR="10.20.1.0/24"   # App Gateway (dedicated)
-SUBNET_APP="snet-appsvc-v4";    SUBNET_APP_CIDR="10.20.3.0/24"   # App Service VNet integration
-SUBNET_WORKLOAD="snet-workload-v4"; SUBNET_WORKLOAD_CIDR="10.20.4.0/24"  # extra subnet, same VNet as AGW (holds the VM)
-AGW_PRIVATE_IP="10.20.1.10"           # static private frontend IP; must be inside SUBNET_AGW_CIDR
-WAF_POLICY="mneu-wafpol-prod-mrk-001-v4"
->>>>>>>> afd2cb1d21847a8eb77af9d88e1058d5e40b4208:@-Azure-CLI/Cuzzi -  PoC - Scripts/Anglo AFD AppGW PoC/1-deploy-san-hld-Appservice-SQL-staticweb.sh
 
 ###############################################################################
 # 3. SKUs / SIZES  -- reasonable prod defaults, tune as needed
 ###############################################################################
-<<<<<<<< HEAD:@-Azure-CLI/Cuzzi -  PoC - Scripts/Anglo AFD AppGW PoC/1-deploy-AppGw-AppService-WebApp-StorageAccWebApp-v1.sh
 APP_PLAN="mneu-asp-prod-mrk-001-v1"
-========
-APP_PLAN="mneu-asp-prod-mrk-001-v4"
->>>>>>>> afd2cb1d21847a8eb77af9d88e1058d5e40b4208:@-Azure-CLI/Cuzzi -  PoC - Scripts/Anglo AFD AppGW PoC/1-deploy-san-hld-Appservice-SQL-staticweb.sh
 APP_PLAN_SKU="P1v3"                   # Linux App Service plan
 APP_RUNTIME="DOTNETCORE:8.0"          # change to NODE:20-lts, PYTHON:3.12, etc.
 VM_SIZE="Standard_B2s"
@@ -90,11 +61,7 @@ VM_ADMIN="adminroot"
 # !! source control) and Azure's banned-password check may reject a common value
 # !! like this at deploy time. Prefer a runtime prompt or Key Vault for anything real.
 VM_ADMIN_PASSWORD='P@ssw0rd123!'
-<<<<<<<< HEAD:@-Azure-CLI/Cuzzi -  PoC - Scripts/Anglo AFD AppGW PoC/1-deploy-AppGw-AppService-WebApp-StorageAccWebApp-v1.sh
 VM_NSG="mneu-nsg-vm-prod-mrk-001-v1"    # NSG protecting the VM
-========
-VM_NSG="mneu-nsg-vm-prod-mrk-001-v4"    # NSG protecting the VM
->>>>>>>> afd2cb1d21847a8eb77af9d88e1058d5e40b4208:@-Azure-CLI/Cuzzi -  PoC - Scripts/Anglo AFD AppGW PoC/1-deploy-san-hld-Appservice-SQL-staticweb.sh
 
 ###############################################################################
 # --- Helpers ---
@@ -242,11 +209,7 @@ http.createServer((_req, res) => {
 <html lang="en"><head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<<<<<<< HEAD:@-Azure-CLI/Cuzzi -  PoC - Scripts/Anglo AFD AppGW PoC/1-deploy-san-hld-Appservice-WebApp-SQL-staticweb.sh
-<title>Hello from castlegate to home</title>
-=======
 <title>XXX-Hello-XXX</title>
->>>>>>> 32f2204 (aaz):@-Azure-CLI/Cuzzi -  PoC - Scripts/Anglo AFD AppGW PoC/1-deploy-san-hld-Appservice-SQL-staticweb.sh
 <style>
   body { margin:0; height:100vh; display:flex; align-items:center;
          justify-content:center; font-family:system-ui,sans-serif;
@@ -455,11 +418,7 @@ if exists az vm show -g "$RG" -n "$VM_NAME"; then
   found "VM $VM_NAME"
 else
   az vm create -g "$RG" -n "$VM_NAME" -l "$LOCATION" \
-<<<<<<<< HEAD:@-Azure-CLI/Cuzzi -  PoC - Scripts/Anglo AFD AppGW PoC/1-deploy-AppGw-AppService-WebApp-StorageAccWebApp-v1.sh
     --computer-name "mneu-vm-mrk-v1" \
-========
-    --computer-name "mneu-vm-mrk-v4" \
->>>>>>>> afd2cb1d21847a8eb77af9d88e1058d5e40b4208:@-Azure-CLI/Cuzzi -  PoC - Scripts/Anglo AFD AppGW PoC/1-deploy-san-hld-Appservice-SQL-staticweb.sh
     --image "$VM_IMAGE" --size "$VM_SIZE" \
     --vnet-name "$VNET" --subnet "$SUBNET_WORKLOAD" \
     --admin-username "$VM_ADMIN" --admin-password "$VM_ADMIN_PASSWORD" \
