@@ -4,6 +4,7 @@
 
 # Editor/IDE
 .vscode/
+.vs/
 .idea/
 
 # Logs and temp files

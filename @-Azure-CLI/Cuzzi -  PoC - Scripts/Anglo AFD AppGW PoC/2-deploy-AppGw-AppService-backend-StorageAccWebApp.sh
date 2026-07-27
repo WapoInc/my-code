@@ -25,7 +25,7 @@ LOCATION="southafricanorth"
 SUBSCRIPTION=""                       # optional; leave "" to use current default
 RG="2-deploy-AppGw-AppService-backend-StorageAccWebApp"             # RG
 ###############################################################################
-# 1. RESOURCE NAMES (exactly as per the HLD)
+# 1. RESOURCE NAMES (exactly as per the HLD)##
 #    NOTE: API_APP must be GLOBALLY unique (*.azurewebsites.net) and STORAGE_ACCT
 #          must be globally unique, 3-24 chars, lowercase letters/numbers only
 #          (no hyphens) -- so the 'mkt' SQL name is folded into 'mneustprodmkt001'.
