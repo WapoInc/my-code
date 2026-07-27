@@ -205,7 +205,7 @@ http.createServer((_req, res) => {
 <html lang="en"><head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Hello Shemo</title>
+<title>--xxx-MiaCasa-xxx--</title>
 <style>
   body { margin:0; height:100vh; display:flex; align-items:center;
          justify-content:center; font-family:system-ui,sans-serif;
@@ -213,7 +213,7 @@ http.createServer((_req, res) => {
   h1 { font-size:clamp(2rem,8vw,5rem); }
 </style>
 </head><body>
-  <h1>Hello Shemo</h1>
+  <h1>--xxx-MiaCasa-xxx--</h1>
 </body></html>`);
 }).listen(port, () => console.log('Listening on port ' + port));
 APPEOF
@@ -348,4 +348,4 @@ echo "=== Done ==="
 VM_PUBLIC_IP=$(az network public-ip show -g "$RG" -n "$VM_PIP" --query ipAddress -o tsv 2>/dev/null || echo "(pending)")
 echo "App Gateway private frontend IP: ${AGW_PRIVATE_IP} (reachable only inside the VNet / via peering / VPN / ER)"
 echo "VM RDP:       ${VM_PUBLIC_IP}:3389  (allowed from ${RDP_SOURCE_IP} only)"
-echo "App Service:  https://${API_APP}.azurewebsites.net  (serves Hello Shemo via AGW at ${AGW_PRIVATE_IP})"
+echo "App Service:  https://${API_APP}.azurewebsites.net  (serves --xxx-MiaCasa-xxx-- via AGW at ${AGW_PRIVATE_IP})"
