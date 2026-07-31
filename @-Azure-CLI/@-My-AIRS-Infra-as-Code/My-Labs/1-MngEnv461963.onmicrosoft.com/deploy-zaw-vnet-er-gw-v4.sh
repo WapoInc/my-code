@@ -11,7 +11,7 @@
 #   - ER Gateway     : SA-North-ER-GW (Standard SKU)
 #   - ER Connection  : ER-SA-North-Connection-to-SA-North-Region
 #   - ER Circuit     : ER-LTSA-SA-North (in ER-LTSA-rg)
-#   - Ubuntu VM      : ZAW-vm-01  (Subnet-1, Standard_B2s)
+#   - Ubuntu VM      : ZAN-vm-01  (Subnet-1, Standard_B2s)
 #
 # Parallel execution plan:
 #   Phase 1 : Resource Group                     (sequential)
@@ -22,7 +22,7 @@
 #   Phase 6 : Ubuntu VM                          (after NIC)
 #   Phase 7 : Wait for ER Gateway                (blocks here until GW ready)
 #   Phase 8 : ER Connection                      (immediately after GW ready)
-# ============================================================
+# =============================================================================
 
 set -euo pipefail
 
@@ -50,8 +50,8 @@ ROUTING_WEIGHT="0"
 CIRCUIT_RG="ER-LTSA-rg"
 CIRCUIT_NAME="ER-LTSA-SA-North"
 
-VM_NAME="ZAW-vm-01"
-VM_NIC_NAME="ZAW-vm-01-nic"
+VM_NAME="ZAN-vm-01"
+VM_NIC_NAME="ZAN-vm-01-nic"
 VM_SIZE="Standard_B2s"
 VM_IMAGE="Canonical:0001-com-ubuntu-server-jammy:22_04-lts-gen2:latest"
 VM_ADMIN_USER="rootadmin"
