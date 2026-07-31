@@ -29,10 +29,14 @@ az account set --subscription "Enter your Sub name"
 
 #--------------------------------------------------------------------------------------
 #Enter your variables
-RG="Enter your Resource Group name"
-GateWayName="Enter your ER or VPN Gateway name"
-ER_Circuit_Name="Enter your ER Circuit name"
-
+RG="ER-LTSA-rg"
+GateWayName="ER-GateWay-SA-North-Standard"
+ER_Circuit_Name="ER-Metro"
+# ------------------
+# ER Metro
+GateWayName="ER-GateWay-SA-North-Standard"
+ER_Circuit_Name="ER-Metro"
+az network express-route show --resource-group "$RG" --name "$ER_Circuit_Name" -o table
 
 #--------------------------------------------------------------------------------------
 #My own variables
@@ -76,7 +80,7 @@ az network nic show-effective-route-table --resource-group ">>>Resource-Group-Na
 ==================================================================================================
 RG="ER-LTSA-RG"
 GateWayName="ER-GateWay-SA-North-Standard"
-ER_Circuit_Name="ER-LIT-SA-North"
+ER_Circuit_Name="ER-Metro"
 az network express-route show --resource-group "$RG" --name "$ER_Circuit_Name" -o jsonc
 
 
@@ -87,7 +91,6 @@ RG="ER-LTSA-RG"
 GateWayName="ER-GateWay-SA-North-Standard"
 ER_Circuit_Name="ER-LIT-SA-North"
 az network express-route peering show --resource-group "$RG" --circuit-name "$ER_Circuit_Name" --name AzurePrivatePeering -o table
-
 
 =============================================================================================================================================================================
 #ER Circuit Private Peering Enable/Disable
