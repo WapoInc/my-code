@@ -1,17 +1,17 @@
 #!/bin/bash
 # ============================================================
-# Deploy SA-North-HUB-v2 - VNet + ER GW + ER Connection + VM
-# South Africa North  |  v4 - Parallel Deployment
+# Deploy SA-West-HUB-v2 - VNet + ER GW + ER Connection + VM
+# South Africa West  |  v5 - Parallel Deployment
 # ============================================================
 # Resources:
-#   - Resource Group : SA-North-Region
-#   - VNet           : SA-North-vnet  (10.88.0.0/24)
-#   - GatewaySubnet  : 10.88.0.0/27
-#   - Subnet-1       : 10.88.0.128/25
-#   - ER Gateway     : SA-North-ER-GW (Standard SKU)
-#   - ER Connection  : ER-SA-North-Connection-to-SA-North-Region
-#   - ER Circuit     : ER-LTSA-SA-North (in ER-LTSA-rg)
-#   - Ubuntu VM      : ZAN-vm-01  (Subnet-1, Standard_B2s)
+#   - Resource Group : SA-West-region
+#   - VNet           : SA-West-vnet  (10.99.0.0/24)
+#   - GatewaySubnet  : 10.99.0.0/27
+#   - Subnet-1       : 10.99.0.128/25
+#   - ER Gateway     : SA-West-ER-GW (Standard SKU)
+#   - ER Connection  : ER-SA-West-Connection-to-SA-West-Region
+#   - ER Circuit     : ER-LTSA-SA-West (in ER-LTSA-rg)
+#   - Ubuntu VM      : ZAW-vm-01  (Subnet-1, Standard_B2s)
 #
 # Parallel execution plan:
 #   Phase 1 : Resource Group                     (sequential)
@@ -29,29 +29,29 @@ set -euo pipefail
 # --- Variables -----------------------------------------------
 TENANT_ID="b91a5236-cd06-4bc7-889b-db71c19230ae"
 SUBSCRIPTION_ID="29df7078-c53c-4638-81c1-e4bc8566d423"
-RESOURCE_GROUP="SA-North-Region"
-LOCATION="southafricanorth"
+RESOURCE_GROUP="SA-West-region"
+LOCATION="southafricawest"
 
-VNET_NAME="SA-North-vnet"
-VNET_PREFIX="10.88.0.0/24"
+VNET_NAME="SA-West-vnet"
+VNET_PREFIX="10.99.0.0/24"
 
-GATEWAY_SUBNET_PREFIX="10.88.0.0/27"
+GATEWAY_SUBNET_PREFIX="10.99.0.0/27"
 SUBNET1_NAME="Subnet-1"
-SUBNET1_PREFIX="10.88.0.128/25"
+SUBNET1_PREFIX="10.99.0.128/25"
 
-GW_NAME="SA-North-ER-GW"
-GW_PIP_NAME="SA-North-ER-GW-pip"
+GW_NAME="SA-West-ER-GW"
+GW_PIP_NAME="SA-West-ER-GW-pip"
 GW_SKU="Standard"
 GW_TYPE="ExpressRoute"
 
-CONN_NAME="ER-SA-North-Connection-to-SA-North-Region"
+CONN_NAME="ER-SA-West-Connection-to-SA-West-Region"
 ROUTING_WEIGHT="0"
 
 CIRCUIT_RG="ER-LTSA-rg"
-CIRCUIT_NAME="ER-LTSA-SA-North"
+CIRCUIT_NAME="ER-LTSA-SA-West"
 
-VM_NAME="ZAN-vm-01"
-VM_NIC_NAME="ZAN-vm-01-nic"
+VM_NAME="ZAW-vm-01"
+VM_NIC_NAME="ZAW-vm-01-nic"
 VM_SIZE="Standard_B2s"
 VM_IMAGE="Canonical:0001-com-ubuntu-server-jammy:22_04-lts-gen2:latest"
 VM_ADMIN_USER="rootadmin"
