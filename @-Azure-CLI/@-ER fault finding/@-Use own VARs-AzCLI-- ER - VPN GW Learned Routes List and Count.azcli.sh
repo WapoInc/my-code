@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-#vmr#
+#vmr#new stuff
 set -euo pipefail
 # AI prompt
 #==============================================================================================
@@ -73,6 +73,12 @@ az network nic show-effective-route-table --resource-group AVS-ZA-North --name v
 
 #- Example
 az network nic show-effective-route-table --resource-group ">>>Resource-Group-Name<<<" --name ">>>VM-NIC-Name<<<" -o table
+
+
+==================================================================================================
+#List all ExpressRoute Circuits
+==================================================================================================
+az network express-route list --query "[].{Name:name,RG:resourceGroup}" -o table
 
 
 ==================================================================================================
