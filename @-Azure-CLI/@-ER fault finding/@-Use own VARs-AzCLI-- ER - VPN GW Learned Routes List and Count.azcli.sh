@@ -105,6 +105,17 @@ az network express-route peering update --resource-group "ER-LTSA-RG" --circuit-
 az network express-route peering update --resource-group "ER-LTSA-RG" --circuit-name "ER-LIT-SA-North" --name AzurePrivatePeering --set state=Disabled -o table
 
 
+=======================================================================================================
+#Run to see list of BGP neighbors and status
+=======================================================================================================
+az network vnet-gateway list-bgp-peer-status -n <GateWayName> -g <RG Name> -o table
+
+
+=======================================================================================================
+#Run to see list of BGP neighbors and status of a ERgateway
+=======================================================================================================
+az network vnet-gateway list-bgp-peer-status -n er-gateway-sa-north-standard -g er-ltsa-rg --query 'value[].{LocalAddress:localAddress, Neighbor:neighbor, ASN:asn, State:state, RoutesReceived:routesReceived}' -o table
+
 
 =======================================================================================================
 #Run to see list and count Learned Routes
@@ -126,6 +137,12 @@ az network vnet-gateway list-learned-routes --resource-group "$RG" --name "$Gate
 #Run to count Learned Routes
 =======================================================================================================
 az network vnet-gateway list-learned-routes --resource-group "$RG" --name "$GateWayName" --query "length(value)" -o table
+
+
+=======================================================================================================
+#Run to list Learned Route Tables with BGP and Neighbors
+=======================================================================================================
+az network express-route list-route-tables-summary -g $RG -n $ER_Circuit_Name --path primary --peering-name AzurePrivatePeering --query value -o table
 
 
 
