@@ -26,6 +26,15 @@ param location string = 'southafricanorth'
 @secure()
 param adminPassword string
 
+@description('Deploy the ExpressRoute connection to the circuit after the gateway is created.')
+param deployErConnection bool = false
+
+@description('Name of the existing ExpressRoute circuit to connect to.')
+param circuitName string = 'ER-LIT-ZAN'
+
+@description('Resource group that contains the ExpressRoute circuit.')
+param circuitResourceGroup string = 'ER-LTSA-rg'
+
 // --- Resource Group -----------------------------------------
 resource rg 'Microsoft.Resources/resourceGroups@2023-07-01' = {
   name: resourceGroupName
@@ -40,6 +49,20 @@ module resources 'ZAN-Hub-VM-vnet-er-gw-v4-resources.bicep' = {
     location: location
     adminPassword: adminPassword
   }
+}
+
+// --- ExpressRoute connection (optional; after gateway is ready) ----
+module erConnection 'ZAN-Hub-ER-Connection-v4.bicep' = if (deployErConnection) {
+  name: 'sa-north-er-connection'
+  scope: rg
+  params: {
+    location: location
+    circuitName: circuitName
+    circuitResourceGroup: circuitResourceGroup
+  }
+  dependsOn: [
+    resources
+  ]
 }
 
 // --- Outputs ------------------------------------------------
