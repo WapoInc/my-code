@@ -1,25 +1,25 @@
 #!/bin/bash
 # ============================================================
-# Deploy SA-North-HUB - VNet + VM  (ER Gateway SKIPPED)
-# South Africa North  |  v5 - Parallel Deployment
+# Deploy SA-North-HUB - VNet + ER GW + VM
+# South Africa North  |  v2 - Parallel Deployment
 # ============================================================
-# This variant deploys the same hub network and VM but SKIPS
-# creation of the ExpressRoute Gateway (and its public IP).
-#
 # Resources:
 #   - Resource Group    : SA-North-region
 #   - VNet              : SA-North-vnet  (10.10.0.0/16)
 #   - GatewaySubnet     : 10.10.0.0/24
-#   - SubNet-1          : 10.10.1.0/24
-#   - ER Gateway        : SKIPPED
-#   - Ubuntu VM         : ZAN-JB-1  (SubNet-1, Standard_B2s, private IP 10.10.1.4, no public IP)
+#   - SubNet-1          : 10.10.1.0/24  (associated with SA-North-default-nsg)
+#   - Network Sec Group : SA-North-default-nsg (default rules only)
+#   - ER Gateway        : ER-GateWay-SA-North-Standard (Standard SKU)
+#   - Ubuntu VM         : ZAN-JB-1  (SubNet-1, Standard_B2s, private IP 10.10.1.5, no public IP)
 #
-# Execution plan:
-#   Phase 1 : Resource Group   (sequential)
-#   Phase 2 : VNet             (sequential)
-#   Phase 3 : Subnets          (sequential after VNet)
-#   Phase 4 : VM NIC           (after SubNet-1)
-#   Phase 5 : Ubuntu VM        (after NIC)
+# Parallel execution plan:
+#   Phase 1 : Resource Group                     (sequential)
+#   Phase 2 : VNet  ||  Public IP                (parallel)
+#   Phase 3 : GatewaySubnet                      (sequential)
+#   Phase 4 : ER Gateway (background) + SubNet-1 (sequential after GwSubnet)
+#   Phase 5 : VM NIC                             (after SubNet-1)
+#   Phase 6 : Ubuntu VM                          (after NIC)
+#   Phase 7 : Wait for ER Gateway                (blocks here until GW ready)
 # =============================================================================
 
 set -euo pipefail
@@ -36,12 +36,18 @@ VNET_PREFIX="10.10.0.0/16"
 GATEWAY_SUBNET_PREFIX="10.10.0.0/24"
 SUBNET1_NAME="SubNet-1"
 SUBNET1_PREFIX="10.10.1.0/24"
+NSG_NAME="SA-North-default-nsg"
+
+GW_NAME="ER-GateWay-SA-North-Standard"
+GW_PIP_NAME="ER-GateWay-SA-North-Standard-pip"
+GW_SKU="Standard"
+GW_TYPE="ExpressRoute"
 
 VM_NAME="ZAN-JB-1"
 VM_NIC_NAME="ZAN-JB-1-nic"
 VM_SIZE="Standard_B2s"
 VM_IMAGE="Canonical:0001-com-ubuntu-server-jammy:22_04-lts-gen2:latest"
-VM_PRIVATE_IP="10.10.1.4"
+VM_PRIVATE_IP="10.10.1.5"
 VM_ADMIN_USER="rootadmin"
 VM_ADMIN_PW="P@ssw0rd123!"
 # -------------------------------------------------------------
@@ -88,6 +94,39 @@ deploy_vnet() {
   fi
 }
 
+# Default NSG (Azure built-in rules only) associated with SubNet-1.
+deploy_nsg() {
+  if az network nsg show --resource-group "$RESOURCE_GROUP" --name "$NSG_NAME" &>/dev/null; then
+    echo "[NSG]  NSG '$NSG_NAME' found in '$RESOURCE_GROUP'."
+    echo "[SKIP]     Skipping creation."
+  else
+    echo "[NSG]  Creating default NSG: $NSG_NAME..."
+    az network nsg create \
+      --resource-group "$RESOURCE_GROUP" \
+      --name "$NSG_NAME" \
+      --location "$LOCATION" \
+      --output none
+    echo "[NSG]  Done."
+  fi
+}
+
+deploy_public_ip() {
+  if az network public-ip show --resource-group "$RESOURCE_GROUP" --name "$GW_PIP_NAME" &>/dev/null; then
+    echo "[DETECTED] Public IP '$GW_PIP_NAME' found in '$RESOURCE_GROUP'."
+    echo "[SKIP]     Skipping creation."
+  else
+    echo "[PIP]  Creating Public IP: $GW_PIP_NAME..."
+    az network public-ip create \
+      --resource-group "$RESOURCE_GROUP" \
+      --name "$GW_PIP_NAME" \
+      --location "$LOCATION" \
+      --sku "Standard" \
+      --allocation-method "Static" \
+      --output none
+    echo "[PIP]  Done."
+  fi
+}
+
 deploy_gateway_subnet() {
   if az network vnet subnet show --resource-group "$RESOURCE_GROUP" --vnet-name "$VNET_NAME" --name "GatewaySubnet" &>/dev/null; then
     echo "[DETECTED] GatewaySubnet found in VNet '$VNET_NAME'."
@@ -115,8 +154,35 @@ deploy_subnet1() {
       --vnet-name "$VNET_NAME" \
       --name "$SUBNET1_NAME" \
       --address-prefix "$SUBNET1_PREFIX" \
+      --network-security-group "$NSG_NAME" \
       --output none
     echo "[SUB1] Done."
+  fi
+}
+
+deploy_er_gateway() {
+  if az network vnet-gateway show --resource-group "$RESOURCE_GROUP" --name "$GW_NAME" &>/dev/null; then
+    echo "[DETECTED] ExpressRoute Gateway '$GW_NAME' found in '$RESOURCE_GROUP'."
+    echo "[SKIP]     Skipping creation."
+  else
+    echo "[GW]   Creating ExpressRoute Gateway: $GW_NAME (SKU: $GW_SKU)..."
+    echo "[GW]   NOTE: Gateway deployment typically takes 20-45 minutes."
+    az network vnet-gateway create \
+      --resource-group "$RESOURCE_GROUP" \
+      --name "$GW_NAME" \
+      --location "$LOCATION" \
+      --vnet "$VNET_NAME" \
+      --gateway-type "$GW_TYPE" \
+      --sku "$GW_SKU" \
+      --public-ip-addresses "$GW_PIP_NAME" \
+      --output none
+
+    echo "[GW]   Waiting for gateway to reach Succeeded state..."
+    az network vnet-gateway wait \
+      --resource-group "$RESOURCE_GROUP" \
+      --name "$GW_NAME" \
+      --created
+    echo "[GW]   Done."
   fi
 }
 
@@ -160,7 +226,7 @@ deploy_vm() {
 }
 
 # ============================================================
-# MAIN - Phased execution (ER Gateway skipped)
+# MAIN - Phased parallel execution
 # ============================================================
 
 echo "==> Ensuring sign-in to tenant $TENANT_ID / subscription $SUBSCRIPTION_ID..."
@@ -196,28 +262,70 @@ deploy_resource_group
 
 # --------------------------------------------------
 echo ""
-echo "==> PHASE 2: VNet (sequential)"
-deploy_vnet
+echo "==> PHASE 2: VNet + Public IP + NSG (parallel)"
+deploy_vnet &   PID_VNET=$!
+deploy_public_ip &  PID_PIP=$!
+deploy_nsg &  PID_NSG=$!
+wait_for $PID_VNET  "VNet"
+wait_for $PID_PIP   "Public IP"
+wait_for $PID_NSG   "NSG"
 
 # --------------------------------------------------
 echo ""
-echo "==> PHASE 3: Subnets (sequential after VNet)"
+echo "==> PHASE 3: GatewaySubnet (sequential - must complete before ER GW starts)"
 deploy_gateway_subnet
+
+# --------------------------------------------------
+echo ""
+echo "==> PHASE 4: ER Gateway launched in BACKGROUND + SubNet-1 (sequential)"
+echo "            (ER GW runs in background while remaining resources are built)"
+deploy_er_gateway &
+PID_GW=$!
 deploy_subnet1
 
 # --------------------------------------------------
 echo ""
-echo "==> PHASE 4: VM NIC (after Subnet-1)"
+echo "==> PHASE 5: VM NIC (after Subnet-1, ER GW still running in background)"
 deploy_vm_nic
 
 # --------------------------------------------------
 echo ""
-echo "==> PHASE 5: Ubuntu VM (after NIC)"
+echo "==> PHASE 6: Ubuntu VM (after NIC, ER GW still running in background)"
 deploy_vm
 
 # --------------------------------------------------
 echo ""
-echo "==> All resources deployed successfully (ER Gateway skipped)."
+echo "==> PHASE 7: Watching ER Gateway until Succeeded (polls every 30s, timeout 60 min)..."
+GW_WATCH_TIMEOUT=3600
+GW_WATCH_INTERVAL=30
+GW_WATCH_ELAPSED=0
+while true; do
+  GW_STATE=$(az network vnet-gateway show \
+    --resource-group "$RESOURCE_GROUP" \
+    --name "$GW_NAME" \
+    --query provisioningState -o tsv 2>/dev/null || echo "Unknown")
+  echo "[GW]   [$GW_WATCH_ELAPSED s] provisioningState: $GW_STATE"
+  if [[ "$GW_STATE" == "Succeeded" ]]; then
+    echo "[GW]   Gateway is ready."
+    break
+  elif [[ "$GW_STATE" == "Failed" ]]; then
+    echo "[GW]   ERROR: Gateway reached Failed state. Aborting." >&2
+    exit 1
+  elif [[ $GW_WATCH_ELAPSED -ge $GW_WATCH_TIMEOUT ]]; then
+    echo "[GW]   WARNING: Watch timed out after ${GW_WATCH_TIMEOUT}s — state is '$GW_STATE'."
+    echo "[GW]   Continuing — gateway may still provision in background."
+    break
+  fi
+  sleep $GW_WATCH_INTERVAL
+  GW_WATCH_ELAPSED=$((GW_WATCH_ELAPSED + GW_WATCH_INTERVAL))
+done
+
+# Ensure the background job also exited cleanly
+wait_for $PID_GW "ER Gateway background job"
+
+# --------------------------------------------------
+echo ""
+echo "==> All resources deployed successfully."
 echo ""
 echo "    Verify VM:"
 echo "    az vm show -g $RESOURCE_GROUP -n $VM_NAME --query provisioningState -o tsv"
