@@ -1,8 +1,8 @@
 // ============================================================
-// SA-West-HUB - Resource Group + VNet + Subnets + ER GW + ER Connection + VM
-// South Africa West  |  Bicep (subscription-scoped, creates the RG)
+// SA-North-vWAN - Resource Group + vWAN Hub in SA North
 // ============================================================
 //
+// run these lines to create RG and call Resources script
 //
 // az deployment sub create \
 //   --subscription "0cfd0d2a-2b38-4c93-ba14-cf79185bc683" \
@@ -16,7 +16,7 @@
 targetScope = 'subscription'
 
 @description('Name of the resource group to create.')
-param resourceGroupName string = 'SA-North-vWAN'
+param resourceGroupName string = 'Global-vWAN'
 
 @description('Azure region for the resource group.')
 param location string = 'southafricanorth'

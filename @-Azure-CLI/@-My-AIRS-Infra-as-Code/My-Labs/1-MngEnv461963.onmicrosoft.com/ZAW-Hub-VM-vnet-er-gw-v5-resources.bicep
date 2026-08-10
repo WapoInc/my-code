@@ -1,3 +1,18 @@
+// ============================================================
+// SA-West-HUB resources - VNet + Subnets + ER GW + ER Connection + VM
+// South Africa West  |  v5 - Bicep (resource-group scoped module)
+// ============================================================
+// Called by the subscription-scoped orchestrator
+// (ZAW-Hub-VM-vnet-er-gw-v5-rg.bicep), which creates the
+// resource group and invokes this module.
+//
+// The ER connection references the gateway's id, so ARM automatically
+// waits for the ExpressRoute gateway to finish provisioning before it
+// creates the connection.
+//
+// NOTE: The ExpressRoute Gateway typically takes 20-45 minutes to provision.
+// ============================================================
+
 targetScope = 'resourceGroup'
 
 @description('Azure region for all resources.')
@@ -76,10 +91,10 @@ param circuitSubscriptionId string = subscription().subscriptionId
 param routingWeight int = 0
 
 @description('Name of the virtual machine.')
-param vmName string = 'ZAW-vm-01'
+param vmName string = 'ZAW-JB-1'
 
 @description('Name of the virtual machine network interface.')
-param vmNicName string = 'ZAW-vm-01-nic'
+param vmNicName string = 'ZAW-JB-1-nic'
 
 @description('Size of the virtual machine.')
 param vmSize string = 'Standard_B2s'
