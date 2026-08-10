@@ -309,7 +309,14 @@ resource vm 'Microsoft.Compute/virtualMachines@2024-03-01' = {
 }
 
 // --- Outputs ------------------------------------------------
+output networkSecurityGroupName string = nsg.name
+output gatewayPublicIpName string = gwPip.name
+output vnetName string = vnet.name
 output vnetId string = vnet.id
+output vmName string = vm.name
+output vmNicName string = nic.name
 output vmPrivateIp string = nic.properties.ipConfigurations[0].properties.privateIPAddress
+output erGatewayName string = ergw.name
 output erGatewayId string = ergw.id
+output erConnectionName string = deployErConnection ? erConnection.name : ''
 output erConnectionId string = deployErConnection ? erConnection.id : ''

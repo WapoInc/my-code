@@ -6,11 +6,16 @@
 // deploys all hub resources (including the ExpressRoute connection)
 // via the ZAN-Hub-VM-vnet-er-gw-v5-resources module.
 //
-// az deployment sub create -l southafricanorth \
+// read -s ADMIN_PASSWORD
+// az deployment sub create \
+//   -l southafricanorth \
 //   -f 1-MngEnv461963-ZAN-Hub-VM-vnet-er-gw-v5-rg.bicep \
 //   -p adminPassword='P@ssw0rd123!'
+// unset ADMIN_PASSWORD
 //
 //
+
+
 // NOTE: The ExpressRoute Gateway typically takes 20-45 minutes to provision;
 // the ER connection is created automatically once the gateway is ready.
 // ============================================================
@@ -18,7 +23,7 @@
 targetScope = 'subscription'
 
 @description('Name of the resource group to create.')
-param resourceGroupName string = 'SA-North-region'
+param resourceGroupName string = 'SA-North-region-Test2'
 
 @description('Azure region for the resource group and all resources.')
 param location string = 'southafricanorth'
@@ -56,7 +61,14 @@ module resources '1-MngEnv461963-ZAN-Hub-VM-vnet-er-gw-v5-resources.bicep' = {
 
 // --- Outputs ------------------------------------------------
 output resourceGroupName string = rg.name
+output networkSecurityGroupName string = resources.outputs.networkSecurityGroupName
+output gatewayPublicIpName string = resources.outputs.gatewayPublicIpName
+output vnetName string = resources.outputs.vnetName
 output vnetId string = resources.outputs.vnetId
+output vmName string = resources.outputs.vmName
+output vmNicName string = resources.outputs.vmNicName
 output vmPrivateIp string = resources.outputs.vmPrivateIp
+output erGatewayName string = resources.outputs.erGatewayName
 output erGatewayId string = resources.outputs.erGatewayId
+output erConnectionName string = resources.outputs.erConnectionName
 output erConnectionId string = resources.outputs.erConnectionId

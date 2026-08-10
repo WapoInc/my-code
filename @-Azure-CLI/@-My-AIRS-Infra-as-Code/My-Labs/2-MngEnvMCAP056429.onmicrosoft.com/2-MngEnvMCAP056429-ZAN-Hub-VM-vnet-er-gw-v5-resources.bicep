@@ -20,7 +20,7 @@ targetScope = 'resourceGroup'
 param location string = 'southafricanorth'
 
 param vnetName string = 'SA-North-vnet'
-param vnetPrefix string = '10.20.0.0/16'
+param vnetPrefix string = '10.22.0.0/16'
 
 param subnet1Name string = 'SubNet-1'
 param nsgName string = 'SA-North-default-nsg'
@@ -64,22 +64,22 @@ param authorizationKey string = ''
 param vmName string = 'ZAN-JB-1'
 param vmNicName string = 'ZAN-JB-1-nic'
 param vmSize string = 'Standard_B2s'
-param vmPrivateIp string = '10.20.1.5'
+param vmPrivateIp string = '10.22.1.5'
 param adminUsername string = 'rootadmin'
 
 @secure()
 param adminPassword string
 
 // --- Subnet address prefixes (recommended hub sizes) --------
-var gatewaySubnetPrefix = '10.20.0.0/26'
-var firewallSubnetPrefix = '10.20.0.64/26'
-var firewallMgmtSubnetPrefix = '10.20.0.128/26'
-var bastionSubnetPrefix = '10.20.0.192/26'
-var subnet1Prefix = '10.20.1.0/24'
-var routeServerSubnetPrefix = '10.20.2.0/26'
-var dnsInboundSubnetPrefix = '10.20.2.64/27'
-var dnsOutboundSubnetPrefix = '10.20.2.96/27'
-var appGwSubnetPrefix = '10.20.3.0/24'
+var gatewaySubnetPrefix = '10.22.0.0/26'
+var firewallSubnetPrefix = '10.22.0.64/26'
+var firewallMgmtSubnetPrefix = '10.22.0.128/26'
+var bastionSubnetPrefix = '10.22.0.192/26'
+var subnet1Prefix = '10.22.1.0/24'
+var routeServerSubnetPrefix = '10.22.2.0/26'
+var dnsInboundSubnetPrefix = '10.22.2.64/27'
+var dnsOutboundSubnetPrefix = '10.22.2.96/27'
+var appGwSubnetPrefix = '10.22.3.0/24'
 
 // --- Default NSG (Azure built-in rules only) ----------------
 resource nsg 'Microsoft.Network/networkSecurityGroups@2023-11-01' = {
