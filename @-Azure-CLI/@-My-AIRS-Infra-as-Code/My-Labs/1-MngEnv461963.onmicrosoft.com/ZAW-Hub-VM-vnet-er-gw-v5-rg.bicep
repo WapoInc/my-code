@@ -1,8 +1,10 @@
 //
-// az deployment sub create -l southafricawest \
+// az deployment sub create \
+//   -l southafricawest \
 //   -f ZAW-Hub-VM-vnet-er-gw-v5-rg.bicep \
-//   -p location=southafricawest adminPassword="$ADMIN_PASSWORD"
+//   -p adminPassword="$ADMIN_PASSWORD"
 //
+
 
 targetScope = 'subscription'
 

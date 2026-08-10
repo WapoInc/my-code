@@ -40,7 +40,7 @@ param dnsOutboundSubnetPrefix string = '10.30.2.96/27'
 param appGatewaySubnetPrefix string = '10.30.3.0/24'
 
 @description('Name of the ExpressRoute virtual network gateway.')
-param gatewayName string = 'SER-GateWay-SA-West-Standard'
+param gatewayName string = 'ER-GateWay-SA-West-Standard'
 
 @description('Name of the gateway public IP address.')
 param gatewayPublicIpName string = 'ER-GateWay-SA-West-Standard-pip'
