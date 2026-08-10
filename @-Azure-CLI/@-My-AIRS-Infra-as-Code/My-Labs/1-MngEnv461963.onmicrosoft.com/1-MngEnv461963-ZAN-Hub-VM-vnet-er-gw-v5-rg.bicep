@@ -6,12 +6,10 @@
 // deploys all hub resources (including the ExpressRoute connection)
 // via the ZAN-Hub-VM-vnet-er-gw-v5-resources module.
 //
-// read -s ADMIN_PASSWORD
 // az deployment sub create \
 //   -l southafricanorth \
 //   -f 1-MngEnv461963-ZAN-Hub-VM-vnet-er-gw-v5-rg.bicep \
 //   -p adminPassword='P@ssw0rd123!'
-// unset ADMIN_PASSWORD
 //
 //
 
@@ -23,7 +21,7 @@
 targetScope = 'subscription'
 
 @description('Name of the resource group to create.')
-param resourceGroupName string = 'SA-North-region-Test2'
+param resourceGroupName string = 'SA-North-region'
 
 @description('Azure region for the resource group and all resources.')
 param location string = 'southafricanorth'
