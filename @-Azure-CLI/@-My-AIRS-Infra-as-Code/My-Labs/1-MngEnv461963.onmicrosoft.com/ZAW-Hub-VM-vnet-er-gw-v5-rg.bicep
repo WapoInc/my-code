@@ -1,13 +1,13 @@
-// read -s ADMIN_PASSWORD
+//
 // az deployment sub create -l southafricawest \
 //   -f ZAW-Hub-VM-vnet-er-gw-v5-rg.bicep \
 //   -p location=southafricawest adminPassword="$ADMIN_PASSWORD"
-// unset ADMIN_PASSWORD
+//
 
 targetScope = 'subscription'
 
 @description('Name of the resource group to create.')
-param resourceGroupName string = 'SA-West-region-bicep'
+param resourceGroupName string = 'SA-West-region'
 
 @description('Azure region for the resource group and all resources.')
 param location string = 'southafricawest'
