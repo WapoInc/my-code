@@ -8,10 +8,10 @@
 //
 // az deployment sub create \
 //   -l southafricanorth \
-//   -f 2-MngEnvMCAP056429-ZAN-Hub-VM-vnet-er-gw-v5-rg.bicep \
+//   -f 3-MngEnvMCAP158201-ZAN-Hub-VM-vnet-er-gw-v5-rg.bicep \
 //   -p adminPassword='P@ssw0rd123!'
 //
-//   -f /Users/vinceresente/my-code/@-Azure-CLI/@-My-AIRS-Infra-as-Code/My-Labs/2-MngEnvMCAP056429.onmicrosoft.com/2-MngEnvMCAP056429-ZAN-Hub-VM-vnet-er-gw-v5-rg.bicep \
+//
 // NOTE: The ExpressRoute Gateway typically takes 20-45 minutes to provision;
 // the ER connection is created automatically once the gateway is ready.
 // ============================================================
@@ -43,7 +43,7 @@ resource rg 'Microsoft.Resources/resourceGroups@2023-07-01' = {
 }
 
 // --- Hub resources (VNet, subnets, NSG, ER GW, ER Connection, VM) ----
-module resources '2-MngEnvMCAP056429-ZAN-Hub-VM-vnet-er-gw-v5-resources.bicep' = {
+module resources '3-MngEnvMCAP158201-ZAN-Hub-VM-vnet-er-gw-v5-resources.bicep' = {
   name: 'sa-north-hub'
   scope: rg
   params: {

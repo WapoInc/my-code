@@ -7,7 +7,7 @@
 // via the ZAN-Hub-VM-vnet-er-gw-v5-resources module.
 //
 // az deployment sub create -l southafricanorth \
-//   -f ZAN-Hub-VM-vnet-er-gw-v5-rg.bicep \
+//   -f 1-MngEnv461963-ZAN-Hub-VM-vnet-er-gw-v5-rg.bicep \
 //   -p adminPassword='P@ssw0rd123!'
 //
 //
@@ -42,7 +42,7 @@ resource rg 'Microsoft.Resources/resourceGroups@2023-07-01' = {
 }
 
 // --- Hub resources (VNet, subnets, NSG, ER GW, ER Connection, VM) ----
-module resources 'ZAN-Hub-VM-vnet-er-gw-v5-resources.bicep' = {
+module resources '1-MngEnv461963-ZAN-Hub-VM-vnet-er-gw-v5-resources.bicep' = {
   name: 'sa-north-hub'
   scope: rg
   params: {
