@@ -3,7 +3,7 @@
 //   --resource-group SA-North-region \
 //   --name deploy-er-lit-zan-connection \
 //   --template-file deploy-er-lit-zan-connection.bicep
-// */
+//
 
 targetScope = 'resourceGroup'
 
