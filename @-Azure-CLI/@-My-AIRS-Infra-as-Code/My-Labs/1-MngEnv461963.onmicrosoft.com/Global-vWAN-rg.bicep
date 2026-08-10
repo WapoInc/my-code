@@ -1,10 +1,14 @@
+// ============================================================
+// SA-West-HUB - Resource Group + VNet + Subnets + ER GW + ER Connection + VM
+// South Africa West  |  Bicep (subscription-scoped, creates the RG)
+// ============================================================
 //
 //
 // az deployment sub create \
 //   --subscription "0cfd0d2a-2b38-4c93-ba14-cf79185bc683" \
 //   --name "deploy-global-vwan" \
 //   --location "southafricanorth" \
-//   --template-file "./@-Azure-CLI/@-My-AIRS-Infra-as-Code/My-Labs/1-MngEnv461963.onmicrosoft.com/Global-vWAN-rg.bicep"
+//   --template-file "/Users/vinceresente/my-code/@-Azure-CLI/@-My-AIRS-Infra-as-Code/My-Labs/1-MngEnv461963.onmicrosoft.com/Global-vWAN-rg.bicep"
 
 
 

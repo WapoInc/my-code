@@ -1,9 +1,14 @@
-//
-// az deployment sub create \
-//   -l southafricawest \
-//   -f ZAW-Hub-VM-vnet-er-gw-v5-rg.bicep \
-//   -p adminPassword="$ADMIN_PASSWORD"
-//
+/* Copy and paste the commands below into Bash:
+read -r -s -p "VM administrator password: " ADMIN_PASSWORD && echo
+if [[ -z "$ADMIN_PASSWORD" ]]; then echo "Password cannot be empty." >&2; exit 1; fi
+
+az deployment sub create \
+  --location southafricanorth \
+  --template-file ZAW-Hub-VM-vnet-er-gw-v5-rg.bicep \
+  --parameters resourceGroupName=SA-West-region location=southafricawest adminPassword="$ADMIN_PASSWORD"
+
+unset ADMIN_PASSWORD
+*/
 
 
 targetScope = 'subscription'
