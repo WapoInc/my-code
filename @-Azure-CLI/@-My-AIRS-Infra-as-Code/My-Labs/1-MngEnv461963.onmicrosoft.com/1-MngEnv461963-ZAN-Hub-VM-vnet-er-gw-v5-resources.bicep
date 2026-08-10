@@ -5,7 +5,7 @@
 // Called by the subscription-scoped orchestrator
 // (ZAN-Hub-VM-vnet-er-gw-v5-rg.bicep), which creates the
 // resource group and invokes this module.
-//
+// vmr
 // The ER connection references the gateway's id, so ARM automatically
 // waits for the ExpressRoute gateway to finish provisioning before it
 // creates the connection.
