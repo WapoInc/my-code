@@ -8,7 +8,7 @@
 //
 // az deployment sub create \
 //   -l southafricawest \
-//   -f ZAW-Hub-VM-vnet-er-gw-v5-rg.bicep \
+//   -f ZAW-Hub-resources-rg.bicep \
 //   -p adminPassword='P@ssw0rd123!'
 //
 //
@@ -45,7 +45,7 @@ resource resourceGroup 'Microsoft.Resources/resourceGroups@2023-07-01' = {
   location: location
 }
 
-module hubResources 'ZAW-Hub-VM-vnet-er-gw-v5-resources.bicep' = {
+module hubResources 'ZAW-Hub-resources.bicep' = {
   scope: resourceGroup
   params: {
     location: location

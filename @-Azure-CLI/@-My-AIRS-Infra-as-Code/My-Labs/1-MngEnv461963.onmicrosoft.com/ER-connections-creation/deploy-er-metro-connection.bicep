@@ -3,7 +3,7 @@
 //   --resource-group SA-North-region \
 //   --name deploy-er-metro-connection \
 //   --template-file deploy-er-metro-connection.bicep
-// */
+*/
 
 targetScope = 'resourceGroup'
 
