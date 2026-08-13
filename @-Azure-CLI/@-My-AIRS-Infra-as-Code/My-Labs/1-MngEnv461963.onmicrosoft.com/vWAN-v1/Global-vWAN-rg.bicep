@@ -6,13 +6,11 @@
 //
 // ./deploy-global-vwan.sh what-if
 // ./deploy-global-vwan.sh deploy
-// ./deploy-global-vwan.sh full
 
 targetScope = 'subscription'
 
 @description('Name of the resource group to create.')
-param resourceGroupName string = 'Global-vWAN-PoC'
-
+param resourceGroupName string = 'Global-vWAN'
 
 @description('Azure region for the resource group.')
 param location string = 'southafricanorth'
@@ -33,10 +31,6 @@ param virtualHubAddressPrefix string = '10.200.1.0/24'
 @secure()
 param spokeVmAdminPassword string
 
-@description('Pre-shared key for the FortiGate site-to-site VPN connection.')
-@secure()
-param fortiGateVpnSharedKey string
-
 resource resourceGroup 'Microsoft.Resources/resourceGroups@2024-11-01' = {
   name: resourceGroupName
   location: location
@@ -52,7 +46,6 @@ module virtualWanResources 'Global-vWAN-resources.bicep' = {
     virtualHubName: virtualHubName
     virtualHubAddressPrefix: virtualHubAddressPrefix
     spokeVmAdminPassword: spokeVmAdminPassword
-    fortiGateVpnSharedKey: fortiGateVpnSharedKey
     tags: tags
   }
 }
