@@ -19,7 +19,7 @@ targetScope = 'resourceGroup'
 param location string = 'southafricawest'
 
 @description('Name of the virtual network.')
-param vnetName string = '${location}-vnet'
+param vnetName string = 'SA-West-vnet'
 
 @description('Address prefix of the virtual network.')
 param vnetPrefix string = '10.30.0.0/16'
@@ -55,10 +55,10 @@ param dnsOutboundSubnetPrefix string = '10.30.2.96/27'
 param appGatewaySubnetPrefix string = '10.30.3.0/24'
 
 @description('Name of the ExpressRoute virtual network gateway.')
-param gatewayName string = 'ER-GateWay-${location}-Standard'
+param gatewayName string = 'ER-GateWay-SA-West-Standard'
 
 @description('Name of the gateway public IP address.')
-param gatewayPublicIpName string = 'ER-GateWay-${location}-Standard-pip'
+param gatewayPublicIpName string = 'ER-GateWay-SA-West-Standard-pip'
 
 @allowed([
   'Standard'
@@ -75,7 +75,7 @@ param gatewaySku string = 'Standard'
 param deployExpressRouteConnection bool = true
 
 @description('Name of the ExpressRoute connection.')
-param connectionName string = 'ER-${location}-Connection'
+param connectionName string = 'ER-SA-West-Connection-to-SA-West-Region'
 
 @description('Name of the existing ExpressRoute circuit.')
 param circuitName string = 'ER-LTSA-SA-West'
@@ -91,10 +91,10 @@ param circuitSubscriptionId string = subscription().subscriptionId
 param routingWeight int = 0
 
 @description('Name of the virtual machine.')
-param vmName string = '${location}-JB-1'
+param vmName string = 'ZAW-JB-1'
 
 @description('Name of the virtual machine network interface.')
-param vmNicName string = '${vmName}-nic'
+param vmNicName string = 'ZAW-JB-1-nic'
 
 @description('Size of the virtual machine.')
 param vmSize string = 'Standard_B2s'

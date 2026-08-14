@@ -1,11 +1,11 @@
 // ============================================================
-// SA-West-HUB resources - VNet + Subnets + ER GW + ER Connection + VM
-// South Africa West  |  v5 - Bicep (resource-group scoped module)
+// SA-North-HUB resources - VNet + Subnets + ER GW + ER Connection + VM
+// South Africa North  |  v5 - Bicep (resource-group scoped module)
 // ============================================================
 // Called by the subscription-scoped orchestrator
-// (ZAW-Hub-VM-vnet-er-gw-v5-rg.bicep), which creates the
+// (ZAN-Hub-VM-vnet-er-gw-v5-rg.bicep), which creates the
 // resource group and invokes this module.
-//
+// vmr
 // The ER connection references the gateway's id, so ARM automatically
 // waits for the ExpressRoute gateway to finish provisioning before it
 // creates the connection.
@@ -15,50 +15,18 @@
 
 targetScope = 'resourceGroup'
 
+// --- Parameters ---------------------------------------------
 @description('Azure region for all resources.')
-param location string = 'southafricawest'
+param location string = 'southafricanorth'
 
-@description('Name of the virtual network.')
-param vnetName string = '${location}-vnet'
+param vnetName string = 'SA-North-vnet'
+param vnetPrefix string = '10.10.0.0/16'
 
-@description('Address prefix of the virtual network.')
-param vnetPrefix string = '10.30.0.0/16'
+param subnet1Name string = 'SubNet-1'
+param nsgName string = 'SA-North-default-nsg'
 
-@description('Address prefix of GatewaySubnet.')
-param gatewaySubnetPrefix string = '10.30.0.0/26'
-
-@description('Address prefix of AzureFirewallSubnet.')
-param firewallSubnetPrefix string = '10.30.0.64/26'
-
-@description('Address prefix of AzureFirewallManagementSubnet.')
-param firewallManagementSubnetPrefix string = '10.30.0.128/26'
-
-@description('Address prefix of AzureBastionSubnet.')
-param bastionSubnetPrefix string = '10.30.0.192/26'
-
-@description('Name of the VM subnet.')
-param subnetName string = 'Subnet-1'
-
-@description('Address prefix of the VM subnet.')
-param subnetPrefix string = '10.30.1.0/24'
-
-@description('Address prefix of RouteServerSubnet.')
-param routeServerSubnetPrefix string = '10.30.2.0/26'
-
-@description('Address prefix of DnsResolverInboundSubnet.')
-param dnsInboundSubnetPrefix string = '10.30.2.64/27'
-
-@description('Address prefix of DnsResolverOutboundSubnet.')
-param dnsOutboundSubnetPrefix string = '10.30.2.96/27'
-
-@description('Address prefix of AppGatewaySubnet.')
-param appGatewaySubnetPrefix string = '10.30.3.0/24'
-
-@description('Name of the ExpressRoute virtual network gateway.')
-param gatewayName string = 'ER-GateWay-${location}-Standard'
-
-@description('Name of the gateway public IP address.')
-param gatewayPublicIpName string = 'ER-GateWay-${location}-Standard-pip'
+param gwName string = 'ER-GateWay-SA-North-Standard'
+param gwPipName string = 'ER-GateWay-SA-North-Standard-pip'
 
 @allowed([
   'Standard'
@@ -68,49 +36,63 @@ param gatewayPublicIpName string = 'ER-GateWay-${location}-Standard-pip'
   'ErGw2AZ'
   'ErGw3AZ'
 ])
-@description('SKU of the ExpressRoute virtual network gateway.')
-param gatewaySku string = 'Standard'
+param gwSku string = 'Standard'
 
-@description('Create the connection to the existing ExpressRoute circuit.')
-param deployExpressRouteConnection bool = true
+// --- ExpressRoute connection parameters ---------------------
+@description('Create the ExpressRoute connection after the gateway is ready.')
+param deployErConnection bool = true
 
-@description('Name of the ExpressRoute connection.')
-param connectionName string = 'ER-${location}-Connection'
+@description('Name for the ExpressRoute connection.')
+param connectionName string = 'ER-SA-North-Connection'
 
 @description('Name of the existing ExpressRoute circuit.')
-param circuitName string = 'ER-LTSA-SA-West'
+param circuitName string = 'ER-LIT-ZAN'
 
-@description('Resource group containing the existing ExpressRoute circuit.')
-param circuitResourceGroupName string = 'ER-LTSA-rg'
+@description('Resource group that contains the ExpressRoute circuit.')
+param circuitResourceGroup string = 'ER-LTSA-rg'
 
-@description('Subscription containing the existing ExpressRoute circuit.')
+@description('Subscription ID of the circuit (defaults to the current subscription).')
 param circuitSubscriptionId string = subscription().subscriptionId
 
 @description('Routing weight for the ExpressRoute connection.')
-@minValue(0)
 param routingWeight int = 0
 
-@description('Name of the virtual machine.')
-param vmName string = '${location}-JB-1'
+@description('Authorization key - only needed for cross-subscription/tenant circuits.')
+@secure()
+param authorizationKey string = ''
 
-@description('Name of the virtual machine network interface.')
-param vmNicName string = '${vmName}-nic'
-
-@description('Size of the virtual machine.')
+param vmName string = 'ZAN-JB-1'
+param vmNicName string = 'ZAN-JB-1-nic'
 param vmSize string = 'Standard_B2s'
-
-@description('Static private IP address of the virtual machine.')
-param vmPrivateIp string = '10.30.1.5'
-
-@description('Administrator username for the virtual machine.')
+param vmPrivateIp string = '10.10.1.5'
 param adminUsername string = 'rootadmin'
 
 @secure()
-@description('Administrator password for the virtual machine.')
 param adminPassword string
 
-resource gatewayPublicIp 'Microsoft.Network/publicIPAddresses@2023-11-01' = {
-  name: gatewayPublicIpName
+// --- Subnet address prefixes (recommended hub sizes) --------
+var gatewaySubnetPrefix = '10.10.0.0/26'
+var firewallSubnetPrefix = '10.10.0.64/26'
+var firewallMgmtSubnetPrefix = '10.10.0.128/26'
+var bastionSubnetPrefix = '10.10.0.192/26'
+var subnet1Prefix = '10.10.1.0/24'
+var routeServerSubnetPrefix = '10.10.2.0/26'
+var dnsInboundSubnetPrefix = '10.10.2.64/27'
+var dnsOutboundSubnetPrefix = '10.10.2.96/27'
+var appGwSubnetPrefix = '10.10.3.0/24'
+
+// --- Default NSG (Azure built-in rules only) ----------------
+resource nsg 'Microsoft.Network/networkSecurityGroups@2023-11-01' = {
+  name: nsgName
+  location: location
+  properties: {
+    securityRules: []
+  }
+}
+
+// --- Public IP for the ExpressRoute Gateway -----------------
+resource gwPip 'Microsoft.Network/publicIPAddresses@2023-11-01' = {
+  name: gwPipName
   location: location
   sku: {
     name: 'Standard'
@@ -120,6 +102,7 @@ resource gatewayPublicIp 'Microsoft.Network/publicIPAddresses@2023-11-01' = {
   }
 }
 
+// --- VNet with all hub subnets ------------------------------
 resource vnet 'Microsoft.Network/virtualNetworks@2023-11-01' = {
   name: vnetName
   location: location
@@ -145,7 +128,7 @@ resource vnet 'Microsoft.Network/virtualNetworks@2023-11-01' = {
       {
         name: 'AzureFirewallManagementSubnet'
         properties: {
-          addressPrefix: firewallManagementSubnetPrefix
+          addressPrefix: firewallMgmtSubnetPrefix
         }
       }
       {
@@ -155,9 +138,12 @@ resource vnet 'Microsoft.Network/virtualNetworks@2023-11-01' = {
         }
       }
       {
-        name: subnetName
+        name: subnet1Name
         properties: {
-          addressPrefix: subnetPrefix
+          addressPrefix: subnet1Prefix
+          networkSecurityGroup: {
+            id: nsg.id
+          }
         }
       }
       {
@@ -197,32 +183,33 @@ resource vnet 'Microsoft.Network/virtualNetworks@2023-11-01' = {
       {
         name: 'AppGatewaySubnet'
         properties: {
-          addressPrefix: appGatewaySubnetPrefix
+          addressPrefix: appGwSubnetPrefix
         }
       }
     ]
   }
 }
 
-resource gateway 'Microsoft.Network/virtualNetworkGateways@2023-11-01' = {
-  name: gatewayName
+// --- ExpressRoute Gateway -----------------------------------
+resource ergw 'Microsoft.Network/virtualNetworkGateways@2023-11-01' = {
+  name: gwName
   location: location
   properties: {
     gatewayType: 'ExpressRoute'
     sku: {
-      name: gatewaySku
-      tier: gatewaySku
+      name: gwSku
+      tier: gwSku
     }
     ipConfigurations: [
       {
-        name: 'gatewayIpConfiguration'
+        name: 'gwipconfig'
         properties: {
           privateIPAllocationMethod: 'Dynamic'
           subnet: {
             id: '${vnet.id}/subnets/GatewaySubnet'
           }
           publicIPAddress: {
-            id: gatewayPublicIp.id
+            id: gwPip.id
           }
         }
       }
@@ -230,29 +217,39 @@ resource gateway 'Microsoft.Network/virtualNetworkGateways@2023-11-01' = {
   }
 }
 
+// --- Existing ER circuit (may be in another RG / subscription) ---
 resource circuit 'Microsoft.Network/expressRouteCircuits@2023-11-01' existing = {
   name: circuitName
-  scope: resourceGroup(circuitSubscriptionId, circuitResourceGroupName)
+  scope: resourceGroup(circuitSubscriptionId, circuitResourceGroup)
 }
 
-resource expressRouteConnection 'Microsoft.Network/connections@2023-11-01' = if (deployExpressRouteConnection) {
+// --- ExpressRoute Connection --------------------------------
+// Referencing ergw.id makes ARM wait for the gateway to finish first.
+resource erConnection 'Microsoft.Network/connections@2023-11-01' = if (deployErConnection) {
   name: connectionName
   location: location
+  // Explicitly wait for the ExpressRoute gateway to finish provisioning
+  dependsOn: [
+    #disable-next-line no-unnecessary-dependson
+    ergw
+  ]
   properties: {
     connectionType: 'ExpressRoute'
     routingWeight: routingWeight
-    // The connection API accepts an ID-only gateway reference.
+    // Only the resource id is used for these references
     #disable-next-line BCP035
     virtualNetworkGateway1: {
-      id: gateway.id
+      id: ergw.id
     }
     peer: {
       id: circuit.id
     }
+    authorizationKey: empty(authorizationKey) ? null : authorizationKey
   }
 }
 
-resource vmNic 'Microsoft.Network/networkInterfaces@2023-11-01' = {
+// --- VM NIC (static private IP, no public IP) ---------------
+resource nic 'Microsoft.Network/networkInterfaces@2023-11-01' = {
   name: vmNicName
   location: location
   properties: {
@@ -261,7 +258,7 @@ resource vmNic 'Microsoft.Network/networkInterfaces@2023-11-01' = {
         name: 'ipconfig1'
         properties: {
           subnet: {
-            id: '${vnet.id}/subnets/${subnetName}'
+            id: '${vnet.id}/subnets/${subnet1Name}'
           }
           privateIPAllocationMethod: 'Static'
           privateIPAddress: vmPrivateIp
@@ -271,6 +268,7 @@ resource vmNic 'Microsoft.Network/networkInterfaces@2023-11-01' = {
   }
 }
 
+// --- Ubuntu 22.04 VM ----------------------------------------
 resource vm 'Microsoft.Compute/virtualMachines@2024-03-01' = {
   name: vmName
   location: location
@@ -303,14 +301,22 @@ resource vm 'Microsoft.Compute/virtualMachines@2024-03-01' = {
     networkProfile: {
       networkInterfaces: [
         {
-          id: vmNic.id
+          id: nic.id
         }
       ]
     }
   }
 }
 
+// --- Outputs ------------------------------------------------
+output networkSecurityGroupName string = nsg.name
+output gatewayPublicIpName string = gwPip.name
+output vnetName string = vnet.name
 output vnetId string = vnet.id
-output vmPrivateIp string = vmNic.properties.ipConfigurations[0].properties.privateIPAddress
-output expressRouteGatewayId string = gateway.id
-output expressRouteConnectionId string = deployExpressRouteConnection ? expressRouteConnection.id : ''
+output vmName string = vm.name
+output vmNicName string = nic.name
+output vmPrivateIp string = nic.properties.ipConfigurations[0].properties.privateIPAddress
+output erGatewayName string = ergw.name
+output erGatewayId string = ergw.id
+output erConnectionName string = deployErConnection ? erConnection.name : ''
+output erConnectionId string = deployErConnection ? erConnection.id : ''

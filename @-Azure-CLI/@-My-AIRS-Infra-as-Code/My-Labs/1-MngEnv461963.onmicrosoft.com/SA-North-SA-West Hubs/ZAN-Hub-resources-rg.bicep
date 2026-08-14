@@ -21,7 +21,7 @@
 targetScope = 'subscription'
 
 @description('Name of the resource group to create.')
-param resourceGroupName string = '${location}-region'
+param resourceGroupName string = 'SA-North-region'
 
 @description('Azure region for the resource group and all resources.')
 param location string = 'southafricanorth'

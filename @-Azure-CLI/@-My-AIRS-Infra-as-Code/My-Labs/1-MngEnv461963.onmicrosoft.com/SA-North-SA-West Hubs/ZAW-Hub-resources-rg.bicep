@@ -19,10 +19,10 @@
 targetScope = 'subscription'
 
 @description('Name of the resource group to create.')
-param resourceGroupName string = '${location}-region'
+param resourceGroupName string = 'SA-West-region'
 
 @description('Azure region for the resource group and all resources.')
-param location string = deployment().location
+param location string = 'southafricawest'
 
 @secure()
 @description('Administrator password for the virtual machine.')
