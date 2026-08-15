@@ -38,6 +38,13 @@ param circuitName string = 'ER-LIT-ZAN'
 @description('Resource group that contains the ExpressRoute circuit.')
 param circuitResourceGroup string = 'ER-LTSA-rg'
 
+@description('Subscription ID of the ExpressRoute circuit (defaults to the current subscription).')
+param circuitSubscriptionId string = subscription().subscriptionId
+
+@description('Authorization key for a circuit in another subscription/tenant. Required for cross-subscription or cross-tenant connections; leave empty for a circuit in the same subscription.')
+@secure()
+param authorizationKey string = ''
+
 // --- Resource Group -----------------------------------------
 resource rg 'Microsoft.Resources/resourceGroups@2023-07-01' = {
   name: resourceGroupName
@@ -54,6 +61,8 @@ module resources 'ZAN-Hub-resources.bicep' = {
     deployErConnection: deployErConnection
     circuitName: circuitName
     circuitResourceGroup: circuitResourceGroup
+    circuitSubscriptionId: circuitSubscriptionId
+    authorizationKey: authorizationKey
   }
 }
 

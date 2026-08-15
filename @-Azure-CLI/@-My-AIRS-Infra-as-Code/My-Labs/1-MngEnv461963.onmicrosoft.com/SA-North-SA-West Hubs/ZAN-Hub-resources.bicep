@@ -19,14 +19,14 @@ targetScope = 'resourceGroup'
 @description('Azure region for all resources.')
 param location string = 'southafricanorth'
 
-param vnetName string = 'SA-North-vnet'
+param vnetName string = '${location}-vnet'
 param vnetPrefix string = '10.10.0.0/16'
 
 param subnet1Name string = 'SubNet-1'
-param nsgName string = 'SA-North-default-nsg'
+param nsgName string = '${location}-default-nsg'
 
-param gwName string = 'ER-GateWay-SA-North-Standard'
-param gwPipName string = 'ER-GateWay-SA-North-Standard-pip'
+param gwName string = 'ER-GateWay-${location}-Standard'
+param gwPipName string = 'ER-GateWay-${location}-Standard-pip'
 
 @allowed([
   'Standard'
@@ -43,7 +43,7 @@ param gwSku string = 'Standard'
 param deployErConnection bool = true
 
 @description('Name for the ExpressRoute connection.')
-param connectionName string = 'ER-SA-North-Connection'
+param connectionName string = 'ER-${location}-Connection'
 
 @description('Name of the existing ExpressRoute circuit.')
 param circuitName string = 'ER-LIT-ZAN'
@@ -61,8 +61,8 @@ param routingWeight int = 0
 @secure()
 param authorizationKey string = ''
 
-param vmName string = 'ZAN-JB-1'
-param vmNicName string = 'ZAN-JB-1-nic'
+param vmName string = '${location}-JB-1'
+param vmNicName string = '${vmName}-nic'
 param vmSize string = 'Standard_B2s'
 param vmPrivateIp string = '10.10.1.5'
 param adminUsername string = 'rootadmin'
@@ -217,11 +217,10 @@ resource ergw 'Microsoft.Network/virtualNetworkGateways@2023-11-01' = {
   }
 }
 
-// --- Existing ER circuit (may be in another RG / subscription) ---
-resource circuit 'Microsoft.Network/expressRouteCircuits@2023-11-01' existing = {
-  name: circuitName
-  scope: resourceGroup(circuitSubscriptionId, circuitResourceGroup)
-}
+// Reference the circuit by resource ID so the deployment does not need read
+// access in the circuit's subscription/tenant. Cross-subscription or
+// cross-tenant connections are authorized with the authorization key.
+var circuitId = resourceId(circuitSubscriptionId, circuitResourceGroup, 'Microsoft.Network/expressRouteCircuits', circuitName)
 
 // --- ExpressRoute Connection --------------------------------
 // Referencing ergw.id makes ARM wait for the gateway to finish first.
@@ -242,7 +241,7 @@ resource erConnection 'Microsoft.Network/connections@2023-11-01' = if (deployErC
       id: ergw.id
     }
     peer: {
-      id: circuit.id
+      id: circuitId
     }
     authorizationKey: empty(authorizationKey) ? null : authorizationKey
   }

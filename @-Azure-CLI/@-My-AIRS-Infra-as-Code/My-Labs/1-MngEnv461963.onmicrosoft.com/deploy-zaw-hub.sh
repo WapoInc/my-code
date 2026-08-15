@@ -120,6 +120,48 @@ fi
 
 az account set --subscription "$selected_subscription_id"
 
+# The circuit's subscription always lives in this tenant.
+CIRCUIT_TENANT_ID="5cba78fe-cc40-479a-9ee1-255423641bc9"
+
+AUTHORIZATION_KEY=""
+if [[ "$DEPLOY_ER_CONNECTION" == "true" ]]; then
+  if [[ "$CIRCUIT_TENANT_ID" == "$selected_tenant_id" ]]; then
+    echo "ER gateway and circuit are in the same tenant - using the standard ExpressRoute connection (no authorization key)."
+  else
+    ER_GW_NAME="ER-GateWay-${LOCATION}-Standard"
+    AUTH_NAME="AuthKey-to-${ER_GW_NAME}"
+    echo "ER gateway and circuit are in different tenants - creating authorization '$AUTH_NAME' on circuit $CIRCUIT_NAME..."
+
+    # Access the circuit's subscription (sign in to its tenant if needed).
+    if ! az account show --subscription "$CIRCUIT_SUBSCRIPTION_ID" >/dev/null 2>&1; then
+      echo "Signing in to the circuit's tenant ($CIRCUIT_TENANT_ID)..."
+      az login --tenant "$CIRCUIT_TENANT_ID" >/dev/null
+    fi
+
+    # Create the authorization (reuse the key if it already exists).
+    AUTHORIZATION_KEY="$(az network express-route auth create \
+      -g "$CIRCUIT_RESOURCE_GROUP_NAME" --circuit-name "$CIRCUIT_NAME" \
+      -n "$AUTH_NAME" --subscription "$CIRCUIT_SUBSCRIPTION_ID" \
+      --query authorizationKey -o tsv 2>/dev/null || true)"
+    if [[ -z "$AUTHORIZATION_KEY" ]]; then
+      AUTHORIZATION_KEY="$(az network express-route auth show \
+        -g "$CIRCUIT_RESOURCE_GROUP_NAME" --circuit-name "$CIRCUIT_NAME" \
+        -n "$AUTH_NAME" --subscription "$CIRCUIT_SUBSCRIPTION_ID" \
+        --query authorizationKey -o tsv 2>/dev/null || true)"
+    fi
+
+    # Return to the deployment subscription.
+    az account set --subscription "$selected_subscription_id"
+
+    if [[ -z "$AUTHORIZATION_KEY" ]]; then
+      echo "Could not create or read the authorization key - skipping the ExpressRoute connection." >&2
+      DEPLOY_ER_CONNECTION="false"
+    else
+      echo "Authorization key '$AUTH_NAME' obtained."
+    fi
+  fi
+fi
+
 az deployment sub create \
   --name "zaw-hub-$(date -u +%Y%m%d-%H%M%S)" \
   --location "$LOCATION" \
@@ -132,4 +174,5 @@ az deployment sub create \
     circuitName="$CIRCUIT_NAME" \
     circuitResourceGroupName="$CIRCUIT_RESOURCE_GROUP_NAME" \
     circuitSubscriptionId="$CIRCUIT_SUBSCRIPTION_ID" \
+    authorizationKey="$AUTHORIZATION_KEY" \
   --subscription "$selected_subscription_id"

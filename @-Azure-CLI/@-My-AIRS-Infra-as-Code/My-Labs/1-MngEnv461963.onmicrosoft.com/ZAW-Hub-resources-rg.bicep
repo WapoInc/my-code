@@ -40,6 +40,10 @@ param circuitResourceGroupName string = 'ER-LTSA-rg'
 @description('Subscription containing the existing ExpressRoute circuit.')
 param circuitSubscriptionId string = subscription().subscriptionId
 
+@description('Authorization key for a circuit in another subscription/tenant. Required for cross-subscription or cross-tenant connections; leave empty for a circuit in the same subscription.')
+@secure()
+param authorizationKey string = ''
+
 resource resourceGroup 'Microsoft.Resources/resourceGroups@2023-07-01' = {
   name: resourceGroupName
   location: location
@@ -54,6 +58,7 @@ module hubResources 'ZAW-Hub-resources.bicep' = {
     circuitName: circuitName
     circuitResourceGroupName: circuitResourceGroupName
     circuitSubscriptionId: circuitSubscriptionId
+    authorizationKey: authorizationKey
   }
 }
 

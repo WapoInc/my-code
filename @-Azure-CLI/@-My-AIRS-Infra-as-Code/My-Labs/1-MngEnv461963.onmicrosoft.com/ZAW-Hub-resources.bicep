@@ -90,6 +90,10 @@ param circuitSubscriptionId string = subscription().subscriptionId
 @minValue(0)
 param routingWeight int = 0
 
+@description('Authorization key for a circuit in another subscription/tenant. Required for cross-subscription or cross-tenant connections; leave empty for a circuit in the same subscription.')
+@secure()
+param authorizationKey string = ''
+
 @description('Name of the virtual machine.')
 param vmName string = '${location}-JB-1'
 
@@ -230,10 +234,10 @@ resource gateway 'Microsoft.Network/virtualNetworkGateways@2023-11-01' = {
   }
 }
 
-resource circuit 'Microsoft.Network/expressRouteCircuits@2023-11-01' existing = {
-  name: circuitName
-  scope: resourceGroup(circuitSubscriptionId, circuitResourceGroupName)
-}
+// Reference the circuit by resource ID so the deployment does not need read
+// access in the circuit's subscription/tenant. Cross-subscription or
+// cross-tenant connections are authorized with the authorization key.
+var circuitId = resourceId(circuitSubscriptionId, circuitResourceGroupName, 'Microsoft.Network/expressRouteCircuits', circuitName)
 
 resource expressRouteConnection 'Microsoft.Network/connections@2023-11-01' = if (deployExpressRouteConnection) {
   name: connectionName
@@ -247,8 +251,9 @@ resource expressRouteConnection 'Microsoft.Network/connections@2023-11-01' = if 
       id: gateway.id
     }
     peer: {
-      id: circuit.id
+      id: circuitId
     }
+    authorizationKey: empty(authorizationKey) ? null : authorizationKey
   }
 }
 

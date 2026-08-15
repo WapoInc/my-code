@@ -19,7 +19,7 @@ targetScope = 'resourceGroup'
 param location string = 'southafricawest'
 
 @description('Name of the virtual network.')
-param vnetName string = 'SA-West-vnet'
+param vnetName string = '${location}-vnet'
 
 @description('Address prefix of the virtual network.')
 param vnetPrefix string = '10.30.0.0/16'
@@ -55,10 +55,10 @@ param dnsOutboundSubnetPrefix string = '10.30.2.96/27'
 param appGatewaySubnetPrefix string = '10.30.3.0/24'
 
 @description('Name of the ExpressRoute virtual network gateway.')
-param gatewayName string = 'ER-GateWay-SA-West-Standard'
+param gatewayName string = 'ER-GateWay-${location}-Standard'
 
 @description('Name of the gateway public IP address.')
-param gatewayPublicIpName string = 'ER-GateWay-SA-West-Standard-pip'
+param gatewayPublicIpName string = 'ER-GateWay-${location}-Standard-pip'
 
 @allowed([
   'Standard'
@@ -75,7 +75,7 @@ param gatewaySku string = 'Standard'
 param deployExpressRouteConnection bool = true
 
 @description('Name of the ExpressRoute connection.')
-param connectionName string = 'ER-SA-West-Connection-to-SA-West-Region'
+param connectionName string = 'ER-${location}-Connection'
 
 @description('Name of the existing ExpressRoute circuit.')
 param circuitName string = 'ER-LTSA-SA-West'
@@ -90,11 +90,15 @@ param circuitSubscriptionId string = subscription().subscriptionId
 @minValue(0)
 param routingWeight int = 0
 
+@description('Authorization key for a circuit in another subscription/tenant. Required for cross-subscription or cross-tenant connections; leave empty for a circuit in the same subscription.')
+@secure()
+param authorizationKey string = ''
+
 @description('Name of the virtual machine.')
-param vmName string = 'ZAW-JB-1'
+param vmName string = '${location}-JB-1'
 
 @description('Name of the virtual machine network interface.')
-param vmNicName string = 'ZAW-JB-1-nic'
+param vmNicName string = '${vmName}-nic'
 
 @description('Size of the virtual machine.')
 param vmSize string = 'Standard_B2s'
@@ -230,10 +234,10 @@ resource gateway 'Microsoft.Network/virtualNetworkGateways@2023-11-01' = {
   }
 }
 
-resource circuit 'Microsoft.Network/expressRouteCircuits@2023-11-01' existing = {
-  name: circuitName
-  scope: resourceGroup(circuitSubscriptionId, circuitResourceGroupName)
-}
+// Reference the circuit by resource ID so the deployment does not need read
+// access in the circuit's subscription/tenant. Cross-subscription or
+// cross-tenant connections are authorized with the authorization key.
+var circuitId = resourceId(circuitSubscriptionId, circuitResourceGroupName, 'Microsoft.Network/expressRouteCircuits', circuitName)
 
 resource expressRouteConnection 'Microsoft.Network/connections@2023-11-01' = if (deployExpressRouteConnection) {
   name: connectionName
@@ -247,8 +251,9 @@ resource expressRouteConnection 'Microsoft.Network/connections@2023-11-01' = if 
       id: gateway.id
     }
     peer: {
-      id: circuit.id
+      id: circuitId
     }
+    authorizationKey: empty(authorizationKey) ? null : authorizationKey
   }
 }
 

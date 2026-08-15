@@ -217,11 +217,10 @@ resource ergw 'Microsoft.Network/virtualNetworkGateways@2023-11-01' = {
   }
 }
 
-// --- Existing ER circuit (may be in another RG / subscription) ---
-resource circuit 'Microsoft.Network/expressRouteCircuits@2023-11-01' existing = {
-  name: circuitName
-  scope: resourceGroup(circuitSubscriptionId, circuitResourceGroup)
-}
+// Reference the circuit by resource ID so the deployment does not need read
+// access in the circuit's subscription/tenant. Cross-subscription or
+// cross-tenant connections are authorized with the authorization key.
+var circuitId = resourceId(circuitSubscriptionId, circuitResourceGroup, 'Microsoft.Network/expressRouteCircuits', circuitName)
 
 // --- ExpressRoute Connection --------------------------------
 // Referencing ergw.id makes ARM wait for the gateway to finish first.
@@ -242,7 +241,7 @@ resource erConnection 'Microsoft.Network/connections@2023-11-01' = if (deployErC
       id: ergw.id
     }
     peer: {
-      id: circuit.id
+      id: circuitId
     }
     authorizationKey: empty(authorizationKey) ? null : authorizationKey
   }
