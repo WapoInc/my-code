@@ -402,18 +402,6 @@ resource fortiGateVpnConnection 'Microsoft.Network/vpnGateways/vpnConnections@20
           connectionBandwidth: 100
           dpdTimeoutSeconds: 20
           enableBgp: false
-          ipsecPolicies: [
-            {
-              dhGroup: 'DHGroup14'
-              ikeEncryption: 'AES256'
-              ikeIntegrity: 'SHA256'
-              ipsecEncryption: 'AES256'
-              ipsecIntegrity: 'SHA256'
-              pfsGroup: 'PFS14'
-              saDataSizeKilobytes: 102400000
-              saLifeTimeSeconds: 28800
-            }
-          ]
           sharedKey: fortiGateVpnSharedKey
           usePolicyBasedTrafficSelectors: false
           vpnConnectionProtocolType: 'IKEv2'

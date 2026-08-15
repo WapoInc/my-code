@@ -7,7 +7,28 @@ deployment_name='deploy-global-vwan'
 location='southafricanorth'
 script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 template_file="${script_dir}/Global-vWAN-rg.bicep"
-deployment_action="${1:-what-if}"
+
+if (( $# == 0 )); then
+  echo 'Choose an action:'
+  echo '  1) Check which resources would be deployed (what-if)'
+  echo '  2) Deploy the resources'
+  read -r -p 'Selection [1/2]: ' deployment_choice
+
+  case "$deployment_choice" in
+    1)
+      deployment_action='what-if'
+      ;;
+    2)
+      deployment_action='deploy'
+      ;;
+    *)
+      echo 'Invalid selection. Enter 1 or 2.' >&2
+      exit 2
+      ;;
+  esac
+else
+  deployment_action="$1"
+fi
 
 if [[ "$deployment_action" != 'validate' && "$deployment_action" != 'what-if' && "$deployment_action" != 'deploy' && "$deployment_action" != 'full' ]]; then
   echo "Usage: $0 [validate|what-if|deploy|full]" >&2
@@ -19,21 +40,13 @@ if ! command -v az >/dev/null 2>&1; then
   exit 1
 fi
 
-read -r -s -p 'VM administrator password: ' vm_password
-echo
-read -r -s -p 'Confirm VM administrator password: ' vm_password_confirmation
-echo
+vm_password='P@ssw0rd123!'
 vpn_shared_key='S2SPSK123!'
 
 cleanup() {
-  unset vm_password vm_password_confirmation vpn_shared_key
+  unset vm_password vpn_shared_key
 }
 trap cleanup EXIT
-
-if [[ "$vm_password" != "$vm_password_confirmation" ]]; then
-  echo 'Passwords do not match.' >&2
-  exit 1
-fi
 
 if (( ${#vm_password} < 6 || ${#vm_password} > 72 )); then
   echo 'Password must be between 6 and 72 characters.' >&2
