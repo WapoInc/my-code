@@ -61,3 +61,7 @@ output resourceGroupName string = resourceGroup.name
 output resourceGroupId string = resourceGroup.id
 output virtualWanId string = virtualWanResources.outputs.virtualWanId
 output virtualHubId string = virtualWanResources.outputs.virtualHubId
+output vpnGatewayPublicIpAddresses object = {
+  Interface0: virtualWanResources.outputs.vpnGatewayPublicIpAddresses[0]
+  Interface1: virtualWanResources.outputs.vpnGatewayPublicIpAddresses[1]
+}

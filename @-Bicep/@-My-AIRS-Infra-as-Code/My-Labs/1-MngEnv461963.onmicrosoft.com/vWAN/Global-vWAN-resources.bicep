@@ -415,6 +415,10 @@ resource fortiGateVpnConnection 'Microsoft.Network/vpnGateways/vpnConnections@20
 }
 
 output vpnGatewayId string = vpnGateway.id
+output vpnGatewayPublicIpAddresses string[] = [
+  vpnGateway.properties.ipConfigurations[0].publicIpAddress
+  vpnGateway.properties.ipConfigurations[1].publicIpAddress
+]
 output fortiGateVpnSiteId string = fortiGateVpnSite.id
 output fortiGateVpnConnectionId string = fortiGateVpnConnection.id
 
