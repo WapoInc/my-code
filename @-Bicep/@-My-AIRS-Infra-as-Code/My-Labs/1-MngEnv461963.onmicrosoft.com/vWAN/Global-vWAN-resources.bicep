@@ -368,23 +368,6 @@ resource vpnGateway 'Microsoft.Network/vpnGateways@2024-05-01' = {
       id: virtualHub.id
     }
     vpnGatewayScaleUnit: 1
-    bgpSettings: {
-      asn: 65515
-      bgpPeeringAddresses: [
-        {
-          ipconfigurationId: 'Instance0'
-          customBgpIpAddresses: [
-            '169.254.21.1'
-          ]
-        }
-        {
-          ipconfigurationId: 'Instance1'
-          customBgpIpAddresses: [
-            '169.254.21.3'
-          ]
-        }
-      ]
-    }
   }
 }
 
@@ -423,16 +406,6 @@ resource fortiGateVpnConnection 'Microsoft.Network/vpnGateways/vpnConnections@20
           connectionBandwidth: 100
           dpdTimeoutSeconds: 20
           enableBgp: true
-          vpnGatewayCustomBgpAddresses: [
-            {
-              ipConfigurationId: 'Instance0'
-              customBgpIpAddress: '169.254.21.1'
-            }
-            {
-              ipConfigurationId: 'Instance1'
-              customBgpIpAddress: '169.254.21.3'
-            }
-          ]
           sharedKey: fortiGateVpnSharedKey
           usePolicyBasedTrafficSelectors: false
           vpnConnectionProtocolType: 'IKEv2'
