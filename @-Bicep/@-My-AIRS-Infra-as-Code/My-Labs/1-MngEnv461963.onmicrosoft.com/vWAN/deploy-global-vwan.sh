@@ -5,7 +5,7 @@ set -euo pipefail
 subscription_id='0cfd0d2a-2b38-4c93-ba14-cf79185bc683'
 deployment_name="deploy-global-vwan-$(date -u +%Y%m%d-%H%M%S)-$$"
 location='southafricanorth'
-default_resource_group_name='Global-vWAN-PoC-3'
+default_resource_group_name='Global-vWAN'
 script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 template_file="${script_dir}/Global-vWAN-rg.bicep"
 fortigate_script_file="${script_dir}/update-fortigate-vpn-tunnels.sh"
