@@ -49,6 +49,9 @@ param authorizationKey string = ''
 resource rg 'Microsoft.Resources/resourceGroups@2023-07-01' = {
   name: resourceGroupName
   location: location
+  tags: {
+    'NB!!!': 'vmr'
+  }
 }
 
 // --- Hub resources (VNet, subnets, NSG, ER GW, ER Connection, VM) ----

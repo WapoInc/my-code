@@ -13,6 +13,8 @@ targetScope = 'subscription'
 @description('Name of the resource group to create.')
 param resourceGroupName string = 'Global-vWAN-PoC'
 
+@description('Unique name used for the nested resource deployment.')
+param deploymentName string = 'deploy-global-vwan'
 
 @description('Azure region for the resource group.')
 param location string = 'southafricanorth'
@@ -40,11 +42,13 @@ param fortiGateVpnSharedKey string
 resource resourceGroup 'Microsoft.Resources/resourceGroups@2024-11-01' = {
   name: resourceGroupName
   location: location
-  tags: tags
+  tags: union(tags, {
+    'NB!!!': 'vmr'
+  })
 }
 
 module virtualWanResources 'Global-vWAN-resources.bicep' = {
-  name: 'deploy-global-vwan'
+  name: '${deploymentName}-resources'
   scope: resourceGroup
   params: {
     location: location

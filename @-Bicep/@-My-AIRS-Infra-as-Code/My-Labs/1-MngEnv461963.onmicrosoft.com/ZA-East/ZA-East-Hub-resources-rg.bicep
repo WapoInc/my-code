@@ -22,6 +22,8 @@ targetScope = 'subscription'
 @description('Name of the resource group to create.')
 param resourceGroupName string = 'za-east-${location}'
 
+var prefixedResourceGroupName = startsWith(toLower(resourceGroupName), 'za-east-') ? resourceGroupName : 'za-east-${resourceGroupName}'
+
 @description('Azure region for the resource group and all resources.')
 param location string = 'southafricanorth'
 
@@ -40,10 +42,29 @@ param adminPassword string
 @description('VPN gateway SKU to deploy. Select None to skip the VPN gateway and its public IP.')
 param vpnGatewaySku string = 'None'
 
+@secure()
+@description('IPsec pre-shared key for the FortiGate tunnel. Leave empty to skip the connection.')
+param vpnSharedKey string = ''
+
+@description('Enable BGP on the Azure VPN gateway, local network gateway, and connection.')
+param enableFortiGateBgp bool = true
+
+@description('BGP ASN used by the on-premises FortiGate.')
+param fortiGateBgpAsn int = 65521
+
+@description('BGP peer IP address configured on the on-premises FortiGate.')
+param fortiGateBgpPeerIp string = '66.66.66.66'
+
+@description('BGP ASN used by the Azure VPN gateway.')
+param azureVpnBgpAsn int = 65515
+
 // --- Resource Group -----------------------------------------
 resource rg 'Microsoft.Resources/resourceGroups@2023-07-01' = {
-  name: resourceGroupName
+  name: prefixedResourceGroupName
   location: location
+  tags: {
+    'NB!!!': 'vmr'
+  }
 }
 
 // --- Hub resources (VNet, subnets, NSG, optional VPN gateway, VM) ----
@@ -54,6 +75,11 @@ module resources 'ZA-East-Hub-resources.bicep' = {
     location: location
     adminPassword: adminPassword
     vpnGatewaySku: vpnGatewaySku
+    vpnSharedKey: vpnSharedKey
+    enableFortiGateBgp: enableFortiGateBgp
+    fortiGateBgpAsn: fortiGateBgpAsn
+    fortiGateBgpPeerIp: fortiGateBgpPeerIp
+    azureVpnBgpAsn: azureVpnBgpAsn
   }
 }
 

@@ -345,6 +345,10 @@ resource fortiGateVpnSite 'Microsoft.Network/vpnSites@2024-05-01' = {
         name: fortiGateVpnSiteLinkName
         properties: {
           ipAddress: '156.155.28.158'
+          bgpProperties: {
+            asn: 65521
+            bgpPeeringAddress: '169.254.21.2'
+          }
           linkProperties: {
             linkProviderName: 'MiaCasa'
             linkSpeedInMbps: 100
@@ -364,6 +368,23 @@ resource vpnGateway 'Microsoft.Network/vpnGateways@2024-05-01' = {
       id: virtualHub.id
     }
     vpnGatewayScaleUnit: 1
+    bgpSettings: {
+      asn: 65515
+      bgpPeeringAddresses: [
+        {
+          ipconfigurationId: 'Instance0'
+          customBgpIpAddresses: [
+            '169.254.21.1'
+          ]
+        }
+        {
+          ipconfigurationId: 'Instance1'
+          customBgpIpAddresses: [
+            '169.254.21.3'
+          ]
+        }
+      ]
+    }
   }
 }
 
@@ -401,7 +422,17 @@ resource fortiGateVpnConnection 'Microsoft.Network/vpnGateways/vpnConnections@20
         properties: {
           connectionBandwidth: 100
           dpdTimeoutSeconds: 20
-          enableBgp: false
+          enableBgp: true
+          vpnGatewayCustomBgpAddresses: [
+            {
+              ipConfigurationId: 'Instance0'
+              customBgpIpAddress: '169.254.21.1'
+            }
+            {
+              ipConfigurationId: 'Instance1'
+              customBgpIpAddress: '169.254.21.3'
+            }
+          ]
           sharedKey: fortiGateVpnSharedKey
           usePolicyBasedTrafficSelectors: false
           vpnConnectionProtocolType: 'IKEv2'
@@ -423,3 +454,148 @@ output fortiGateVpnSiteId string = fortiGateVpnSite.id
 output fortiGateVpnConnectionId string = fortiGateVpnConnection.id
 
 // ----- End South Africa North vWAN VPN gateway and FortiGate connection -----
+
+// ----- South Africa West hub, spoke VNets and Ubuntu VMs -----
+
+@description('Azure region for the South Africa West hub and spokes.')
+param sawLocation string = 'southafricawest'
+
+var sawVirtualHubName = 'ZAW-Hub-1'
+
+resource sawVirtualHub 'Microsoft.Network/virtualHubs@2024-05-01' = {
+  name: sawVirtualHubName
+  location: sawLocation
+  tags: tags
+  properties: {
+    addressPrefix: '10.200.2.0/24'
+    sku: 'Standard'
+    virtualWan: {
+      id: virtualWan.id
+    }
+  }
+}
+
+var sawSpokeConfigs = [
+  {
+    name: 'ZAW-Spoke-VNet-1'
+    vmName: 'ZAW-Spoke-VM-1'
+    vnetPrefix: '10.200.8.0/24'
+    subnetPrefix: '10.200.8.0/25'
+  }
+  {
+    name: 'ZAW-Spoke-VNet-2'
+    vmName: 'ZAW-Spoke-VM-2'
+    vnetPrefix: '10.200.9.0/24'
+    subnetPrefix: '10.200.9.0/25'
+  }
+]
+
+resource sawSpokeVnets 'Microsoft.Network/virtualNetworks@2024-05-01' = [
+  for spoke in sawSpokeConfigs: {
+    name: spoke.name
+    location: sawLocation
+    tags: tags
+    properties: {
+      addressSpace: {
+        addressPrefixes: [
+          spoke.vnetPrefix
+        ]
+      }
+      subnets: [
+        {
+          name: 'SubNet-1'
+          properties: {
+            addressPrefix: spoke.subnetPrefix
+          }
+        }
+      ]
+    }
+  }
+]
+
+resource sawSpokeNics 'Microsoft.Network/networkInterfaces@2024-05-01' = [
+  for (spoke, i) in sawSpokeConfigs: {
+    name: '${spoke.vmName}-nic'
+    location: sawLocation
+    tags: tags
+    properties: {
+      ipConfigurations: [
+        {
+          name: 'ipconfig1'
+          properties: {
+            privateIPAllocationMethod: 'Dynamic'
+            subnet: {
+              id: '${sawSpokeVnets[i].id}/subnets/SubNet-1'
+            }
+          }
+        }
+      ]
+    }
+  }
+]
+
+resource sawSpokeVms 'Microsoft.Compute/virtualMachines@2024-07-01' = [
+  for (spoke, i) in sawSpokeConfigs: {
+    name: spoke.vmName
+    location: sawLocation
+    tags: tags
+    properties: {
+      hardwareProfile: {
+        vmSize: 'Standard_B1ls'
+      }
+      storageProfile: {
+        imageReference: {
+          publisher: 'Canonical'
+          offer: '0001-com-ubuntu-server-jammy'
+          sku: '22_04-lts-gen2'
+          version: 'latest'
+        }
+        osDisk: {
+          createOption: 'FromImage'
+          deleteOption: 'Delete'
+          managedDisk: {
+            storageAccountType: 'Standard_LRS'
+          }
+        }
+      }
+      osProfile: {
+        computerName: spoke.vmName
+        adminUsername: spokeVmAdminUsername
+        adminPassword: spokeVmAdminPassword
+        linuxConfiguration: {
+          disablePasswordAuthentication: false
+          provisionVMAgent: true
+        }
+      }
+      networkProfile: {
+        networkInterfaces: [
+          {
+            id: sawSpokeNics[i].id
+            properties: {
+              deleteOption: 'Delete'
+            }
+          }
+        ]
+      }
+    }
+  }
+]
+
+resource sawSpokeHubConnections 'Microsoft.Network/virtualHubs/hubVirtualNetworkConnections@2024-05-01' = [
+  for (spoke, i) in sawSpokeConfigs: {
+    parent: sawVirtualHub
+    name: '${spoke.name}-to-${sawVirtualHubName}'
+    properties: {
+      enableInternetSecurity: false
+      remoteVirtualNetwork: {
+        id: sawSpokeVnets[i].id
+      }
+    }
+  }
+]
+
+output sawVirtualHubId string = sawVirtualHub.id
+output sawSpokeVnetIds array = [for (spoke, i) in sawSpokeConfigs: sawSpokeVnets[i].id]
+output sawSpokeVmIds array = [for (spoke, i) in sawSpokeConfigs: sawSpokeVms[i].id]
+
+// ----- End South Africa West hub, spoke VNets and Ubuntu VMs -----

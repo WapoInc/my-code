@@ -3,12 +3,15 @@
 set -euo pipefail
 
 subscription_id='0cfd0d2a-2b38-4c93-ba14-cf79185bc683'
-deployment_name='deploy-global-vwan'
+deployment_name="deploy-global-vwan-$(date -u +%Y%m%d-%H%M%S)-$$"
 location='southafricanorth'
-resource_group_name='Global-vWAN-PoC'
+default_resource_group_name='Global-vWAN-PoC-3'
 script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 template_file="${script_dir}/Global-vWAN-rg.bicep"
 fortigate_script_file="${script_dir}/update-fortigate-vpn-tunnels.sh"
+
+read -r -p "Resource group name [${default_resource_group_name}]: " resource_group_name
+resource_group_name="${resource_group_name:-$default_resource_group_name}"
 
 if (( $# == 0 )); then
   echo 'Choose an action:'
@@ -41,6 +44,11 @@ if ! command -v az >/dev/null 2>&1; then
   echo 'Azure CLI (az) is not installed or is not on PATH.' >&2
   exit 1
 fi
+
+echo
+echo "Resource group:  $resource_group_name"
+echo "Deployment name: $deployment_name"
+echo
 
 vm_password='P@ssw0rd123!'
 vpn_shared_key='S2SPSK123!'
@@ -80,6 +88,8 @@ run_deployment() {
     --location "$location" \
     --template-file "$template_file" \
     --parameters \
+      deploymentName="$deployment_name" \
+      resourceGroupName="$resource_group_name" \
       spokeVmAdminPassword="$vm_password" \
       fortiGateVpnSharedKey="$vpn_shared_key"
 }

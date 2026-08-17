@@ -79,10 +79,16 @@ select selected_region in "${region_options[@]}" "Cancel"; do
 done
 
 ADMIN_PASSWORD="P@ssw0rd123!"
+FORTIGATE_BGP_ASN=65521
+FORTIGATE_BGP_PEER_IP="66.66.66.66"
+AZURE_VPN_BGP_ASN=65515
 
 # --- Prompt for ZA-East-Hub-resources-rg.bicep parameters (Enter accepts default) ---
 read -r -p "Resource group name [za-east-${LOCATION}]: " RESOURCE_GROUP_NAME
 RESOURCE_GROUP_NAME="${RESOURCE_GROUP_NAME:-za-east-${LOCATION}}"
+if [[ ! "$RESOURCE_GROUP_NAME" =~ ^[Zz][Aa]-[Ee][Aa][Ss][Tt]- ]]; then
+  RESOURCE_GROUP_NAME="za-east-${RESOURCE_GROUP_NAME}"
+fi
 
 vpn_gateway_options=(
   "None"
@@ -109,6 +115,19 @@ select selected_vpn_gateway_sku in "${vpn_gateway_options[@]}"; do
   echo "Invalid selection. Choose a number from 1 to ${#vpn_gateway_options[@]}."
 done
 
+VPN_SHARED_KEY=""
+FORTIGATE_TUNNEL="Skipped"
+if [[ "$VPN_GATEWAY_SKU" != "None" && "$VPN_GATEWAY_SKU" != "Basic" ]]; then
+  echo
+  read -r -s -p "FortiGate IPsec pre-shared key (leave blank to skip tunnel): " VPN_SHARED_KEY
+  echo
+  if [[ -n "$VPN_SHARED_KEY" ]]; then
+    FORTIGATE_TUNNEL="Enabled (156.155.28.158, ASN ${FORTIGATE_BGP_ASN}, BGP peer ${FORTIGATE_BGP_PEER_IP})"
+  fi
+elif [[ "$VPN_GATEWAY_SKU" == "Basic" ]]; then
+  FORTIGATE_TUNNEL="Skipped (Basic SKU does not support BGP)"
+fi
+
 echo
 echo "Deployment target:"
 echo "  Subscription:   ${subscription_labels[$selected_index]}"
@@ -117,6 +136,7 @@ echo "  Tenant:         $selected_tenant_id"
 echo "  Location:       $LOCATION"
 echo "  Resource grp:   $RESOURCE_GROUP_NAME"
 echo "  VPN gateway:    $VPN_GATEWAY_SKU"
+echo "  FortiGate VPN:  $FORTIGATE_TUNNEL"
 echo "  Template:       $TEMPLATE_FILE"
 echo
 
@@ -143,4 +163,20 @@ az deployment sub create \
     location="$LOCATION" \
     resourceGroupName="$RESOURCE_GROUP_NAME" \
     vpnGatewaySku="$VPN_GATEWAY_SKU" \
+    vpnSharedKey="$VPN_SHARED_KEY" \
+    enableFortiGateBgp=true \
+    fortiGateBgpAsn="$FORTIGATE_BGP_ASN" \
+    fortiGateBgpPeerIp="$FORTIGATE_BGP_PEER_IP" \
+    azureVpnBgpAsn="$AZURE_VPN_BGP_ASN" \
   --subscription "$selected_subscription_id"
+
+if [[ "$VPN_GATEWAY_SKU" != "None" ]]; then
+  GATEWAY_PIP_NAME="za-east-VPN-Gateway-${LOCATION}-${VPN_GATEWAY_SKU}-zones123-pip"
+  GATEWAY_PUBLIC_IP="$(az network public-ip show \
+    --subscription "$selected_subscription_id" \
+    --resource-group "$RESOURCE_GROUP_NAME" \
+    --name "$GATEWAY_PIP_NAME" \
+    --query ipAddress \
+    --output tsv)"
+  echo "VPN gateway public IP: $GATEWAY_PUBLIC_IP"
+fi
