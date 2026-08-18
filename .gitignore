@@ -16,3 +16,6 @@
 *.pem
 *.key
 azureProfile.json
+
+# Local per-machine deployment state (e.g. last resource group used)
+.deploy-hub-state
