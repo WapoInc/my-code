@@ -17,28 +17,43 @@
     main {
       display: grid;
       justify-items: center;
-      gap: 24px;
+      width: min(100%, 760px);
+      padding: 16px;
+      border: 3px solid #003b73;
+      box-sizing: border-box;
     }
 
     img {
       display: block;
-      width: min(100%, 595px);
       height: auto;
     }
 
-    h1 {
-      margin: 0;
-      color: #003b73;
-      font-size: 4em;
-      overflow-wrap: anywhere;
-      text-align: center;
+    .portrait-frame {
+      position: relative;
+      width: min(100%, 720px);
+      padding-top: min(25%, 180px);
+    }
+
+    .portrait {
+      width: 100%;
+    }
+
+    .logo {
+      position: absolute;
+      z-index: 1;
+      top: 0;
+      left: 50%;
+      width: min(56%, 400px);
+      transform: translateX(-50%);
     }
   </style>
 </head>
 <body>
   <main>
-    <h1>&gt;&gt;&gt; - WWW - Hello World - &lt;&lt;&lt;</h1>
-    <img src="ieee-8021x.jpg" alt="IEEE 802.1X network access control">
+    <div class="portrait-frame">
+      <img class="portrait" src="ieee-8021x.jpg" alt="Azure networking architect">
+      <img class="logo" src="802dot1x-logo-transparent.png" alt="802dot1X security logo">
+    </div>
   </main>
 </body>
 </html>

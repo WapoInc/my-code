@@ -6,7 +6,7 @@ RESOURCE_GROUP="vmr-WebApp"
 LOCATION="southafricanorth"
 TEMPLATE_FILE="main.bicep"
 WEB_APP_NAME="wapoinc-webapp"
-CUSTOM_DOMAINS=("wapoinc.tech" "www.wapoinc.tech")
+CUSTOM_DOMAINS=("wapoinc.tech" "www.wapoinc.tech" "802dot1x.net" "www.802dot1x.net")
 APP_SERVICE_PLAN_SKU="B1"
 
 # ---- Login check ----
@@ -57,19 +57,42 @@ for hostname in "${CUSTOM_DOMAINS[@]}"; do
     --query "[?name=='$hostname'].sslState | [0]" --output tsv)
 
   if [[ "$SSL_STATE" != "SniEnabled" ]]; then
+    CERTIFICATE_NAME="${WEB_APP_NAME}-${hostname//./-}"
     THUMBPRINT=$(az webapp config ssl list \
       --resource-group "$RESOURCE_GROUP" \
       --query "[?subjectName=='$hostname'].thumbprint | [0]" --output tsv)
 
     if [[ -z "$THUMBPRINT" ]]; then
-      CERTIFICATE_NAME="${WEB_APP_NAME}-${hostname//./-}"
-      echo "Creating free managed certificate for '$hostname'..."
-      THUMBPRINT=$(az webapp config ssl create \
+      if ! az webapp config ssl show \
         --resource-group "$RESOURCE_GROUP" \
-        --name "$WEB_APP_NAME" \
-        --hostname "$hostname" \
         --certificate-name "$CERTIFICATE_NAME" \
-        --query thumbprint --output tsv)
+        --output none 2>/dev/null; then
+        echo "Creating free managed certificate for '$hostname'..."
+        az webapp config ssl create \
+          --resource-group "$RESOURCE_GROUP" \
+          --name "$WEB_APP_NAME" \
+          --hostname "$hostname" \
+          --certificate-name "$CERTIFICATE_NAME" \
+          --output none
+      fi
+
+      echo "Waiting for managed certificate '$CERTIFICATE_NAME'..."
+      ATTEMPT=0
+      while [[ -z "$THUMBPRINT" && "$ATTEMPT" -lt 30 ]]; do
+        THUMBPRINT=$(az webapp config ssl show \
+          --resource-group "$RESOURCE_GROUP" \
+          --certificate-name "$CERTIFICATE_NAME" \
+          --query thumbprint --output tsv 2>/dev/null || true)
+        ATTEMPT=$((ATTEMPT + 1))
+        if [[ -z "$THUMBPRINT" ]]; then
+          sleep 10
+        fi
+      done
+
+      if [[ -z "$THUMBPRINT" ]]; then
+        echo "Managed certificate '$CERTIFICATE_NAME' did not finish provisioning within 5 minutes." >&2
+        exit 1
+      fi
     fi
 
     echo "Binding managed certificate to '$hostname' with SNI..."
@@ -93,7 +116,7 @@ echo "Deploying home page content..."
 SITE_TMP_DIR=$(mktemp -d -t wapoinc-site)
 SITE_ZIP="$SITE_TMP_DIR/site.zip"
 trap 'rm -rf "$SITE_TMP_DIR"' EXIT
-(cd "$(dirname "$0")" && zip -q "$SITE_ZIP" index.html ieee-8021x.jpg)
+(cd "$(dirname "$0")" && zip -q "$SITE_ZIP" index.html ieee-8021x.jpg 802dot1x-logo-transparent.png)
 az webapp deploy \
   --resource-group "$RESOURCE_GROUP" \
   --name "$WEB_APP_NAME" \
