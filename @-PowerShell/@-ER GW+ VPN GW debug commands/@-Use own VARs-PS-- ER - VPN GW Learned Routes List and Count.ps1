@@ -15,6 +15,10 @@ $GateWayName = "Enter your ER or VPN Gateway name"
 $ER_Circuit_Name = "Enter your ER Circuit name"
 
 
+#--Transnet. ---------
+$RG = "rg-vnet-hub-prod-southafricanorth"
+$GateWayName = "ergw-tnalz01-prod-southafricanorth" 
+$ER_Circuit_Name = "tn-expressroute-tnalz01"
 #--------------------------------------------------------------------------------------
 #My own variables
 Select-AzSubscription -SubscriptionName "viresent New AIRS" -Tenant MngEnv461963.onmicrosoft.com

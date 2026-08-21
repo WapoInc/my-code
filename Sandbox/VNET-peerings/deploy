@@ -1,0 +1,312 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+SUBSCRIPTION_ID="${SUBSCRIPTION_ID:-0cfd0d2a-2b38-4c93-ba14-cf79185bc683}"
+RESOURCE_GROUP="${RESOURCE_GROUP:-za-east-southafricanorth}"
+LOCATION="${LOCATION:-southafricanorth}"
+HUB_VNET_NAME="${HUB_VNET_NAME:-za-east-southafricanorth-vnet}"
+HUB_VNET_ID="${HUB_VNET_ID:-/subscriptions/0cfd0d2a-2b38-4c93-ba14-cf79185bc683/resourceGroups/za-east-southafricanorth/providers/Microsoft.Network/virtualNetworks/za-east-southafricanorth-vnet}"
+VNET_A_NAME="${VNET_A_NAME:-za-east-spoke-5-vnet}"
+VNET_A_PREFIX="${VNET_A_PREFIX:-10.24.0.0/24}"
+SUBNET_A_NAME="${SUBNET_A_NAME:-Subnet-1}"
+SUBNET_A_PREFIX="${SUBNET_A_PREFIX:-10.24.0.0/25}"
+VNET_B_NAME="${VNET_B_NAME:-za-east-spoke-6-vnet}"
+VNET_B_PREFIX="${VNET_B_PREFIX:-10.25.0.0/24}"
+SUBNET_B_NAME="${SUBNET_B_NAME:-Subnet-1}"
+SUBNET_B_PREFIX="${SUBNET_B_PREFIX:-10.25.0.0/25}"
+HUB_TO_VNET_A_PEERING="${HUB_TO_VNET_A_PEERING:-hub-to-za-east-spoke-5}"
+VNET_A_TO_HUB_PEERING="${VNET_A_TO_HUB_PEERING:-za-east-spoke-5-to-hub}"
+HUB_TO_VNET_B_PEERING="${HUB_TO_VNET_B_PEERING:-hub-to-za-east-spoke-6}"
+VNET_B_TO_HUB_PEERING="${VNET_B_TO_HUB_PEERING:-za-east-spoke-6-to-hub}"
+
+fail() {
+	printf 'ERROR: %s\n' "$*" >&2
+	exit 1
+}
+
+command -v az >/dev/null 2>&1 || fail "Azure CLI is not installed."
+az account show --subscription "$SUBSCRIPTION_ID" --output none 2>/dev/null \
+	|| fail "Sign in with 'az login' and ensure access to subscription '$SUBSCRIPTION_ID'."
+
+az group show --subscription "$SUBSCRIPTION_ID" --name "$RESOURCE_GROUP" --output none 2>/dev/null \
+	|| fail "Resource group '$RESOURCE_GROUP' does not exist."
+
+actual_hub_id="$(az network vnet show \
+	--subscription "$SUBSCRIPTION_ID" \
+	--resource-group "$RESOURCE_GROUP" \
+	--name "$HUB_VNET_NAME" \
+	--query id --output tsv 2>/dev/null)" \
+	|| fail "Hub VNet '$HUB_VNET_NAME' does not exist in '$RESOURCE_GROUP'."
+[[ "$actual_hub_id" == "$HUB_VNET_ID" ]] \
+	|| fail "Hub VNet ID does not match '$HUB_VNET_ID'."
+
+ensure_vnet() {
+	local vnet_name="$1"
+	local vnet_prefix="$2"
+
+	if ! az network vnet show \
+		--subscription "$SUBSCRIPTION_ID" \
+		--resource-group "$RESOURCE_GROUP" \
+		--name "$vnet_name" \
+		--output none 2>/dev/null; then
+		az network vnet create \
+			--subscription "$SUBSCRIPTION_ID" \
+			--resource-group "$RESOURCE_GROUP" \
+			--location "$LOCATION" \
+			--name "$vnet_name" \
+			--address-prefixes "$vnet_prefix" \
+			--output none
+	fi
+}
+
+ensure_vnet_prefix() {
+	local vnet_name="$1"
+	local vnet_prefix="$2"
+	local subnet_name="$3"
+	local subnet_prefix="$4"
+	local prefix_match
+
+	prefix_match="$(az network vnet show \
+		--subscription "$SUBSCRIPTION_ID" \
+		--resource-group "$RESOURCE_GROUP" \
+		--name "$vnet_name" \
+		--query "contains(addressSpace.addressPrefixes, '$vnet_prefix')" \
+		--output tsv)"
+	[[ "$prefix_match" == "false" ]] || return 0
+
+	current_prefix_count="$(az network vnet show \
+		--subscription "$SUBSCRIPTION_ID" \
+		--resource-group "$RESOURCE_GROUP" \
+		--name "$vnet_name" \
+		--query 'length(addressSpace.addressPrefixes)' --output tsv)"
+	current_subnet_count="$(az network vnet show \
+		--subscription "$SUBSCRIPTION_ID" \
+		--resource-group "$RESOURCE_GROUP" \
+		--name "$vnet_name" \
+		--query "length(subnets || \`[]\`)" --output tsv)"
+	[[ "$current_prefix_count" == "1" && "$current_subnet_count" -le 1 ]] \
+		|| fail "Refusing to migrate '$vnet_name': expected one address prefix and at most one subnet."
+
+	current_prefix="$(az network vnet show \
+		--subscription "$SUBSCRIPTION_ID" \
+		--resource-group "$RESOURCE_GROUP" \
+		--name "$vnet_name" \
+		--query 'addressSpace.addressPrefixes[0]' --output tsv)"
+
+	if az network vnet subnet show \
+		--subscription "$SUBSCRIPTION_ID" \
+		--resource-group "$RESOURCE_GROUP" \
+		--vnet-name "$vnet_name" \
+		--name "$subnet_name" \
+		--output none 2>/dev/null; then
+		attachment_counts="$(az network vnet subnet show \
+			--subscription "$SUBSCRIPTION_ID" \
+			--resource-group "$RESOURCE_GROUP" \
+			--vnet-name "$vnet_name" \
+			--name "$subnet_name" \
+			--query "[length(ipConfigurations || \`[]\`), length(privateEndpoints || \`[]\`), length(serviceAssociationLinks || \`[]\`), length(delegations || \`[]\`)]" \
+			--output tsv | tr -d '0[:space:]')"
+		[[ -z "$attachment_counts" ]] \
+			|| fail "Refusing to migrate '$subnet_name' in '$vnet_name': the subnet is in use."
+
+		az network vnet update \
+			--subscription "$SUBSCRIPTION_ID" \
+			--resource-group "$RESOURCE_GROUP" \
+			--name "$vnet_name" \
+			--address-prefixes "$current_prefix" "$vnet_prefix" \
+			--output none
+		az network vnet subnet update \
+			--subscription "$SUBSCRIPTION_ID" \
+			--resource-group "$RESOURCE_GROUP" \
+			--vnet-name "$vnet_name" \
+			--name "$subnet_name" \
+			--address-prefixes "$subnet_prefix" \
+			--output none
+	fi
+
+	az network vnet update \
+		--subscription "$SUBSCRIPTION_ID" \
+		--resource-group "$RESOURCE_GROUP" \
+		--name "$vnet_name" \
+		--address-prefixes "$vnet_prefix" \
+		--output none
+}
+
+ensure_subnet() {
+	local vnet_name="$1"
+	local subnet_name="$2"
+	local subnet_prefix="$3"
+
+	if az network vnet subnet show \
+		--subscription "$SUBSCRIPTION_ID" \
+		--resource-group "$RESOURCE_GROUP" \
+		--vnet-name "$vnet_name" \
+		--name "$subnet_name" \
+		--output none 2>/dev/null; then
+		actual_prefix="$(az network vnet subnet show \
+			--subscription "$SUBSCRIPTION_ID" \
+			--resource-group "$RESOURCE_GROUP" \
+			--vnet-name "$vnet_name" \
+			--name "$subnet_name" \
+			--query addressPrefix --output tsv)"
+		[[ "$actual_prefix" == "$subnet_prefix" ]] \
+			|| fail "Subnet '$subnet_name' in '$vnet_name' uses '$actual_prefix', not '$subnet_prefix'."
+	else
+		az network vnet subnet create \
+			--subscription "$SUBSCRIPTION_ID" \
+			--resource-group "$RESOURCE_GROUP" \
+			--vnet-name "$vnet_name" \
+			--name "$subnet_name" \
+			--address-prefixes "$subnet_prefix" \
+			--output none
+	fi
+}
+
+ensure_vnet "$VNET_A_NAME" "$VNET_A_PREFIX"
+ensure_vnet "$VNET_B_NAME" "$VNET_B_PREFIX"
+ensure_vnet_prefix "$VNET_A_NAME" "$VNET_A_PREFIX" "$SUBNET_A_NAME" "$SUBNET_A_PREFIX"
+ensure_vnet_prefix "$VNET_B_NAME" "$VNET_B_PREFIX" "$SUBNET_B_NAME" "$SUBNET_B_PREFIX"
+
+vnet_a_id="$(az network vnet show \
+	--subscription "$SUBSCRIPTION_ID" \
+	--resource-group "$RESOURCE_GROUP" \
+	--name "$VNET_A_NAME" \
+	--query id --output tsv 2>/dev/null)" \
+	|| fail "VNet '$VNET_A_NAME' does not exist in '$RESOURCE_GROUP'."
+
+vnet_b_id="$(az network vnet show \
+	--subscription "$SUBSCRIPTION_ID" \
+	--resource-group "$RESOURCE_GROUP" \
+	--name "$VNET_B_NAME" \
+	--query id --output tsv 2>/dev/null)" \
+	|| fail "VNet '$VNET_B_NAME' does not exist in '$RESOURCE_GROUP'."
+
+for vnet_name in "$VNET_A_NAME" "$VNET_B_NAME"; do
+	actual_location="$(az network vnet show \
+		--subscription "$SUBSCRIPTION_ID" \
+		--resource-group "$RESOURCE_GROUP" \
+		--name "$vnet_name" \
+		--query location --output tsv)"
+	[[ "$actual_location" == "$LOCATION" ]] \
+		|| fail "VNet '$vnet_name' is in '$actual_location', not '$LOCATION'."
+done
+
+for vnet_spec in "$VNET_A_NAME:$VNET_A_PREFIX" "$VNET_B_NAME:$VNET_B_PREFIX"; do
+	vnet_name="${vnet_spec%%:*}"
+	expected_prefix="${vnet_spec#*:}"
+	prefix_match="$(az network vnet show \
+		--subscription "$SUBSCRIPTION_ID" \
+		--resource-group "$RESOURCE_GROUP" \
+		--name "$vnet_name" \
+		--query "contains(addressSpace.addressPrefixes, '$expected_prefix')" \
+		--output tsv)"
+	[[ "$prefix_match" == "true" ]] \
+		|| fail "VNet '$vnet_name' does not contain expected prefix '$expected_prefix'."
+done
+
+ensure_subnet "$VNET_A_NAME" "$SUBNET_A_NAME" "$SUBNET_A_PREFIX"
+ensure_subnet "$VNET_B_NAME" "$SUBNET_B_NAME" "$SUBNET_B_PREFIX"
+
+vpn_gateway_name="$(az network vnet-gateway list \
+	--subscription "$SUBSCRIPTION_ID" \
+	--resource-group "$RESOURCE_GROUP" \
+	--query "[?gatewayType=='Vpn' && contains(ipConfigurations[0].subnet.id, '/virtualNetworks/${HUB_VNET_NAME}/')].name | [0]" \
+	--output tsv)"
+[[ -n "$vpn_gateway_name" ]] \
+	|| fail "No VPN gateway attached to hub '$HUB_VNET_NAME' was found."
+
+for spoke_vnet in "$VNET_A_NAME" "$VNET_B_NAME"; do
+	spoke_gateway="$(az network vnet-gateway list \
+		--subscription "$SUBSCRIPTION_ID" \
+		--resource-group "$RESOURCE_GROUP" \
+		--query "[?contains(ipConfigurations[0].subnet.id, '/virtualNetworks/${spoke_vnet}/')].name | [0]" \
+		--output tsv)"
+	[[ -z "$spoke_gateway" ]] \
+		|| fail "Spoke '$spoke_vnet' has gateway '$spoke_gateway'; it cannot use the hub gateway."
+done
+
+# Concurrent writes to a shared VNet can be superseded; retry the transient conflict.
+retry_az() {
+	local attempt=1 max_attempts=5 delay=15 output rc
+	while :; do
+		if output="$("$@" 2>&1)"; then
+			return 0
+		fi
+		rc=$?
+		if [[ $attempt -ge $max_attempts ]] \
+			|| ! grep -qiE 'CanceledAndSupersededDueToAnotherOperation|AnotherOperationInProgress|RetryableError' <<<"$output"; then
+			printf '%s\n' "$output" >&2
+			return "$rc"
+		fi
+		printf 'Transient conflict (attempt %d/%d); retrying in %ds...\n' "$attempt" "$max_attempts" "$delay" >&2
+		sleep "$delay"
+		attempt=$((attempt + 1))
+	done
+}
+
+upsert_peering() {
+	local local_vnet="$1"
+	local peering_name="$2"
+	local remote_vnet_id="$3"
+	local allow_gateway_transit="$4"
+	local use_remote_gateways="$5"
+
+	if az network vnet peering show \
+		--subscription "$SUBSCRIPTION_ID" \
+		--resource-group "$RESOURCE_GROUP" \
+		--vnet-name "$local_vnet" \
+		--name "$peering_name" \
+		--output none 2>/dev/null; then
+		retry_az az network vnet peering update \
+			--subscription "$SUBSCRIPTION_ID" \
+			--resource-group "$RESOURCE_GROUP" \
+			--vnet-name "$local_vnet" \
+			--name "$peering_name" \
+			--set remoteVirtualNetwork.id="$remote_vnet_id" \
+			--allow-vnet-access true \
+			--allow-forwarded-traffic true \
+			--allow-gateway-transit "$allow_gateway_transit" \
+			--use-remote-gateways "$use_remote_gateways" \
+			--output none
+	else
+		retry_az az network vnet peering create \
+			--subscription "$SUBSCRIPTION_ID" \
+			--resource-group "$RESOURCE_GROUP" \
+			--vnet-name "$local_vnet" \
+			--name "$peering_name" \
+			--remote-vnet "$remote_vnet_id" \
+			--allow-vnet-access \
+			--allow-forwarded-traffic \
+			--allow-gateway-transit "$allow_gateway_transit" \
+			--use-remote-gateways "$use_remote_gateways" \
+			--output none
+	fi
+}
+
+# The hub advertises VPN gateway transit; each spoke consumes the remote gateway.
+upsert_peering "$HUB_VNET_NAME" "$HUB_TO_VNET_A_PEERING" "$vnet_a_id" true false
+upsert_peering "$VNET_A_NAME" "$VNET_A_TO_HUB_PEERING" "$HUB_VNET_ID" false true
+upsert_peering "$HUB_VNET_NAME" "$HUB_TO_VNET_B_PEERING" "$vnet_b_id" true false
+upsert_peering "$VNET_B_NAME" "$VNET_B_TO_HUB_PEERING" "$HUB_VNET_ID" false true
+
+az network vnet peering list \
+	--subscription "$SUBSCRIPTION_ID" \
+	--resource-group "$RESOURCE_GROUP" \
+	--vnet-name "$HUB_VNET_NAME" \
+	--query "[?name=='$HUB_TO_VNET_A_PEERING' || name=='$HUB_TO_VNET_B_PEERING'].{Peering:name,State:peeringState,GatewayTransit:allowGatewayTransit,RemoteGateway:useRemoteGateways,ForwardedTraffic:allowForwardedTraffic}" \
+	--output table
+
+for spoke_spec in "$VNET_A_NAME:$VNET_A_TO_HUB_PEERING" "$VNET_B_NAME:$VNET_B_TO_HUB_PEERING"; do
+	spoke_vnet="${spoke_spec%%:*}"
+	peering_name="${spoke_spec#*:}"
+	az network vnet peering list \
+		--subscription "$SUBSCRIPTION_ID" \
+		--resource-group "$RESOURCE_GROUP" \
+		--vnet-name "$spoke_vnet" \
+		--query "[?name=='$peering_name'].{Peering:name,State:peeringState,GatewayTransit:allowGatewayTransit,RemoteGateway:useRemoteGateways,ForwardedTraffic:allowForwardedTraffic}" \
+		--output table
+done
+
+printf '\nSpokes peered to hub through VPN gateway: %s\n' "$vpn_gateway_name"
+printf 'Ensure the site-to-site VPN and on-premises router have return routes for %s and %s.\n' "$VNET_A_PREFIX" "$VNET_B_PREFIX"
+printf 'Verify NSGs, host firewalls, route tables, and on-premises ACLs allow both spoke CIDRs.\n'
