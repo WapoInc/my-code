@@ -5,7 +5,7 @@ set -euo pipefail
 RESOURCE_GROUP="vmr-WebApp"
 LOCATION="southafricanorth"
 TEMPLATE_FILE="main.bicep"
-WEB_APP_NAME="wapoinc-webapp-1"
+WEB_APP_NAME="wapoinc-webapp"
 CUSTOM_DOMAINS=("wapoinc.tech" "www.wapoinc.tech" "802dot1x.net" "www.802dot1x.net")
 APP_SERVICE_PLAN_SKU="B1"
 
@@ -14,6 +14,12 @@ if ! az account show >/dev/null 2>&1; then
   echo "Not logged in to Azure. Running 'az login'..."
   az login
 fi
+
+if [[ -z "$WEB_APP_NAME" ]]; then
+  SUBSCRIPTION_ID=$(az account show --query id --output tsv)
+  WEB_APP_NAME="${WEB_APP_NAME_PREFIX}-${SUBSCRIPTION_ID:0:8}"
+fi
+echo "Using globally unique Web App name '$WEB_APP_NAME'."
 
 # ---- Create resource group ----
 echo "Creating resource group '$RESOURCE_GROUP' in '$LOCATION'..."

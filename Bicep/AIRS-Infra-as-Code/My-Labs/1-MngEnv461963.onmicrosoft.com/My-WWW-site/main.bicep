@@ -8,7 +8,7 @@ param appServicePlanName string = 'asp-wapoinc-free'
 param appServicePlanSkuName string = 'B1'
 
 @description('Name of the Web App - must be globally unique')
-param webAppName string = 'wapoinc-webapp'
+param webAppName string = 'wapoinc-webapp-${uniqueString(subscription().id)}'
 
 @description('Azure region')
 param location string = resourceGroup().location
