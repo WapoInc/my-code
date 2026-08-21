@@ -5,7 +5,7 @@ set -euo pipefail
 RESOURCE_GROUP="vmr-WebApp"
 LOCATION="southafricanorth"
 TEMPLATE_FILE="main.bicep"
-WEB_APP_NAME="wapoinc-webapp"
+WEB_APP_NAME="${WEB_APP_NAME:-wapoinc-webapp-$(date -u +%Y%m%d-%H%M%S)}"
 CUSTOM_DOMAINS=("wapoinc.tech" "www.wapoinc.tech" "802dot1x.net" "www.802dot1x.net")
 APP_SERVICE_PLAN_SKU="B1"
 
@@ -15,10 +15,6 @@ if ! az account show >/dev/null 2>&1; then
   az login
 fi
 
-if [[ -z "$WEB_APP_NAME" ]]; then
-  SUBSCRIPTION_ID=$(az account show --query id --output tsv)
-  WEB_APP_NAME="${WEB_APP_NAME_PREFIX}-${SUBSCRIPTION_ID:0:8}"
-fi
 echo "Using globally unique Web App name '$WEB_APP_NAME'."
 
 # ---- Create resource group ----
@@ -83,7 +79,8 @@ for hostname in "${CUSTOM_DOMAINS[@]}"; do
 done
 
 if [[ "$DNS_VALID" != "true" ]]; then
-  echo "Update the DNS records above, wait for propagation, and rerun this script." >&2
+  echo "Update the DNS records above, wait for propagation, and rerun with:" >&2
+  echo "WEB_APP_NAME='$WEB_APP_NAME' ./deploy.sh" >&2
   exit 1
 fi
 
