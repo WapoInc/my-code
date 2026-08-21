@@ -2,7 +2,21 @@
 
 set -euo pipefail
 
-subscription_id='0cfd0d2a-2b38-4c93-ba14-cf79185bc683'
+subscription_labels=(
+  'MngEnv461963 (5cba78fe tenant)'
+  'MngEnvMCAP056429 (b91a5236 tenant)'
+  'MngEnvMCAP158201 (2b8e427b tenant)'
+)
+subscription_ids=(
+  '0cfd0d2a-2b38-4c93-ba14-cf79185bc683'
+  '29df7078-c53c-4638-81c1-e4bc8566d423'
+  '2ac21ef0-69db-49ec-a554-2cac36ec75f4'
+)
+subscription_tenants=(
+  '5cba78fe-cc40-479a-9ee1-255423641bc9'
+  'b91a5236-cd06-4bc7-889b-db71c19230ae'
+  '2b8e427b-9e78-4589-9338-f870c84292ca'
+)
 deployment_name="deploy-global-vwan-$(date -u +%Y%m%d-%H%M%S)-$$"
 location='southafricanorth'
 default_resource_group_name='Global-vWAN'
@@ -10,6 +24,38 @@ default_resource_group_name='Global-vWAN-PoC'
 script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 template_file="${script_dir}/Global-vWAN-rg.bicep"
 fortigate_script_file="${script_dir}/update-fortigate-vpn-tunnels.sh"
+
+if ! command -v az >/dev/null 2>&1; then
+  echo 'Azure CLI (az) is not installed or is not on PATH.' >&2
+  exit 1
+fi
+
+echo 'Select the Azure subscription for this deployment:'
+PS3="Enter selection (1-$((${#subscription_ids[@]} + 1))): "
+
+selected_index=''
+select selected_label in "${subscription_labels[@]}" 'Cancel'; do
+  if [[ "$selected_label" == 'Cancel' ]]; then
+    echo 'Deployment cancelled.'
+    exit 0
+  fi
+
+  if [[ -n "$selected_label" && "$REPLY" =~ ^[0-9]+$ ]] && (( REPLY <= ${#subscription_ids[@]} )); then
+    selected_index=$((REPLY - 1))
+    break
+  fi
+
+  echo "Invalid selection. Choose a number from 1 to $((${#subscription_ids[@]} + 1))."
+done
+
+subscription_id="${subscription_ids[$selected_index]}"
+tenant_id="${subscription_tenants[$selected_index]}"
+
+if ! az account show --subscription "$subscription_id" >/dev/null 2>&1; then
+  echo "Signing in to tenant $tenant_id..."
+  az login --tenant "$tenant_id" >/dev/null
+fi
+az account set --subscription "$subscription_id"
 
 read -r -p "Resource group name [${default_resource_group_name}]: " resource_group_name
 resource_group_name="${resource_group_name:-$default_resource_group_name}"
@@ -41,12 +87,8 @@ if [[ "$deployment_action" != 'validate' && "$deployment_action" != 'what-if' &&
   exit 2
 fi
 
-if ! command -v az >/dev/null 2>&1; then
-  echo 'Azure CLI (az) is not installed or is not on PATH.' >&2
-  exit 1
-fi
-
 echo
+echo "Subscription:    $selected_label ($subscription_id)"
 echo "Resource group:  $resource_group_name"
 echo "Deployment name: $deployment_name"
 echo

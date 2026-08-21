@@ -428,10 +428,10 @@ output fortiGateVpnConnectionId string = fortiGateVpnConnection.id
 
 // ----- End South Africa North vWAN VPN gateway and FortiGate connection -----
 
-// ----- South Africa West hub, spoke VNets and Ubuntu VMs -----
+// ----- West Europe hub, spoke VNets and Ubuntu VMs -----
 
-@description('Azure region for the South Africa West hub and spokes.')
-param sawLocation string = 'southafricawest'
+@description('Azure region for the West Europe hub and spokes.')
+param sawLocation string = 'westeurope'
 
 var sawVirtualHubName = 'ZAW-Hub-1'
 
@@ -571,4 +571,4 @@ output sawVirtualHubId string = sawVirtualHub.id
 output sawSpokeVnetIds array = [for (spoke, i) in sawSpokeConfigs: sawSpokeVnets[i].id]
 output sawSpokeVmIds array = [for (spoke, i) in sawSpokeConfigs: sawSpokeVms[i].id]
 
-// ----- End South Africa West hub, spoke VNets and Ubuntu VMs -----
+// ----- End West Europe hub, spoke VNets and Ubuntu VMs -----
