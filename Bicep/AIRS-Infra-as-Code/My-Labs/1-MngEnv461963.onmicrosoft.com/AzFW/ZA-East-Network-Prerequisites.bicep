@@ -5,6 +5,14 @@ param hubVnetName string
 param hubWorkloadNsgName string
 param vpnGatewayName string
 param vpnGatewayPublicIpName string
+param vpnGatewaySku string
+
+param vmAdminUsername string = 'rootadmin'
+
+@secure()
+param vmAdminPassword string
+
+param vmSize string = 'Standard_B1ls'
 
 param createHubVnet bool
 param createHubWorkloadNsg bool
@@ -13,8 +21,8 @@ param createVpnGatewayPublicIp bool
 param createVpnGateway bool
 param createFirewallSubnet bool
 param createFirewallManagementSubnet bool
-param createHubWorkloadSubnet bool
 param createPingTestSubnet bool
+param createHubVmSubnet bool
 param createSpokeVnets array
 param createSpokeSubnets array
 param createHubToSpokePeerings array
@@ -26,18 +34,21 @@ var spokeConfigs = [
     vnetName: 'za-east-spoke-1-vnet'
     vnetPrefix: '10.21.0.0/24'
     subnetPrefix: '10.21.0.0/25'
+    vmPrivateIp: '10.21.0.5'
   }
   {
     name: 'za-east-spoke-2'
     vnetName: 'za-east-spoke-2-vnet'
     vnetPrefix: '10.22.0.0/24'
     subnetPrefix: '10.22.0.0/25'
+    vmPrivateIp: '10.22.0.5'
   }
   {
     name: 'za-east-spoke-3'
     vnetName: 'za-east-spoke-3-vnet'
     vnetPrefix: '10.23.0.0/24'
     subnetPrefix: '10.23.0.0/25'
+    vmPrivateIp: '10.23.0.5'
   }
 ]
 
@@ -66,15 +77,6 @@ resource hubVnet 'Microsoft.Network/virtualNetworks@2024-05-01' = if (createHubV
         }
       }
       {
-        name: 'ZA-East-Hub'
-        properties: {
-          addressPrefix: '10.20.1.0/24'
-          networkSecurityGroup: {
-            id: resourceId('Microsoft.Network/networkSecurityGroups', hubWorkloadNsgName)
-          }
-        }
-      }
-      {
         name: 'AzureFirewallSubnet'
         properties: {
           addressPrefix: '10.20.6.64/26'
@@ -90,6 +92,15 @@ resource hubVnet 'Microsoft.Network/virtualNetworks@2024-05-01' = if (createHubV
         name: 'Ping-test'
         properties: {
           addressPrefix: '10.20.8.0/24'
+        }
+      }
+      {
+        name: 'Subnet-1'
+        properties: {
+          addressPrefix: '10.20.1.0/25'
+          networkSecurityGroup: {
+            id: resourceId('Microsoft.Network/networkSecurityGroups', hubWorkloadNsgName)
+          }
         }
       }
     ]
@@ -136,6 +147,9 @@ resource existingVpnGatewayPublicIp 'Microsoft.Network/publicIPAddresses@2024-05
   name: vpnGatewayPublicIpName
 }
 
+// Gen1 covers Basic and the first-generation VpnGw SKUs; everything else is Gen2.
+var vpnGatewayGeneration = contains(['Basic', 'VpnGw1', 'VpnGw1AZ'], vpnGatewaySku) ? 'Generation1' : 'Generation2'
+
 resource vpnGateway 'Microsoft.Network/virtualNetworkGateways@2024-05-01' = if (createVpnGateway) {
   name: vpnGatewayName
   location: location
@@ -158,30 +172,16 @@ resource vpnGateway 'Microsoft.Network/virtualNetworkGateways@2024-05-01' = if (
       }
     ]
     sku: {
-      name: 'Basic'
-      tier: 'Basic'
+      name: vpnGatewaySku
+      tier: vpnGatewaySku
     }
-    vpnGatewayGeneration: 'Generation1'
+    vpnGatewayGeneration: vpnGatewayGeneration
     vpnType: 'RouteBased'
   }
   dependsOn: [
     gatewaySubnet
     hubVnet
     vpnGatewayPublicIp
-  ]
-}
-
-resource hubWorkloadSubnet 'Microsoft.Network/virtualNetworks/subnets@2024-05-01' = if (!createHubVnet && createHubWorkloadSubnet) {
-  parent: existingHubVnet
-  name: 'ZA-East-Hub'
-  properties: {
-    addressPrefix: '10.20.1.0/24'
-    networkSecurityGroup: {
-      id: resourceId('Microsoft.Network/networkSecurityGroups', hubWorkloadNsgName)
-    }
-  }
-  dependsOn: [
-    hubWorkloadNsg
   ]
 }
 
@@ -207,6 +207,20 @@ resource pingTestSubnet 'Microsoft.Network/virtualNetworks/subnets@2024-05-01' =
   properties: {
     addressPrefix: '10.20.8.0/24'
   }
+}
+
+resource hubVmSubnet 'Microsoft.Network/virtualNetworks/subnets@2024-05-01' = if (!createHubVnet && createHubVmSubnet) {
+  parent: existingHubVnet
+  name: 'Subnet-1'
+  properties: {
+    addressPrefix: '10.20.1.0/25'
+    networkSecurityGroup: {
+      id: resourceId('Microsoft.Network/networkSecurityGroups', hubWorkloadNsgName)
+    }
+  }
+  dependsOn: [
+    hubWorkloadNsg
+  ]
 }
 
 resource spokeVnets 'Microsoft.Network/virtualNetworks@2024-05-01' = [
@@ -243,6 +257,134 @@ resource spokeSubnets 'Microsoft.Network/virtualNetworks/subnets@2024-05-01' = [
     name: 'Subnet-1'
     properties: {
       addressPrefix: spoke.subnetPrefix
+    }
+  }
+]
+
+resource hubVmNic 'Microsoft.Network/networkInterfaces@2024-05-01' = {
+  name: 'za-east-${location}-vm-nic'
+  location: location
+  properties: {
+    ipConfigurations: [
+      {
+        name: 'ipconfig1'
+        properties: {
+          subnet: {
+            id: resourceId('Microsoft.Network/virtualNetworks/subnets', hubVnetName, 'Subnet-1')
+          }
+          privateIPAllocationMethod: 'Static'
+          privateIPAddress: '10.20.1.5'
+        }
+      }
+    ]
+  }
+  dependsOn: [
+    hubVnet
+    hubVmSubnet
+  ]
+}
+
+resource hubVm 'Microsoft.Compute/virtualMachines@2024-03-01' = {
+  name: 'za-east-${location}-vm'
+  location: location
+  properties: {
+    hardwareProfile: {
+      vmSize: vmSize
+    }
+    osProfile: {
+      computerName: 'za-east-${location}-vm'
+      adminUsername: vmAdminUsername
+      adminPassword: vmAdminPassword
+      linuxConfiguration: {
+        disablePasswordAuthentication: false
+      }
+    }
+    storageProfile: {
+      imageReference: {
+        publisher: 'Canonical'
+        offer: '0001-com-ubuntu-server-jammy'
+        sku: '22_04-lts-gen2'
+        version: 'latest'
+      }
+      osDisk: {
+        createOption: 'FromImage'
+        managedDisk: {
+          storageAccountType: 'Standard_LRS'
+        }
+      }
+    }
+    networkProfile: {
+      networkInterfaces: [
+        {
+          id: hubVmNic.id
+        }
+      ]
+    }
+  }
+}
+
+resource spokeVmNics 'Microsoft.Network/networkInterfaces@2024-05-01' = [
+  for (spoke, index) in spokeConfigs: {
+    name: '${spoke.name}-vm-nic'
+    location: location
+    properties: {
+      ipConfigurations: [
+        {
+          name: 'ipconfig1'
+          properties: {
+            subnet: {
+              id: resourceId('Microsoft.Network/virtualNetworks/subnets', spoke.vnetName, 'Subnet-1')
+            }
+            privateIPAllocationMethod: 'Static'
+            privateIPAddress: spoke.vmPrivateIp
+          }
+        }
+      ]
+    }
+    dependsOn: [
+      spokeVnets
+      spokeSubnets
+    ]
+  }
+]
+
+resource spokeVms 'Microsoft.Compute/virtualMachines@2024-03-01' = [
+  for (spoke, index) in spokeConfigs: {
+    name: '${spoke.name}-vm'
+    location: location
+    properties: {
+      hardwareProfile: {
+        vmSize: vmSize
+      }
+      osProfile: {
+        computerName: '${spoke.name}-vm'
+        adminUsername: vmAdminUsername
+        adminPassword: vmAdminPassword
+        linuxConfiguration: {
+          disablePasswordAuthentication: false
+        }
+      }
+      storageProfile: {
+        imageReference: {
+          publisher: 'Canonical'
+          offer: '0001-com-ubuntu-server-jammy'
+          sku: '22_04-lts-gen2'
+          version: 'latest'
+        }
+        osDisk: {
+          createOption: 'FromImage'
+          managedDisk: {
+            storageAccountType: 'Standard_LRS'
+          }
+        }
+      }
+      networkProfile: {
+        networkInterfaces: [
+          {
+            id: spokeVmNics[index].id
+          }
+        ]
+      }
     }
   }
 ]
@@ -290,5 +432,17 @@ resource spokeToHubPeerings 'Microsoft.Network/virtualNetworks/virtualNetworkPee
 
 output hubVnetId string = resourceId('Microsoft.Network/virtualNetworks', hubVnetName)
 output spokeVnetIds array = [for spoke in spokeConfigs: resourceId('Microsoft.Network/virtualNetworks', spoke.vnetName)]
+output vmNames array = [
+  hubVm.name
+  spokeVms[0].name
+  spokeVms[1].name
+  spokeVms[2].name
+]
+output vmPrivateIps array = [
+  hubVmNic.properties.ipConfigurations[0].properties.privateIPAddress
+  spokeVmNics[0].properties.ipConfigurations[0].properties.privateIPAddress
+  spokeVmNics[1].properties.ipConfigurations[0].properties.privateIPAddress
+  spokeVmNics[2].properties.ipConfigurations[0].properties.privateIPAddress
+]
 output vpnGatewayId string = resourceId('Microsoft.Network/virtualNetworkGateways', vpnGatewayName)
 output vpnGatewayPublicIpId string = existingVpnGatewayPublicIp.id

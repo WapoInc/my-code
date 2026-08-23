@@ -18,6 +18,28 @@ param vpnGatewayName string = 'za-east-${location}-vpngw'
 @description('Name of the VPN gateway public IP address.')
 param vpnGatewayPublicIpName string = 'za-east-${location}-vpngw-pip'
 
+@description('SKU of the VPN gateway.')
+@allowed([
+  'Basic'
+  'VpnGw1'
+  'VpnGw2'
+  'VpnGw3'
+  'VpnGw1AZ'
+  'VpnGw2AZ'
+  'VpnGw3AZ'
+])
+param vpnGatewaySku string = 'Basic'
+
+@description('Administrator username for the Ubuntu test VMs.')
+param vmAdminUsername string = 'rootadmin'
+
+@secure()
+@description('Administrator password for the Ubuntu test VMs.')
+param vmAdminPassword string
+
+@description('Size used by the Ubuntu test VMs.')
+param vmSize string = 'Standard_B1ls'
+
 @description('Controlled rollout stage for route-table associations.')
 @allowed([
   'FirewallOnly'
@@ -51,8 +73,8 @@ param createVpnGatewayPublicIp bool = false
 param createVpnGateway bool = false
 param createFirewallSubnet bool = false
 param createFirewallManagementSubnet bool = false
-param createHubWorkloadSubnet bool = false
 param createPingTestSubnet bool = false
+param createHubVmSubnet bool = false
 param createSpokeVnets array = [false, false, false]
 param createSpokeSubnets array = [false, false, false]
 param createHubToSpokePeerings array = [false, false, false]
@@ -71,6 +93,10 @@ module networkPrerequisites 'ZA-East-Network-Prerequisites.bicep' = {
     hubWorkloadNsgName: hubWorkloadNsgName
     vpnGatewayName: vpnGatewayName
     vpnGatewayPublicIpName: vpnGatewayPublicIpName
+    vpnGatewaySku: vpnGatewaySku
+    vmAdminUsername: vmAdminUsername
+    vmAdminPassword: vmAdminPassword
+    vmSize: vmSize
     createHubVnet: createHubVnet
     createHubWorkloadNsg: createHubWorkloadNsg
     createGatewaySubnet: createGatewaySubnet
@@ -78,8 +104,8 @@ module networkPrerequisites 'ZA-East-Network-Prerequisites.bicep' = {
     createVpnGateway: createVpnGateway
     createFirewallSubnet: createFirewallSubnet
     createFirewallManagementSubnet: createFirewallManagementSubnet
-    createHubWorkloadSubnet: createHubWorkloadSubnet
     createPingTestSubnet: createPingTestSubnet
+    createHubVmSubnet: createHubVmSubnet
     createSpokeVnets: createSpokeVnets
     createSpokeSubnets: createSpokeSubnets
     createHubToSpokePeerings: createHubToSpokePeerings
@@ -117,4 +143,6 @@ output hubWorkloadRouteTableId string = firewallRouting.outputs.hubWorkloadRoute
 output gatewayReturnRouteTableId string = firewallRouting.outputs.gatewayReturnRouteTableId
 output vpnGatewayId string = networkPrerequisites.outputs.vpnGatewayId
 output vpnGatewayPublicIpId string = networkPrerequisites.outputs.vpnGatewayPublicIpId
+output vmNames array = networkPrerequisites.outputs.vmNames
+output vmPrivateIps array = networkPrerequisites.outputs.vmPrivateIps
 output deploymentStage string = firewallRouting.outputs.deploymentStage

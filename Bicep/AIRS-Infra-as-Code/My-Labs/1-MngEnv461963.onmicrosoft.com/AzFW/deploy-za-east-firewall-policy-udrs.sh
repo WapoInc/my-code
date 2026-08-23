@@ -18,7 +18,7 @@ set -euo pipefail
 #   - Resource group                 container for every resource below.
 #   - Hub VNet (10.20.0.0/16)         central network with five subnets:
 #       * GatewaySubnet               hosts the VPN gateway.
-#       * ZA-East-Hub                 workload subnet, protected by an NSG.
+#       * Subnet-1                     VM subnet, protected by an NSG.
 #       * AzureFirewallSubnet         required subnet for Azure Firewall data.
 #       * AzureFirewallManagementSubnet  required for Basic firewall mgmt NIC.
 #       * Ping-test                   scratch subnet for connectivity tests.
@@ -32,7 +32,8 @@ set -euo pipefail
 #   - Route tables (UDRs)             force subnet traffic through the firewall
 #                                     private IP; applied in stages (see below).
 #   - VPN gateway + public IP         route-based gateway in GatewaySubnet.
-#   - VM subnet Subnet-1              10.20.2.0/25 in the hub for test workloads.
+#   - VM subnet Subnet-1              10.20.1.0/25 in the hub for test workloads.
+#   - Ubuntu 22.04 test VMs           static .5 address in each VNet's Subnet-1.
 #   - Local network gateway           the on-prem FortiGate site (IP + prefixes).
 #   - IPsec connection                site-to-site tunnel to the FortiGate.
 #   - Rendered FortiGate config        fortigate-za-east-s2s.rendered.conf, ready
@@ -64,9 +65,12 @@ RESOURCE_GROUP_OVERRIDE="${AZURE_RESOURCE_GROUP:-}"
 
 # On-premises FortiGate + PSK for the site-to-site tunnel.
 # Override via env to keep the pre-shared key off disk (S2S_SHARED_KEY).
-ONPREM_GATEWAY_IP="${ONPREM_GATEWAY_IP:-169.0.216.146}"
+ONPREM_GATEWAY_IP="${ONPREM_GATEWAY_IP:-156.155.28.158}"
 ONPREM_ADDRESS_PREFIXES_JSON="${ONPREM_ADDRESS_PREFIXES_JSON:-[\"192.168.2.0/24\"]}"
-SHARED_KEY="${S2S_SHARED_KEY:-S2SPSK123!}"
+SHARED_KEY="${S2S_SHARED_KEY:-S2SPSK1}"
+VM_ADMIN_USERNAME="${VM_ADMIN_USERNAME:-rootadmin}"
+VM_ADMIN_PASSWORD="${VM_ADMIN_PASSWORD:-}"
+VM_SIZE="${VM_SIZE:-Standard_B1ls}"
 
 usage() {
   cat <<'USAGE'
@@ -86,6 +90,11 @@ Site-to-site tunnel overrides (environment variables):
   ONPREM_GATEWAY_IP            On-premises FortiGate public IP (default: 169.0.216.146).
   ONPREM_ADDRESS_PREFIXES_JSON JSON array of on-prem prefixes (default: ["192.168.2.0/24"]).
   S2S_SHARED_KEY               IPsec pre-shared key (default: the lab PSK).
+
+VM overrides (environment variables):
+  VM_ADMIN_USERNAME            Ubuntu administrator username (default: rootadmin).
+  VM_ADMIN_PASSWORD            Ubuntu administrator password (prompted when omitted).
+  VM_SIZE                      Azure VM SKU (default: Standard_B1ls).
 USAGE
 }
 
@@ -288,18 +297,62 @@ subnet_missing() {
   fi
 }
 
+remove_empty_hub_subnet() {
+  local subnet_name="$1"
+  local ip_configuration_ids
+
+  ip_configuration_ids="$(az network vnet subnet show \
+    --resource-group "$RESOURCE_GROUP_NAME" \
+    --vnet-name "$HUB_VNET_NAME" \
+    --name "$subnet_name" \
+    --subscription "$SUBSCRIPTION_ID" \
+    --query 'ipConfigurations[].id' \
+    --output tsv)"
+
+  if [[ -n "$ip_configuration_ids" ]]; then
+    echo "Cannot rebuild hub subnet '$subnet_name' because these IP configurations are attached:" >&2
+    printf '  %s\n' $ip_configuration_ids >&2
+    echo "Move or remove those NIC configurations, then rerun the deployment." >&2
+    exit 1
+  fi
+
+  echo "Removing empty legacy hub subnet '$subnet_name' before creating Subnet-1 (10.20.1.0/25)..."
+  az network vnet subnet delete \
+    --resource-group "$RESOURCE_GROUP_NAME" \
+    --vnet-name "$HUB_VNET_NAME" \
+    --name "$subnet_name" \
+    --subscription "$SUBSCRIPTION_ID"
+}
+
 if [[ "$CREATE_HUB_VNET" == true ]]; then
   CREATE_GATEWAY_SUBNET=true
   CREATE_FIREWALL_SUBNET=true
   CREATE_FIREWALL_MANAGEMENT_SUBNET=true
-  CREATE_HUB_WORKLOAD_SUBNET=true
   CREATE_PING_TEST_SUBNET=true
+  CREATE_HUB_VM_SUBNET=true
 else
+  if ! subnet_missing "$HUB_VNET_NAME" Subnet-1; then
+    HUB_VM_SUBNET_PREFIX="$(az network vnet subnet show \
+      --resource-group "$RESOURCE_GROUP_NAME" \
+      --vnet-name "$HUB_VNET_NAME" \
+      --name Subnet-1 \
+      --subscription "$SUBSCRIPTION_ID" \
+      --query addressPrefix \
+      --output tsv)"
+    if [[ "$HUB_VM_SUBNET_PREFIX" != "10.20.1.0/25" ]]; then
+      remove_empty_hub_subnet Subnet-1
+    fi
+  fi
+
+  if ! subnet_missing "$HUB_VNET_NAME" ZA-East-Hub; then
+    remove_empty_hub_subnet ZA-East-Hub
+  fi
+
   CREATE_GATEWAY_SUBNET="$(subnet_missing "$HUB_VNET_NAME" GatewaySubnet)"
   CREATE_FIREWALL_SUBNET="$(subnet_missing "$HUB_VNET_NAME" AzureFirewallSubnet)"
   CREATE_FIREWALL_MANAGEMENT_SUBNET="$(subnet_missing "$HUB_VNET_NAME" AzureFirewallManagementSubnet)"
-  CREATE_HUB_WORKLOAD_SUBNET="$(subnet_missing "$HUB_VNET_NAME" ZA-East-Hub)"
   CREATE_PING_TEST_SUBNET="$(subnet_missing "$HUB_VNET_NAME" Ping-test)"
+  CREATE_HUB_VM_SUBNET="$(subnet_missing "$HUB_VNET_NAME" Subnet-1)"
 fi
 
 # ---- VPN gateway: reuse if healthy, delete if failed, otherwise create ----
@@ -496,6 +549,24 @@ else
   fi
 fi
 
+vpn_gateway_sku_options=(
+  "Basic"
+  "VpnGw1"
+  "VpnGw2"
+  "VpnGw3"
+  "VpnGw1AZ"
+  "VpnGw2AZ"
+  "VpnGw3AZ"
+)
+
+echo
+echo "Select the VPN gateway SKU:"
+PS3="Enter selection (1-${#vpn_gateway_sku_options[@]}): "
+select VPN_GATEWAY_SKU in "${vpn_gateway_sku_options[@]}"; do
+  [[ -n "$VPN_GATEWAY_SKU" ]] && break
+  echo "Invalid selection."
+done
+
 if [[ "$DEPLOYMENT_STAGE" != "FirewallOnly" ]]; then
   SNAPSHOT_FILE="$SCRIPT_DIR/za-east-route-table-associations-$(date -u +%Y%m%d-%H%M%S).tsv"
   {
@@ -512,30 +583,6 @@ if [[ "$DEPLOYMENT_STAGE" != "FirewallOnly" ]]; then
   echo "Saved current route-table associations to $SNAPSHOT_FILE"
 fi
 
-echo
-echo "Deployment summary:"
-echo "  Subscription:           $SUBSCRIPTION_NAME ($SUBSCRIPTION_ID)"
-echo "  Tenant:                 $TENANT_ID"
-echo "  Resource group:         $RESOURCE_GROUP_NAME"
-echo "  Location:               $LOCATION"
-echo "  Stage:                  $DEPLOYMENT_STAGE"
-echo "  On-premises prefixes:   ${PREFIX_INPUT:-None}"
-echo "  Internet egress UDR:    $ENABLE_INTERNET_EGRESS"
-echo "  Internet policy rule:   HTTP/80 and HTTPS/443 to all FQDNs"
-echo "  Diagnostics workspace:  $LOG_ANALYTICS_WORKSPACE_NAME (created or updated)"
-echo "  Firewall zones:         $FIREWALL_ZONES_JSON"
-echo "  Create resource group:  $CREATE_RESOURCE_GROUP"
-echo "  Create hub VNet:        $CREATE_HUB_VNET"
-echo "  Create hub NSG:         $CREATE_HUB_WORKLOAD_NSG"
-echo "  Create hub subnets:     gateway=$CREATE_GATEWAY_SUBNET firewall=$CREATE_FIREWALL_SUBNET management=$CREATE_FIREWALL_MANAGEMENT_SUBNET workload=$CREATE_HUB_WORKLOAD_SUBNET ping=$CREATE_PING_TEST_SUBNET"
-echo "  Create VPN gateway IP:  $CREATE_VPN_GATEWAY_PUBLIC_IP ($VPN_GATEWAY_PUBLIC_IP_NAME)"
-echo "  Create VPN gateway:     $CREATE_VPN_GATEWAY ($VPN_GATEWAY_NAME, Basic non-AZ)"
-echo "  Create spoke VNets:     $CREATE_SPOKE_VNETS_JSON"
-echo "  Create spoke subnets:   $CREATE_SPOKE_SUBNETS_JSON"
-echo "  Create hub peerings:    $CREATE_HUB_TO_SPOKE_PEERINGS_JSON"
-echo "  Create spoke peerings:  $CREATE_SPOKE_TO_HUB_PEERINGS_JSON"
-echo
-
 POLICY_COUNT="$(az policy assignment list \
   --scope "/subscriptions/$SUBSCRIPTION_ID" \
   --query 'length(@)' \
@@ -546,6 +593,16 @@ echo "Subscription-scope policy assignments detected: $POLICY_COUNT"
 echo "Building Bicep templates..."
 az bicep build --file "$TEMPLATE_FILE" --stdout >/dev/null
 
+if [[ -z "$VM_ADMIN_PASSWORD" ]]; then
+  if [[ -t 0 ]]; then
+    read -r -s -p "Ubuntu VM administrator password: " VM_ADMIN_PASSWORD
+    echo
+  else
+    echo "Set VM_ADMIN_PASSWORD when running this script non-interactively." >&2
+    exit 1
+  fi
+fi
+
 DEPLOYMENT_NAME="za-east-firewall-$(date -u +%Y%m%d-%H%M%S)"
 COMMON_PARAMETERS=(
   "resourceGroupName=$RESOURCE_GROUP_NAME"
@@ -554,6 +611,10 @@ COMMON_PARAMETERS=(
   "hubWorkloadNsgName=$HUB_WORKLOAD_NSG_NAME"
   "vpnGatewayName=$VPN_GATEWAY_NAME"
   "vpnGatewayPublicIpName=$VPN_GATEWAY_PUBLIC_IP_NAME"
+  "vpnGatewaySku=$VPN_GATEWAY_SKU"
+  "vmAdminUsername=$VM_ADMIN_USERNAME"
+  "vmAdminPassword=$VM_ADMIN_PASSWORD"
+  "vmSize=$VM_SIZE"
   "deploymentStage=$DEPLOYMENT_STAGE"
   "approvedOnPremisesPrefixes=$APPROVED_PREFIXES_JSON"
   "enableInternetEgressRouting=$ENABLE_INTERNET_EGRESS"
@@ -566,8 +627,8 @@ COMMON_PARAMETERS=(
   "createVpnGateway=$CREATE_VPN_GATEWAY"
   "createFirewallSubnet=$CREATE_FIREWALL_SUBNET"
   "createFirewallManagementSubnet=$CREATE_FIREWALL_MANAGEMENT_SUBNET"
-  "createHubWorkloadSubnet=$CREATE_HUB_WORKLOAD_SUBNET"
   "createPingTestSubnet=$CREATE_PING_TEST_SUBNET"
+  "createHubVmSubnet=$CREATE_HUB_VM_SUBNET"
   "createSpokeVnets=$CREATE_SPOKE_VNETS_JSON"
   "createSpokeSubnets=$CREATE_SPOKE_SUBNETS_JSON"
   "createHubToSpokePeerings=$CREATE_HUB_TO_SPOKE_PEERINGS_JSON"
@@ -599,26 +660,10 @@ az deployment sub create \
 # Phase 2: site-to-site VPN to the on-premises FortiGate
 # =============================================================================
 # The firewall deployment above created (or reused) the VPN gateway and its
-# public IP. Now add a VM subnet, the local network gateway, and the IPsec
-# connection, then render a paste-ready FortiGate config.
+# public IP. Now add the local network gateway and IPsec connection, then
+# render a paste-ready FortiGate config.
 LOCAL_NETWORK_GATEWAY_NAME="za-east-${LOCATION}-fortigate-lng"
 CONNECTION_NAME="za-east-${LOCATION}-to-fortigate"
-
-# VM subnet for test workloads in the hub (created if missing).
-if ! az network vnet subnet show \
-  --resource-group "$RESOURCE_GROUP_NAME" \
-  --vnet-name "$HUB_VNET_NAME" \
-  --name Subnet-1 \
-  --subscription "$SUBSCRIPTION_ID" >/dev/null 2>&1; then
-  echo "Creating VM subnet Subnet-1 (10.20.2.0/25) in '$HUB_VNET_NAME'..."
-  az network vnet subnet create \
-    --resource-group "$RESOURCE_GROUP_NAME" \
-    --vnet-name "$HUB_VNET_NAME" \
-    --name Subnet-1 \
-    --address-prefixes 10.20.2.0/25 \
-    --subscription "$SUBSCRIPTION_ID" \
-    --output none
-fi
 
 # Wait for the VPN gateway public IP, then use it as the tunnel endpoint.
 echo "Waiting for the VPN gateway public IP address to be assigned..."
@@ -694,9 +739,33 @@ echo "  VPN gateway public IP:  $AZURE_VPNGW_PUBLIC_IP"
 echo "  Azure Firewall:         $AZURE_FIREWALL_NAME"
 echo "  Local network gateway:  $LOCAL_NETWORK_GATEWAY_NAME"
 echo "  IPsec connection:       $CONNECTION_NAME"
+echo "  Ubuntu VMs:             10.20.1.5, 10.21.0.5, 10.22.0.5, 10.23.0.5"
 
 echo
 echo "Next steps on the FortiGate:"
 echo "  1. Confirm the WAN/LAN interface names in the FortiGate script."
 echo "  2. 'set remote-gw' is already set to $AZURE_VPNGW_PUBLIC_IP in the rendered file."
 echo "  3. Paste the CLI section into the FortiGate to bring up the tunnel."
+
+echo
+echo "Deployment summary:"
+echo "  Subscription:           $SUBSCRIPTION_NAME ($SUBSCRIPTION_ID)"
+echo "  Tenant:                 $TENANT_ID"
+echo "  Resource group:         $RESOURCE_GROUP_NAME"
+echo "  Location:               $LOCATION"
+echo "  Stage:                  $DEPLOYMENT_STAGE"
+echo "  On-premises prefixes:   ${PREFIX_INPUT:-None}"
+echo "  Internet egress UDR:    $ENABLE_INTERNET_EGRESS"
+echo "  Internet policy rule:   HTTP/80 and HTTPS/443 to all FQDNs"
+echo "  Diagnostics workspace:  $LOG_ANALYTICS_WORKSPACE_NAME (created or updated)"
+echo "  Firewall zones:         $FIREWALL_ZONES_JSON"
+echo "  Create resource group:  $CREATE_RESOURCE_GROUP"
+echo "  Create hub VNet:        $CREATE_HUB_VNET"
+echo "  Create hub NSG:         $CREATE_HUB_WORKLOAD_NSG"
+echo "  Create hub subnets:     gateway=$CREATE_GATEWAY_SUBNET firewall=$CREATE_FIREWALL_SUBNET management=$CREATE_FIREWALL_MANAGEMENT_SUBNET ping=$CREATE_PING_TEST_SUBNET vm=$CREATE_HUB_VM_SUBNET"
+echo "  Create VPN gateway IP:  $CREATE_VPN_GATEWAY_PUBLIC_IP ($VPN_GATEWAY_PUBLIC_IP_NAME)"
+echo "  Create VPN gateway:     $CREATE_VPN_GATEWAY ($VPN_GATEWAY_NAME, SKU $VPN_GATEWAY_SKU)"
+echo "  Create spoke VNets:     $CREATE_SPOKE_VNETS_JSON"
+echo "  Create spoke subnets:   $CREATE_SPOKE_SUBNETS_JSON"
+echo "  Create hub peerings:    $CREATE_HUB_TO_SPOKE_PEERINGS_JSON"
+echo "  Create spoke peerings:  $CREATE_SPOKE_TO_HUB_PEERINGS_JSON"

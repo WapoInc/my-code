@@ -69,8 +69,8 @@ var spokeConfigs = [
 
 var hubWorkloadSubnets = [
   {
-    name: 'ZA-East-Hub'
-    prefix: '10.20.1.0/24'
+    name: 'Subnet-1'
+    prefix: '10.20.1.0/25'
     networkSecurityGroupName: hubWorkloadNsgName
   }
   {
