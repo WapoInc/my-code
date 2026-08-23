@@ -7,11 +7,12 @@ set -euo pipefail
 # =============================================================================
 # Deploys into whatever subscription your Azure CLI is logged in to. It detects
 # what already exists and only creates the missing pieces, so it is safe to
-# re-run. It drives two Bicep modules through one subscription-scope template
-# (ZA-East-Firewall-Policy-Udrs-rg.bicep):
+# re-run. It runs the subscription-scope template ZA-East-Firewall-Policy-Udrs-rg.bicep
+# (two modules) and then the resource-group template ZA-East-S2S-Fortigate.bicep:
 #
 #   1. ZA-East-Network-Prerequisites.bicep  (module: networkPrerequisites)
 #   2. ZA-East-Firewall-Policy-Udrs.bicep   (module: firewallRouting)
+#   3. ZA-East-S2S-Fortigate.bicep          (local network gateway + connection)
 #
 # Components created / managed:
 #   - Resource group                 container for every resource below.
@@ -30,9 +31,12 @@ set -euo pipefail
 #   - Log Analytics workspace         receives firewall diagnostic logs.
 #   - Route tables (UDRs)             force subnet traffic through the firewall
 #                                     private IP; applied in stages (see below).
-#   - VPN gateway + public IP         route-based gateway in GatewaySubnet for
-#                                     the site-to-site tunnel (brought up by the
-#                                     separate deploy-za-east-s2s-fortigate.sh).
+#   - VPN gateway + public IP         route-based gateway in GatewaySubnet.
+#   - VM subnet Subnet-1              10.20.2.0/25 in the hub for test workloads.
+#   - Local network gateway           the on-prem FortiGate site (IP + prefixes).
+#   - IPsec connection                site-to-site tunnel to the FortiGate.
+#   - Rendered FortiGate config        fortigate-za-east-s2s.rendered.conf, ready
+#                                     to paste (tunnel endpoint substituted in).
 #
 # Rollout stages (chosen interactively):
 #   FirewallOnly | GatewayAndTestSpoke | AllSpokes | Full
@@ -50,10 +54,19 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TEMPLATE_FILE="$SCRIPT_DIR/ZA-East-Firewall-Policy-Udrs-rg.bicep"
+S2S_TEMPLATE_FILE="$SCRIPT_DIR/ZA-East-S2S-Fortigate.bicep"
+FORTIGATE_TEMPLATE="$SCRIPT_DIR/fortigate-za-east-s2s.conf"
+AZURE_FIREWALL_NAME="AzFW-ZA-East-vDC"
 LOCATION="${AZURE_LOCATION:-southafricanorth}"
 TENANT_ID_OVERRIDE="${AZURE_TENANT_ID:-}"
 SUBSCRIPTION_ID_OVERRIDE="${AZURE_SUBSCRIPTION_ID:-}"
 RESOURCE_GROUP_OVERRIDE="${AZURE_RESOURCE_GROUP:-}"
+
+# On-premises FortiGate + PSK for the site-to-site tunnel.
+# Override via env to keep the pre-shared key off disk (S2S_SHARED_KEY).
+ONPREM_GATEWAY_IP="${ONPREM_GATEWAY_IP:-169.0.216.146}"
+ONPREM_ADDRESS_PREFIXES_JSON="${ONPREM_ADDRESS_PREFIXES_JSON:-[\"192.168.2.0/24\"]}"
+SHARED_KEY="${S2S_SHARED_KEY:-S2SPSK123!}"
 
 usage() {
   cat <<'USAGE'
@@ -68,6 +81,11 @@ Options:
 
 The same values can be supplied with AZURE_TENANT_ID, AZURE_SUBSCRIPTION_ID,
 AZURE_RESOURCE_GROUP, and AZURE_LOCATION.
+
+Site-to-site tunnel overrides (environment variables):
+  ONPREM_GATEWAY_IP            On-premises FortiGate public IP (default: 169.0.216.146).
+  ONPREM_ADDRESS_PREFIXES_JSON JSON array of on-prem prefixes (default: ["192.168.2.0/24"]).
+  S2S_SHARED_KEY               IPsec pre-shared key (default: the lab PSK).
 USAGE
 }
 
@@ -576,3 +594,109 @@ az deployment sub create \
   --subscription "$SUBSCRIPTION_ID" \
   --query 'properties.outputs' \
   --output json
+
+# =============================================================================
+# Phase 2: site-to-site VPN to the on-premises FortiGate
+# =============================================================================
+# The firewall deployment above created (or reused) the VPN gateway and its
+# public IP. Now add a VM subnet, the local network gateway, and the IPsec
+# connection, then render a paste-ready FortiGate config.
+LOCAL_NETWORK_GATEWAY_NAME="za-east-${LOCATION}-fortigate-lng"
+CONNECTION_NAME="za-east-${LOCATION}-to-fortigate"
+
+# VM subnet for test workloads in the hub (created if missing).
+if ! az network vnet subnet show \
+  --resource-group "$RESOURCE_GROUP_NAME" \
+  --vnet-name "$HUB_VNET_NAME" \
+  --name Subnet-1 \
+  --subscription "$SUBSCRIPTION_ID" >/dev/null 2>&1; then
+  echo "Creating VM subnet Subnet-1 (10.20.2.0/25) in '$HUB_VNET_NAME'..."
+  az network vnet subnet create \
+    --resource-group "$RESOURCE_GROUP_NAME" \
+    --vnet-name "$HUB_VNET_NAME" \
+    --name Subnet-1 \
+    --address-prefixes 10.20.2.0/25 \
+    --subscription "$SUBSCRIPTION_ID" \
+    --output none
+fi
+
+# Wait for the VPN gateway public IP, then use it as the tunnel endpoint.
+echo "Waiting for the VPN gateway public IP address to be assigned..."
+AZURE_VPNGW_PUBLIC_IP=""
+for _ in $(seq 1 30); do
+  AZURE_VPNGW_PUBLIC_IP="$(az network public-ip show \
+    --resource-group "$RESOURCE_GROUP_NAME" \
+    --name "$VPN_GATEWAY_PUBLIC_IP_NAME" \
+    --subscription "$SUBSCRIPTION_ID" \
+    --query ipAddress \
+    --output tsv 2>/dev/null || true)"
+  [[ -n "$AZURE_VPNGW_PUBLIC_IP" ]] && break
+  sleep 10
+done
+
+if [[ -z "$AZURE_VPNGW_PUBLIC_IP" ]]; then
+  echo "The VPN gateway public IP '$VPN_GATEWAY_PUBLIC_IP_NAME' has no address assigned yet." >&2
+  echo "Wait for the gateway to finish provisioning, then rerun this script." >&2
+  exit 1
+fi
+echo "VPN gateway public IP (tunnel endpoint): $AZURE_VPNGW_PUBLIC_IP"
+
+S2S_DEPLOYMENT_NAME="za-east-s2s-fortigate-$(date -u +%Y%m%d-%H%M%S)"
+S2S_PARAMETERS=(
+  "location=$LOCATION"
+  "vpnGatewayName=$VPN_GATEWAY_NAME"
+  "localNetworkGatewayName=$LOCAL_NETWORK_GATEWAY_NAME"
+  "onPremisesGatewayIpAddress=$ONPREM_GATEWAY_IP"
+  "onPremisesAddressPrefixes=$ONPREM_ADDRESS_PREFIXES_JSON"
+  "connectionName=$CONNECTION_NAME"
+  "sharedKey=$SHARED_KEY"
+)
+
+echo "Building site-to-site Bicep template..."
+az bicep build --file "$S2S_TEMPLATE_FILE" --stdout >/dev/null
+
+echo "Validating the site-to-site connection deployment..."
+az deployment group validate \
+  --resource-group "$RESOURCE_GROUP_NAME" \
+  --name "$S2S_DEPLOYMENT_NAME" \
+  --template-file "$S2S_TEMPLATE_FILE" \
+  --parameters "${S2S_PARAMETERS[@]}" \
+  --subscription "$SUBSCRIPTION_ID" \
+  --output table
+
+echo
+echo "Creating the site-to-site connection..."
+az deployment group create \
+  --resource-group "$RESOURCE_GROUP_NAME" \
+  --name "$S2S_DEPLOYMENT_NAME" \
+  --template-file "$S2S_TEMPLATE_FILE" \
+  --parameters "${S2S_PARAMETERS[@]}" \
+  --subscription "$SUBSCRIPTION_ID" \
+  --query 'properties.outputs' \
+  --output json
+
+# Render a ready-to-paste FortiGate config with the live gateway IP.
+if [[ -f "$FORTIGATE_TEMPLATE" ]]; then
+  RENDERED_FILE="$SCRIPT_DIR/fortigate-za-east-s2s.rendered.conf"
+  sed "s|__AZURE_VPNGW_PUBLIC_IP__|$AZURE_VPNGW_PUBLIC_IP|g" "$FORTIGATE_TEMPLATE" > "$RENDERED_FILE"
+  echo
+  echo "FortiGate script rendered with Azure gateway IP $AZURE_VPNGW_PUBLIC_IP:"
+  echo "  $RENDERED_FILE"
+fi
+
+echo
+echo "Deployed resource settings:"
+echo "  Region:                 $LOCATION"
+echo "  Resource group:         $RESOURCE_GROUP_NAME"
+echo "  Hub VNet:               $HUB_VNET_NAME"
+echo "  VPN gateway:            $VPN_GATEWAY_NAME"
+echo "  VPN gateway public IP:  $AZURE_VPNGW_PUBLIC_IP"
+echo "  Azure Firewall:         $AZURE_FIREWALL_NAME"
+echo "  Local network gateway:  $LOCAL_NETWORK_GATEWAY_NAME"
+echo "  IPsec connection:       $CONNECTION_NAME"
+
+echo
+echo "Next steps on the FortiGate:"
+echo "  1. Confirm the WAN/LAN interface names in the FortiGate script."
+echo "  2. 'set remote-gw' is already set to $AZURE_VPNGW_PUBLIC_IP in the rendered file."
+echo "  3. Paste the CLI section into the FortiGate to bring up the tunnel."
