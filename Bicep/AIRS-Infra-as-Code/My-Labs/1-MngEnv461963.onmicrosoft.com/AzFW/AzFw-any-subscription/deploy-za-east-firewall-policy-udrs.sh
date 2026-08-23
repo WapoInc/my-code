@@ -2,6 +2,52 @@
 
 set -euo pipefail
 
+# =============================================================================
+# ZA-East hub-and-spoke firewall + network deployment (portable runner)
+# =============================================================================
+# Deploys into whatever subscription your Azure CLI is logged in to. It detects
+# what already exists and only creates the missing pieces, so it is safe to
+# re-run. It drives two Bicep modules through one subscription-scope template
+# (ZA-East-Firewall-Policy-Udrs-rg.bicep):
+#
+#   1. ZA-East-Network-Prerequisites.bicep  (module: networkPrerequisites)
+#   2. ZA-East-Firewall-Policy-Udrs.bicep   (module: firewallRouting)
+#
+# Components created / managed:
+#   - Resource group                 container for every resource below.
+#   - Hub VNet (10.20.0.0/16)         central network with five subnets:
+#       * GatewaySubnet               hosts the VPN gateway.
+#       * ZA-East-Hub                 workload subnet, protected by an NSG.
+#       * AzureFirewallSubnet         required subnet for Azure Firewall data.
+#       * AzureFirewallManagementSubnet  required for Basic firewall mgmt NIC.
+#       * Ping-test                   scratch subnet for connectivity tests.
+#   - Default NSG                     baseline security group on the hub subnet.
+#   - Spoke VNets 1/2/3               10.21/22/23.0.0/24, each with Subnet-1.
+#   - Hub<->spoke peerings            full mesh between hub and each spoke.
+#   - Azure Firewall (Basic)          central egress/inspection point, plus a
+#                                     data public IP and a management public IP.
+#   - Firewall policy                 application + network rule collections.
+#   - Log Analytics workspace         receives firewall diagnostic logs.
+#   - Route tables (UDRs)             force subnet traffic through the firewall
+#                                     private IP; applied in stages (see below).
+#   - VPN gateway + public IP         route-based gateway in GatewaySubnet for
+#                                     the site-to-site tunnel (brought up by the
+#                                     separate deploy-za-east-s2s-fortigate.sh).
+#
+# Rollout stages (chosen interactively):
+#   FirewallOnly | GatewayAndTestSpoke | AllSpokes | Full
+#   control which UDR associations are applied so the topology can come up
+#   incrementally.
+#
+# Self-healing behaviour:
+#   - Removes a VPN gateway left in a Failed state before retrying.
+#   - Replaces the VPN gateway public IP when it is Standard-without-zones and
+#     unattached (Azure requires zones 1/2/3 on the Standard PIP).
+#
+# Prerequisites: az CLI, python3 (CIDR validation), and an authenticated Azure
+# context (az login). Region/subscription/RG come from flags or AZURE_* vars.
+# =============================================================================
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TEMPLATE_FILE="$SCRIPT_DIR/ZA-East-Firewall-Policy-Udrs-rg.bicep"
 LOCATION="${AZURE_LOCATION:-southafricanorth}"
@@ -59,12 +105,17 @@ while (( $# > 0 )); do
   esac
 done
 
+# ---- Resource names (all derived from the region) ----
 DEFAULT_RESOURCE_GROUP="za-east-${LOCATION}"
 HUB_VNET_NAME="za-east-${LOCATION}-vnet"
 HUB_WORKLOAD_NSG_NAME="za-east-${LOCATION}-default-nsg"
 VPN_GATEWAY_NAME="za-east-${LOCATION}-vpngw"
 VPN_GATEWAY_PUBLIC_IP_NAME="za-east-${LOCATION}-vpngw-pip"
 
+# ---- Helper functions ----
+# require_command: fail early if a needed CLI is missing.
+# cidr_is_allowed: reject on-prem prefixes that overlap Azure or are not IPv4.
+# prefixes_to_json / booleans_to_json: turn bash arrays into Bicep-ready JSON.
 require_command() {
   if ! command -v "$1" >/dev/null 2>&1; then
     echo "Required command '$1' is not installed or not in PATH." >&2
@@ -121,6 +172,7 @@ booleans_to_json() {
   printf '%s]' "$json"
 }
 
+# ---- Verify tools and establish the Azure context ----
 require_command az
 require_command python3
 
@@ -159,6 +211,7 @@ else
   RESOURCE_GROUP_NAME="${RESOURCE_GROUP_NAME:-$DEFAULT_RESOURCE_GROUP}"
 fi
 
+# ---- Register the resource providers this deployment needs ----
 echo "Registering required Azure resource providers..."
 for provider_namespace in Microsoft.Network Microsoft.OperationalInsights Microsoft.Insights; do
   az provider register \
@@ -168,6 +221,7 @@ for provider_namespace in Microsoft.Network Microsoft.OperationalInsights Micros
     --output none
 done
 
+# ---- Discover which resources already exist so we only create the gaps ----
 if az group show --name "$RESOURCE_GROUP_NAME" --subscription "$SUBSCRIPTION_ID" >/dev/null 2>&1; then
   CREATE_RESOURCE_GROUP=false
 else
@@ -230,6 +284,7 @@ else
   CREATE_PING_TEST_SUBNET="$(subnet_missing "$HUB_VNET_NAME" Ping-test)"
 fi
 
+# ---- VPN gateway: reuse if healthy, delete if failed, otherwise create ----
 EXISTING_VPN_GATEWAY_NAME="$(az network vnet-gateway list \
   --resource-group "$RESOURCE_GROUP_NAME" \
   --subscription "$SUBSCRIPTION_ID" \
@@ -264,6 +319,7 @@ else
   CREATE_VPN_GATEWAY=true
 fi
 
+# ---- VPN gateway public IP: keep only if Standard with zones 1/2/3 ----
 if [[ "$CREATE_VPN_GATEWAY" == true ]]; then
   if az network public-ip show --resource-group "$RESOURCE_GROUP_NAME" --name "$VPN_GATEWAY_PUBLIC_IP_NAME" --subscription "$SUBSCRIPTION_ID" >/dev/null 2>&1; then
     VPN_PIP_SKU="$(az network public-ip show \
@@ -468,6 +524,7 @@ POLICY_COUNT="$(az policy assignment list \
   --output tsv)"
 echo "Subscription-scope policy assignments detected: $POLICY_COUNT"
 
+# ---- Compile, validate, then deploy the subscription-scope template ----
 echo "Building Bicep templates..."
 az bicep build --file "$TEMPLATE_FILE" --stdout >/dev/null
 
