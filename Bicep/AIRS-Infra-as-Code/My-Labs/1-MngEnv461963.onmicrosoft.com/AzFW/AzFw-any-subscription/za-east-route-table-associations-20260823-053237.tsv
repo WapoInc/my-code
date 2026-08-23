@@ -1,0 +1,9 @@
+vnet	subnet	currentRouteTableId
+za-east-southafricanorth-vnet	AzureFirewallSubnet	None
+za-east-southafricanorth-vnet	AzureFirewallManagementSubnet	None
+za-east-southafricanorth-vnet	ZA-East-Hub	/subscriptions/29df7078-c53c-4638-81c1-e4bc8566d423/resourceGroups/za-east-southafricanorth/providers/Microsoft.Network/routeTables/rt-za-east-hub-workloads-via-azfw
+za-east-southafricanorth-vnet	GatewaySubnet	/subscriptions/29df7078-c53c-4638-81c1-e4bc8566d423/resourceGroups/za-east-southafricanorth/providers/Microsoft.Network/routeTables/rt-za-east-gateway-return-via-azfw
+za-east-southafricanorth-vnet	Ping-test	/subscriptions/29df7078-c53c-4638-81c1-e4bc8566d423/resourceGroups/za-east-southafricanorth/providers/Microsoft.Network/routeTables/rt-za-east-hub-workloads-via-azfw
+za-east-spoke-1-vnet	Subnet-1	/subscriptions/29df7078-c53c-4638-81c1-e4bc8566d423/resourceGroups/za-east-southafricanorth/providers/Microsoft.Network/routeTables/rt-za-east-spoke-1-via-azfw
+za-east-spoke-2-vnet	Subnet-1	/subscriptions/29df7078-c53c-4638-81c1-e4bc8566d423/resourceGroups/za-east-southafricanorth/providers/Microsoft.Network/routeTables/rt-za-east-spoke-2-via-azfw
+za-east-spoke-3-vnet	Subnet-1	/subscriptions/29df7078-c53c-4638-81c1-e4bc8566d423/resourceGroups/za-east-southafricanorth/providers/Microsoft.Network/routeTables/rt-za-east-spoke-3-via-azfw
