@@ -92,7 +92,6 @@ fi
 
 vpn_gateway_options=(
   "None"
-  "Basic"
   "VpnGw1AZ"
   "VpnGw2AZ"
   "VpnGw3AZ"
@@ -102,7 +101,7 @@ vpn_gateway_options=(
 
 echo
 echo "Select the VPN gateway SKU:"
-echo "  Basic is the supported non-AZ option; VpnGw1-5 non-AZ SKUs are blocked for new gateways."
+echo "  Only zone-redundant Azure VPN Gateway SKUs are offered."
 PS3="Enter selection (1-${#vpn_gateway_options[@]}): "
 
 VPN_GATEWAY_SKU=""
@@ -115,17 +114,64 @@ select selected_vpn_gateway_sku in "${vpn_gateway_options[@]}"; do
   echo "Invalid selection. Choose a number from 1 to ${#vpn_gateway_options[@]}."
 done
 
+azure_firewall_options=(
+  "None"
+  "Basic"
+  "Standard"
+  "Premium"
+)
+
+echo
+echo "Select the Azure Firewall SKU:"
+PS3="Enter selection (1-${#azure_firewall_options[@]}): "
+
+AZURE_FIREWALL_SKU=""
+select selected_azure_firewall_sku in "${azure_firewall_options[@]}"; do
+  if [[ -n "$selected_azure_firewall_sku" ]]; then
+    AZURE_FIREWALL_SKU="$selected_azure_firewall_sku"
+    break
+  fi
+
+  echo "Invalid selection. Choose a number from 1 to ${#azure_firewall_options[@]}."
+done
+
+lng_options=(
+  "Yes"
+  "No"
+)
+
+echo
+echo "Create VPN GW - LNG?"
+PS3="Enter selection (1-${#lng_options[@]}): "
+
+CREATE_FORTIGATE_LNG=""
+select selected_lng_option in "${lng_options[@]}"; do
+  case "$selected_lng_option" in
+    Yes)
+      CREATE_FORTIGATE_LNG=true
+      break
+      ;;
+    No)
+      CREATE_FORTIGATE_LNG=false
+      break
+      ;;
+    *)
+      echo "Invalid selection. Choose 1 for Yes or 2 for No."
+      ;;
+  esac
+done
+
 VPN_SHARED_KEY=""
 FORTIGATE_TUNNEL="Skipped"
-if [[ "$VPN_GATEWAY_SKU" != "None" && "$VPN_GATEWAY_SKU" != "Basic" ]]; then
+if [[ "$CREATE_FORTIGATE_LNG" == true && "$VPN_GATEWAY_SKU" != "None" ]]; then
   echo
   read -r -s -p "FortiGate IPsec pre-shared key (leave blank to skip tunnel): " VPN_SHARED_KEY
   echo
   if [[ -n "$VPN_SHARED_KEY" ]]; then
     FORTIGATE_TUNNEL="Enabled (156.155.28.158, ASN ${FORTIGATE_BGP_ASN}, BGP peer ${FORTIGATE_BGP_PEER_IP})"
   fi
-elif [[ "$VPN_GATEWAY_SKU" == "Basic" ]]; then
-  FORTIGATE_TUNNEL="Skipped (Basic SKU does not support BGP)"
+elif [[ "$CREATE_FORTIGATE_LNG" == true ]]; then
+  FORTIGATE_TUNNEL="Skipped (LNG enabled, but VPN gateway is None)"
 fi
 
 echo
@@ -136,6 +182,8 @@ echo "  Tenant:         $selected_tenant_id"
 echo "  Location:       $LOCATION"
 echo "  Resource grp:   $RESOURCE_GROUP_NAME"
 echo "  VPN gateway:    $VPN_GATEWAY_SKU"
+echo "  Azure Firewall: $AZURE_FIREWALL_SKU"
+echo "  Create LNG:     $CREATE_FORTIGATE_LNG"
 echo "  FortiGate VPN:  $FORTIGATE_TUNNEL"
 echo "  Template:       $TEMPLATE_FILE"
 echo
@@ -163,8 +211,10 @@ az deployment sub create \
     location="$LOCATION" \
     resourceGroupName="$RESOURCE_GROUP_NAME" \
     vpnGatewaySku="$VPN_GATEWAY_SKU" \
+    azureFirewallSku="$AZURE_FIREWALL_SKU" \
     vpnSharedKey="$VPN_SHARED_KEY" \
     enableFortiGateBgp=true \
+    createFortiGateLocalNetworkGateway="$CREATE_FORTIGATE_LNG" \
     fortiGateBgpAsn="$FORTIGATE_BGP_ASN" \
     fortiGateBgpPeerIp="$FORTIGATE_BGP_PEER_IP" \
     azureVpnBgpAsn="$AZURE_VPN_BGP_ASN" \

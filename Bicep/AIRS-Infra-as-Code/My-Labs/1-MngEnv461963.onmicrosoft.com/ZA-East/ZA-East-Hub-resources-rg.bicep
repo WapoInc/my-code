@@ -32,7 +32,6 @@ param adminPassword string
 
 @allowed([
   'None'
-  'Basic'
   'VpnGw1AZ'
   'VpnGw2AZ'
   'VpnGw3AZ'
@@ -42,12 +41,24 @@ param adminPassword string
 @description('VPN gateway SKU to deploy. Select None to skip the VPN gateway and its public IP.')
 param vpnGatewaySku string = 'None'
 
+@allowed([
+  'None'
+  'Basic'
+  'Standard'
+  'Premium'
+])
+@description('Azure Firewall tier to deploy. Select None to skip Azure Firewall.')
+param azureFirewallSku string = 'None'
+
 @secure()
 @description('IPsec pre-shared key for the FortiGate tunnel. Leave empty to skip the connection.')
 param vpnSharedKey string = ''
 
 @description('Enable BGP on the Azure VPN gateway, local network gateway, and connection.')
 param enableFortiGateBgp bool = true
+
+@description('Create the FortiGate local network gateway.')
+param createFortiGateLocalNetworkGateway bool = false
 
 @description('BGP ASN used by the on-premises FortiGate.')
 param fortiGateBgpAsn int = 65521
@@ -75,8 +86,10 @@ module resources 'ZA-East-Hub-resources.bicep' = {
     location: location
     adminPassword: adminPassword
     vpnGatewaySku: vpnGatewaySku
+    azureFirewallSku: azureFirewallSku
     vpnSharedKey: vpnSharedKey
     enableFortiGateBgp: enableFortiGateBgp
+    createFortiGateLocalNetworkGateway: createFortiGateLocalNetworkGateway
     fortiGateBgpAsn: fortiGateBgpAsn
     fortiGateBgpPeerIp: fortiGateBgpPeerIp
     azureVpnBgpAsn: azureVpnBgpAsn
@@ -95,3 +108,6 @@ output vmPrivateIp string = resources.outputs.vmPrivateIp
 output vpnGatewaySku string = resources.outputs.vpnGatewaySku
 output vpnGatewayName string = resources.outputs.vpnGatewayName
 output vpnGatewayId string = resources.outputs.vpnGatewayId
+output azureFirewallSku string = resources.outputs.azureFirewallSku
+output azureFirewallName string = resources.outputs.azureFirewallName
+output azureFirewallPrivateIp string = resources.outputs.azureFirewallPrivateIp

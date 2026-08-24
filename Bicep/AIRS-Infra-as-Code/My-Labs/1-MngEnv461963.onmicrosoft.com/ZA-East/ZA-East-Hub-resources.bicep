@@ -16,7 +16,7 @@ targetScope = 'resourceGroup'
 param location string = 'southafricanorth'
 
 param vnetName string = 'za-east-${location}-vnet'
-param vnetPrefix string = '10.20.0.0/16'
+param vnetPrefix string = '10.20.0.0/20'
 
 var prefixedVnetName = startsWith(toLower(vnetName), 'za-east-') ? vnetName : 'za-east-${vnetName}'
 
@@ -25,7 +25,6 @@ param nsgName string = 'za-east-${location}-default-nsg'
 
 @allowed([
   'None'
-  'Basic'
   'VpnGw1AZ'
   'VpnGw2AZ'
   'VpnGw3AZ'
@@ -34,6 +33,19 @@ param nsgName string = 'za-east-${location}-default-nsg'
 ])
 @description('VPN gateway SKU to deploy. Select None to skip the VPN gateway and its public IP.')
 param vpnGatewaySku string = 'None'
+
+@allowed([
+  'None'
+  'Basic'
+  'Standard'
+  'Premium'
+])
+@description('Azure Firewall tier to deploy. Select None to skip Azure Firewall and its public IP resources.')
+param azureFirewallSku string = 'None'
+
+param azureFirewallName string = 'AzFW-ZA-East-${location}'
+param azureFirewallPublicIpName string = '${azureFirewallName}-pip'
+param azureFirewallManagementPublicIpName string = '${azureFirewallName}-mgmt-pip'
 
 param vpnGatewayName string = 'za-east-VPN-Gateway-${location}-${vpnGatewaySku}'
 param vpnGatewayPipName string = 'za-east-VPN-Gateway-${location}-${vpnGatewaySku}-zones123-pip'
@@ -56,11 +68,16 @@ param azureVpnBgpAsn int = 65515
 @description('Enable BGP on the Azure VPN gateway, local network gateway, and connection.')
 param enableFortiGateBgp bool = true
 
+@description('Create the FortiGate local network gateway.')
+param createFortiGateLocalNetworkGateway bool = false
+
 @secure()
 @description('IPsec pre-shared key. Leave empty to skip the FortiGate local network gateway and connection.')
 param vpnSharedKey string = ''
 
-var deployFortiGateConnection = deployVpnGateway && vpnGatewaySku != 'Basic' && !empty(vpnSharedKey)
+var deployFortiGateConnection = createFortiGateLocalNetworkGateway && deployVpnGateway && !empty(vpnSharedKey)
+var deployAzureFirewall = azureFirewallSku != 'None'
+var deployAzureFirewallManagementIp = azureFirewallSku == 'Basic'
 var fortiGateLocalNetworkGatewayName = 'za-east-LNG-MiaCasa'
 var fortiGateConnectionName = '${prefixedVpnGatewayName}-to-FortiGate'
 
@@ -79,18 +96,21 @@ param spokeVmSize string = 'Standard_B1ls'
 var spokeConfigs = [
   {
     name: 'za-east-spoke-1'
-    vnetPrefix: '10.21.0.0/24'
-    subnetPrefix: '10.21.0.0/25'
+    vnetPrefix: '10.21.0.0/20'
+    subnetPrefix: '10.21.1.0/25'
+    vmPrivateIp: '10.21.1.5'
   }
   {
     name: 'za-east-spoke-2'
-    vnetPrefix: '10.22.0.0/24'
-    subnetPrefix: '10.22.0.0/25'
+    vnetPrefix: '10.22.0.0/20'
+    subnetPrefix: '10.22.1.0/25'
+    vmPrivateIp: '10.22.1.5'
   }
   {
     name: 'za-east-spoke-3'
-    vnetPrefix: '10.23.0.0/24'
-    subnetPrefix: '10.23.0.0/25'
+    vnetPrefix: '10.23.0.0/20'
+    subnetPrefix: '10.23.1.0/25'
+    vmPrivateIp: '10.23.1.5'
   }
 ]
 
@@ -121,6 +141,38 @@ resource nsg 'Microsoft.Network/networkSecurityGroups@2023-11-01' = {
 // --- Zone-redundant public IP for the VPN Gateway -----------
 resource gwPip 'Microsoft.Network/publicIPAddresses@2023-11-01' = if (deployVpnGateway) {
   name: vpnGatewayPipName
+  location: location
+  zones: [
+    '1'
+    '2'
+    '3'
+  ]
+  sku: {
+    name: 'Standard'
+  }
+  properties: {
+    publicIPAllocationMethod: 'Static'
+  }
+}
+
+resource azureFirewallPublicIp 'Microsoft.Network/publicIPAddresses@2023-11-01' = if (deployAzureFirewall) {
+  name: azureFirewallPublicIpName
+  location: location
+  zones: [
+    '1'
+    '2'
+    '3'
+  ]
+  sku: {
+    name: 'Standard'
+  }
+  properties: {
+    publicIPAllocationMethod: 'Static'
+  }
+}
+
+resource azureFirewallManagementPublicIp 'Microsoft.Network/publicIPAddresses@2023-11-01' = if (deployAzureFirewallManagementIp) {
+  name: azureFirewallManagementPublicIpName
   location: location
   zones: [
     '1'
@@ -255,8 +307,8 @@ resource vpnGateway 'Microsoft.Network/virtualNetworkGateways@2023-11-01' = if (
     gatewayType: 'Vpn'
     vpnType: 'RouteBased'
     activeActive: false
-    enableBgp: vpnGatewaySku != 'Basic' && enableFortiGateBgp
-    bgpSettings: vpnGatewaySku != 'Basic' && enableFortiGateBgp ? {
+    enableBgp: enableFortiGateBgp
+    bgpSettings: enableFortiGateBgp ? {
       asn: azureVpnBgpAsn
     } : null
     sku: {
@@ -280,7 +332,48 @@ resource vpnGateway 'Microsoft.Network/virtualNetworkGateways@2023-11-01' = if (
   }
 }
 
-resource fortiGateLocalNetworkGateway 'Microsoft.Network/localNetworkGateways@2023-11-01' = if (deployFortiGateConnection) {
+resource azureFirewall 'Microsoft.Network/azureFirewalls@2023-11-01' = if (deployAzureFirewall) {
+  name: azureFirewallName
+  location: location
+  zones: [
+    '1'
+    '2'
+    '3'
+  ]
+  properties: {
+    sku: {
+      name: 'AZFW_VNet'
+      tier: azureFirewallSku
+    }
+    threatIntelMode: 'Alert'
+    ipConfigurations: [
+      {
+        name: '${azureFirewallName}-ipconfig'
+        properties: {
+          subnet: {
+            id: '${vnet.id}/subnets/AzureFirewallSubnet'
+          }
+          publicIPAddress: {
+            id: azureFirewallPublicIp.id
+          }
+        }
+      }
+    ]
+    managementIpConfiguration: deployAzureFirewallManagementIp ? {
+      name: '${azureFirewallName}-management-ipconfig'
+      properties: {
+        subnet: {
+          id: '${vnet.id}/subnets/AzureFirewallManagementSubnet'
+        }
+        publicIPAddress: {
+          id: azureFirewallManagementPublicIp.id
+        }
+      }
+    } : null
+  }
+}
+
+resource fortiGateLocalNetworkGateway 'Microsoft.Network/localNetworkGateways@2023-11-01' = if (createFortiGateLocalNetworkGateway) {
   name: fortiGateLocalNetworkGatewayName
   location: location
   properties: {
@@ -404,7 +497,7 @@ resource spokeVnets 'Microsoft.Network/virtualNetworks@2023-11-01' = [
 resource hubToSpokePeerings 'Microsoft.Network/virtualNetworks/virtualNetworkPeerings@2023-11-01' = [
   for (spoke, i) in spokeConfigs: {
     parent: vnet
-    name: 'hub-to-${spoke.name}'
+    name: '${prefixedVnetName}-to-${spoke.name}-vnet'
     properties: {
       remoteVirtualNetwork: {
         id: spokeVnets[i].id
@@ -421,7 +514,7 @@ resource hubToSpokePeerings 'Microsoft.Network/virtualNetworks/virtualNetworkPee
 resource spokeToHubPeerings 'Microsoft.Network/virtualNetworks/virtualNetworkPeerings@2023-11-01' = [
   for (spoke, i) in spokeConfigs: {
     parent: spokeVnets[i]
-    name: '${spoke.name}-to-hub'
+    name: '${spoke.name}-vnet-to-${prefixedVnetName}'
     properties: {
       remoteVirtualNetwork: {
         id: vnet.id
@@ -451,7 +544,8 @@ resource spokeNics 'Microsoft.Network/networkInterfaces@2023-11-01' = [
             subnet: {
               id: '${spokeVnets[i].id}/subnets/Subnet-1'
             }
-            privateIPAllocationMethod: 'Dynamic'
+            privateIPAllocationMethod: 'Static'
+            privateIPAddress: spoke.vmPrivateIp
           }
         }
       ]
@@ -512,5 +606,9 @@ output vmPrivateIp string = nic.properties.ipConfigurations[0].properties.privat
 output vpnGatewaySku string = vpnGatewaySku
 output vpnGatewayName string = deployVpnGateway ? vpnGateway.name : ''
 output vpnGatewayId string = deployVpnGateway ? vpnGateway.id : ''
+output azureFirewallSku string = azureFirewallSku
+output azureFirewallName string = deployAzureFirewall ? azureFirewall.name : ''
+output azureFirewallPrivateIp string = deployAzureFirewall ? azureFirewall!.properties.ipConfigurations[0].properties.privateIPAddress : ''
 output spokeVnetNames array = [for (spoke, i) in spokeConfigs: spokeVnets[i].name]
 output spokeVmNames array = [for (spoke, i) in spokeConfigs: spokeVms[i].name]
+output spokeVmPrivateIps array = [for (spoke, i) in spokeConfigs: spokeNics[i].properties.ipConfigurations[0].properties.privateIPAddress]
