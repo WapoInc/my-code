@@ -5,6 +5,8 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TEMPLATE_FILE="$SCRIPT_DIR/ZA-East-Hub-resources-rg.bicep"
 
+echo "ZA-East deployment runner v2026.08.24.2 (firewall policy + automatic retry)"
+
 # --- Selectable deployment regions ---
 region_options=(
   "southafricanorth"
@@ -161,15 +163,9 @@ select selected_lng_option in "${lng_options[@]}"; do
   esac
 done
 
-VPN_SHARED_KEY=""
 FORTIGATE_TUNNEL="Skipped"
 if [[ "$CREATE_FORTIGATE_LNG" == true && "$VPN_GATEWAY_SKU" != "None" ]]; then
-  echo
-  read -r -s -p "FortiGate IPsec pre-shared key (leave blank to skip tunnel): " VPN_SHARED_KEY
-  echo
-  if [[ -n "$VPN_SHARED_KEY" ]]; then
-    FORTIGATE_TUNNEL="Enabled (156.155.28.158, ASN ${FORTIGATE_BGP_ASN}, BGP peer ${FORTIGATE_BGP_PEER_IP})"
-  fi
+  FORTIGATE_TUNNEL="Enabled (156.155.28.158, ASN ${FORTIGATE_BGP_ASN}, BGP peer ${FORTIGATE_BGP_PEER_IP})"
 elif [[ "$CREATE_FORTIGATE_LNG" == true ]]; then
   FORTIGATE_TUNNEL="Skipped (LNG enabled, but VPN gateway is None)"
 fi
@@ -202,23 +198,96 @@ fi
 
 az account set --subscription "$selected_subscription_id"
 
-az deployment sub create \
-  --name "za-east-hub-$(date -u +%Y%m%d-%H%M%S)" \
+AZURE_FIREWALL_NAME="AzFW-ZA-East-${LOCATION}"
+
+remove_failed_azure_firewall() {
+  local firewall_state
+
+  firewall_state="$(az network firewall show \
+    --subscription "$selected_subscription_id" \
+    --resource-group "$RESOURCE_GROUP_NAME" \
+    --name "$AZURE_FIREWALL_NAME" \
+    --query provisioningState \
+    --output tsv 2>/dev/null || true)"
+
+  if [[ "$firewall_state" != "Failed" ]]; then
+    return 1
+  fi
+
+  echo "Removing failed Azure Firewall '$AZURE_FIREWALL_NAME' before retrying deployment..."
+  az network firewall delete \
+    --subscription "$selected_subscription_id" \
+    --resource-group "$RESOURCE_GROUP_NAME" \
+    --name "$AZURE_FIREWALL_NAME"
+
+  az resource wait \
+    --subscription "$selected_subscription_id" \
+    --resource-group "$RESOURCE_GROUP_NAME" \
+    --resource-type Microsoft.Network/azureFirewalls \
+    --name "$AZURE_FIREWALL_NAME" \
+    --deleted
+}
+
+if [[ "$AZURE_FIREWALL_SKU" != "None" ]]; then
+  remove_failed_azure_firewall || true
+fi
+
+DEPLOYMENT_PARAMETERS=(
+  "adminPassword=$ADMIN_PASSWORD"
+  "location=$LOCATION"
+  "resourceGroupName=$RESOURCE_GROUP_NAME"
+  "vpnGatewaySku=$VPN_GATEWAY_SKU"
+  "azureFirewallSku=$AZURE_FIREWALL_SKU"
+  "enableFortiGateBgp=true"
+  "createFortiGateLocalNetworkGateway=$CREATE_FORTIGATE_LNG"
+  "fortiGateBgpAsn=$FORTIGATE_BGP_ASN"
+  "fortiGateBgpPeerIp=$FORTIGATE_BGP_PEER_IP"
+  "azureVpnBgpAsn=$AZURE_VPN_BGP_ASN"
+)
+
+VALIDATION_NAME="za-east-hub-validate-$(date -u +%Y%m%d-%H%M%S)"
+echo "Validating the subscription deployment..."
+az deployment sub validate \
+  --name "$VALIDATION_NAME" \
   --location "$LOCATION" \
   --template-file "$TEMPLATE_FILE" \
-  --parameters \
-    adminPassword="$ADMIN_PASSWORD" \
-    location="$LOCATION" \
-    resourceGroupName="$RESOURCE_GROUP_NAME" \
-    vpnGatewaySku="$VPN_GATEWAY_SKU" \
-    azureFirewallSku="$AZURE_FIREWALL_SKU" \
-    vpnSharedKey="$VPN_SHARED_KEY" \
-    enableFortiGateBgp=true \
-    createFortiGateLocalNetworkGateway="$CREATE_FORTIGATE_LNG" \
-    fortiGateBgpAsn="$FORTIGATE_BGP_ASN" \
-    fortiGateBgpPeerIp="$FORTIGATE_BGP_PEER_IP" \
-    azureVpnBgpAsn="$AZURE_VPN_BGP_ASN" \
-  --subscription "$selected_subscription_id"
+  --parameters "${DEPLOYMENT_PARAMETERS[@]}" \
+  --subscription "$selected_subscription_id" \
+  --output none
+
+MAX_DEPLOYMENT_ATTEMPTS=3
+deployment_succeeded=false
+
+for ((attempt = 1; attempt <= MAX_DEPLOYMENT_ATTEMPTS; attempt++)); do
+  DEPLOYMENT_NAME="za-east-hub-$(date -u +%Y%m%d-%H%M%S)-${attempt}"
+  echo "Starting deployment attempt $attempt of $MAX_DEPLOYMENT_ATTEMPTS..."
+
+  if az deployment sub create \
+    --name "$DEPLOYMENT_NAME" \
+    --location "$LOCATION" \
+    --template-file "$TEMPLATE_FILE" \
+    --parameters "${DEPLOYMENT_PARAMETERS[@]}" \
+    --subscription "$selected_subscription_id"; then
+    deployment_succeeded=true
+    break
+  fi
+
+  if [[ "$AZURE_FIREWALL_SKU" == "None" ]] || ! remove_failed_azure_firewall; then
+    echo "Deployment failed for a reason other than a failed Azure Firewall. Not retrying automatically." >&2
+    exit 1
+  fi
+
+  if (( attempt == MAX_DEPLOYMENT_ATTEMPTS )); then
+    break
+  fi
+
+  echo "Retrying after Azure Firewall cleanup..."
+done
+
+if [[ "$deployment_succeeded" != true ]]; then
+  echo "Deployment failed after $MAX_DEPLOYMENT_ATTEMPTS attempts." >&2
+  exit 1
+fi
 
 if [[ "$VPN_GATEWAY_SKU" != "None" ]]; then
   GATEWAY_PIP_NAME="za-east-VPN-Gateway-${LOCATION}-${VPN_GATEWAY_SKU}-zones123-pip"

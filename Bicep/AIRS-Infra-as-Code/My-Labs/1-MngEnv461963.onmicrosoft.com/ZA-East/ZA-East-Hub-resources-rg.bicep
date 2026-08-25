@@ -50,10 +50,6 @@ param vpnGatewaySku string = 'None'
 @description('Azure Firewall tier to deploy. Select None to skip Azure Firewall.')
 param azureFirewallSku string = 'None'
 
-@secure()
-@description('IPsec pre-shared key for the FortiGate tunnel. Leave empty to skip the connection.')
-param vpnSharedKey string = ''
-
 @description('Enable BGP on the Azure VPN gateway, local network gateway, and connection.')
 param enableFortiGateBgp bool = true
 
@@ -62,6 +58,11 @@ param createFortiGateLocalNetworkGateway bool = false
 
 @description('BGP ASN used by the on-premises FortiGate.')
 param fortiGateBgpAsn int = 65521
+
+@description('On-premises CIDR prefixes reachable through the FortiGate VPN.')
+param onPremisesAddressPrefixes array = [
+  '192.168.2.0/24'
+]
 
 @description('BGP peer IP address configured on the on-premises FortiGate.')
 param fortiGateBgpPeerIp string = '66.66.66.66'
@@ -87,10 +88,10 @@ module resources 'ZA-East-Hub-resources.bicep' = {
     adminPassword: adminPassword
     vpnGatewaySku: vpnGatewaySku
     azureFirewallSku: azureFirewallSku
-    vpnSharedKey: vpnSharedKey
     enableFortiGateBgp: enableFortiGateBgp
     createFortiGateLocalNetworkGateway: createFortiGateLocalNetworkGateway
     fortiGateBgpAsn: fortiGateBgpAsn
+    onPremisesAddressPrefixes: onPremisesAddressPrefixes
     fortiGateBgpPeerIp: fortiGateBgpPeerIp
     azureVpnBgpAsn: azureVpnBgpAsn
   }
@@ -110,4 +111,8 @@ output vpnGatewayName string = resources.outputs.vpnGatewayName
 output vpnGatewayId string = resources.outputs.vpnGatewayId
 output azureFirewallSku string = resources.outputs.azureFirewallSku
 output azureFirewallName string = resources.outputs.azureFirewallName
+output azureFirewallPolicyName string = resources.outputs.azureFirewallPolicyName
 output azureFirewallPrivateIp string = resources.outputs.azureFirewallPrivateIp
+output hubRouteTableId string = resources.outputs.hubRouteTableId
+output spokeRouteTableIds array = resources.outputs.spokeRouteTableIds
+output gatewayReturnRouteTableId string = resources.outputs.gatewayReturnRouteTableId

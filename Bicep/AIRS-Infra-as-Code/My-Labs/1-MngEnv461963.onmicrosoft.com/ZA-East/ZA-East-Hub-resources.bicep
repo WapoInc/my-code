@@ -44,6 +44,7 @@ param vpnGatewaySku string = 'None'
 param azureFirewallSku string = 'None'
 
 param azureFirewallName string = 'AzFW-ZA-East-${location}'
+param azureFirewallPolicyName string = '${azureFirewallName}-Policy'
 param azureFirewallPublicIpName string = '${azureFirewallName}-pip'
 param azureFirewallManagementPublicIpName string = '${azureFirewallName}-mgmt-pip'
 
@@ -55,6 +56,11 @@ var prefixedVpnGatewayName = startsWith(toLower(vpnGatewayName), 'za-east-') ? v
 
 @description('Public IP address of the on-premises FortiGate VPN endpoint.')
 param fortiGatePublicIp string = '156.155.28.158'
+
+@description('On-premises CIDR prefixes reachable through the FortiGate VPN.')
+param onPremisesAddressPrefixes array = [
+  '192.168.2.0/24'
+]
 
 @description('BGP ASN used by the on-premises FortiGate.')
 param fortiGateBgpAsn int = 65521
@@ -71,11 +77,7 @@ param enableFortiGateBgp bool = true
 @description('Create the FortiGate local network gateway.')
 param createFortiGateLocalNetworkGateway bool = false
 
-@secure()
-@description('IPsec pre-shared key. Leave empty to skip the FortiGate local network gateway and connection.')
-param vpnSharedKey string = ''
-
-var deployFortiGateConnection = createFortiGateLocalNetworkGateway && deployVpnGateway && !empty(vpnSharedKey)
+var deployFortiGateConnection = createFortiGateLocalNetworkGateway && deployVpnGateway
 var deployAzureFirewall = azureFirewallSku != 'None'
 var deployAzureFirewallManagementIp = azureFirewallSku == 'Basic'
 var fortiGateLocalNetworkGatewayName = 'za-east-LNG-MiaCasa'
@@ -113,6 +115,21 @@ var spokeConfigs = [
     vmPrivateIp: '10.23.1.5'
   }
 ]
+
+var spokeVnetPrefixes = [for spoke in spokeConfigs: spoke.vnetPrefix]
+var azureVnetPrefixes = union([
+  vnetPrefix
+], spokeVnetPrefixes)
+var protectedNetworkPrefixes = union([
+  vnetPrefix
+], spokeVnetPrefixes, onPremisesAddressPrefixes)
+var internetDefaultPrefix = '0.0.0.0/0'
+var hubRoutePrefixes = union(spokeVnetPrefixes, onPremisesAddressPrefixes, [
+  internetDefaultPrefix
+])
+var gatewayReturnPrefixes = union([
+  vnetPrefix
+], spokeVnetPrefixes)
 
 // --- ZA-East subnet address prefixes ------------------------
 var gatewaySubnetPrefix = '10.20.0.0/24'
@@ -155,7 +172,7 @@ resource gwPip 'Microsoft.Network/publicIPAddresses@2023-11-01' = if (deployVpnG
   }
 }
 
-resource azureFirewallPublicIp 'Microsoft.Network/publicIPAddresses@2023-11-01' = if (deployAzureFirewall) {
+resource azureFirewallPublicIp 'Microsoft.Network/publicIPAddresses@2024-05-01' = if (deployAzureFirewall) {
   name: azureFirewallPublicIpName
   location: location
   zones: [
@@ -171,7 +188,7 @@ resource azureFirewallPublicIp 'Microsoft.Network/publicIPAddresses@2023-11-01' 
   }
 }
 
-resource azureFirewallManagementPublicIp 'Microsoft.Network/publicIPAddresses@2023-11-01' = if (deployAzureFirewallManagementIp) {
+resource azureFirewallManagementPublicIp 'Microsoft.Network/publicIPAddresses@2024-05-01' = if (deployAzureFirewallManagementIp) {
   name: azureFirewallManagementPublicIpName
   location: location
   zones: [
@@ -324,15 +341,89 @@ resource vpnGateway 'Microsoft.Network/virtualNetworkGateways@2023-11-01' = if (
             id: '${vnet.id}/subnets/GatewaySubnet'
           }
           publicIPAddress: {
-            id: gwPip.id
+            id: resourceId('Microsoft.Network/publicIPAddresses', vpnGatewayPipName)
           }
         }
       }
     ]
   }
+  dependsOn: [
+    gwPip
+  ]
 }
 
-resource azureFirewall 'Microsoft.Network/azureFirewalls@2023-11-01' = if (deployAzureFirewall) {
+resource azureFirewallPolicy 'Microsoft.Network/firewallPolicies@2024-05-01' = if (deployAzureFirewall) {
+  name: azureFirewallPolicyName
+  location: location
+  properties: {
+    sku: {
+      tier: azureFirewallSku
+    }
+    threatIntelMode: 'Alert'
+  }
+}
+
+resource azureFirewallPolicyRules 'Microsoft.Network/firewallPolicies/ruleCollectionGroups@2024-05-01' = if (deployAzureFirewall) {
+  parent: azureFirewallPolicy
+  name: 'Allow-Private-Any-RCG'
+  properties: {
+    priority: 200
+    ruleCollections: [
+      {
+        name: 'Allow-Private-Any'
+        priority: 200
+        ruleCollectionType: 'FirewallPolicyFilterRuleCollection'
+        action: {
+          type: 'Allow'
+        }
+        rules: [
+          {
+            name: 'Allow-Hub-Spokes-OnPrem-Any'
+            ruleType: 'NetworkRule'
+            ipProtocols: [
+              'Any'
+            ]
+            sourceAddresses: protectedNetworkPrefixes
+            destinationAddresses: protectedNetworkPrefixes
+            destinationPorts: [
+              '*'
+            ]
+          }
+        ]
+      }
+      {
+        name: 'Allow-Internet-Web'
+        priority: 300
+        ruleCollectionType: 'FirewallPolicyFilterRuleCollection'
+        action: {
+          type: 'Allow'
+        }
+        rules: [
+          {
+            name: 'Allow-All-Subnets-HTTP-HTTPS'
+            ruleType: 'ApplicationRule'
+            sourceAddresses: azureVnetPrefixes
+            protocols: [
+              {
+                protocolType: 'Http'
+                port: 80
+              }
+              {
+                protocolType: 'Https'
+                port: 443
+              }
+            ]
+            targetFqdns: [
+              '*'
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}
+
+resource azureFirewall 'Microsoft.Network/azureFirewalls@2024-05-01' = if (deployAzureFirewall) {
   name: azureFirewallName
   location: location
   zones: [
@@ -346,15 +437,18 @@ resource azureFirewall 'Microsoft.Network/azureFirewalls@2023-11-01' = if (deplo
       tier: azureFirewallSku
     }
     threatIntelMode: 'Alert'
+    firewallPolicy: {
+      id: azureFirewallPolicy.id
+    }
     ipConfigurations: [
       {
         name: '${azureFirewallName}-ipconfig'
         properties: {
           subnet: {
-            id: '${vnet.id}/subnets/AzureFirewallSubnet'
+            id: resourceId('Microsoft.Network/virtualNetworks/subnets', prefixedVnetName, 'AzureFirewallSubnet')
           }
           publicIPAddress: {
-            id: azureFirewallPublicIp.id
+            id: resourceId('Microsoft.Network/publicIPAddresses', azureFirewallPublicIpName)
           }
         }
       }
@@ -363,13 +457,71 @@ resource azureFirewall 'Microsoft.Network/azureFirewalls@2023-11-01' = if (deplo
       name: '${azureFirewallName}-management-ipconfig'
       properties: {
         subnet: {
-          id: '${vnet.id}/subnets/AzureFirewallManagementSubnet'
+          id: resourceId('Microsoft.Network/virtualNetworks/subnets', prefixedVnetName, 'AzureFirewallManagementSubnet')
         }
         publicIPAddress: {
-          id: azureFirewallManagementPublicIp.id
+          id: resourceId('Microsoft.Network/publicIPAddresses', azureFirewallManagementPublicIpName)
         }
       }
     } : null
+  }
+  dependsOn: [
+    vnet
+    azureFirewallPublicIp
+    azureFirewallManagementPublicIp
+    azureFirewallPolicyRules
+  ]
+}
+
+resource hubRouteTable 'Microsoft.Network/routeTables@2024-05-01' = if (deployAzureFirewall) {
+  name: 'rt-${prefixedVnetName}-via-azfw'
+  location: location
+  properties: {
+    disableBgpRoutePropagation: false
+    routes: [for prefix in hubRoutePrefixes: {
+      name: 'to-${replace(replace(prefix, '.', '-'), '/', '-')}'
+      properties: {
+        addressPrefix: prefix
+        nextHopType: 'VirtualAppliance'
+        nextHopIpAddress: azureFirewall!.properties.ipConfigurations[0].properties.privateIPAddress
+      }
+    }]
+  }
+}
+
+resource spokeRouteTables 'Microsoft.Network/routeTables@2024-05-01' = [
+  for (spoke, index) in spokeConfigs: if (deployAzureFirewall) {
+    name: 'rt-${spoke.name}-vnet-via-azfw'
+    location: location
+    properties: {
+      disableBgpRoutePropagation: true
+      routes: [for prefix in union(filter(protectedNetworkPrefixes, prefix => prefix != spoke.vnetPrefix), [
+        internetDefaultPrefix
+      ]): {
+        name: 'to-${replace(replace(prefix, '.', '-'), '/', '-')}'
+        properties: {
+          addressPrefix: prefix
+          nextHopType: 'VirtualAppliance'
+          nextHopIpAddress: azureFirewall!.properties.ipConfigurations[0].properties.privateIPAddress
+        }
+      }]
+    }
+  }
+]
+
+resource gatewayReturnRouteTable 'Microsoft.Network/routeTables@2024-05-01' = if (deployAzureFirewall && deployVpnGateway) {
+  name: 'rt-${prefixedVnetName}-gateway-return-via-azfw'
+  location: location
+  properties: {
+    disableBgpRoutePropagation: false
+    routes: [for prefix in gatewayReturnPrefixes: {
+      name: 'to-${replace(replace(prefix, '.', '-'), '/', '-')}'
+      properties: {
+        addressPrefix: prefix
+        nextHopType: 'VirtualAppliance'
+        nextHopIpAddress: azureFirewall!.properties.ipConfigurations[0].properties.privateIPAddress
+      }
+    }]
   }
 }
 
@@ -379,7 +531,7 @@ resource fortiGateLocalNetworkGateway 'Microsoft.Network/localNetworkGateways@20
   properties: {
     gatewayIpAddress: fortiGatePublicIp
     localNetworkAddressSpace: {
-      addressPrefixes: []
+      addressPrefixes: onPremisesAddressPrefixes
     }
     bgpSettings: enableFortiGateBgp ? {
       asn: fortiGateBgpAsn
@@ -403,7 +555,7 @@ resource fortiGateConnection 'Microsoft.Network/connections@2023-11-01' = if (de
       id: fortiGateLocalNetworkGateway.id
       properties: {}
     }
-    sharedKey: vpnSharedKey
+    sharedKey: 'S2SPSK123!'
     enableBgp: enableFortiGateBgp
     routingWeight: 0
     dpdTimeoutSeconds: 45
@@ -467,6 +619,11 @@ resource vm 'Microsoft.Compute/virtualMachines@2024-03-01' = {
         }
       ]
     }
+    diagnosticsProfile: {
+      bootDiagnostics: {
+        enabled: true
+      }
+    }
   }
 }
 
@@ -492,6 +649,44 @@ resource spokeVnets 'Microsoft.Network/virtualNetworks@2023-11-01' = [
     }
   }
 ]
+
+resource hubWorkloadSubnetRouteAssociation 'Microsoft.Network/virtualNetworks/subnets@2024-05-01' = if (deployAzureFirewall) {
+  parent: vnet
+  name: subnet1Name
+  properties: {
+    addressPrefix: hubSubnetPrefix
+    networkSecurityGroup: {
+      id: nsg.id
+    }
+    routeTable: {
+      id: hubRouteTable.id
+    }
+  }
+}
+
+resource spokeSubnetRouteAssociations 'Microsoft.Network/virtualNetworks/subnets@2024-05-01' = [
+  for (spoke, index) in spokeConfigs: if (deployAzureFirewall) {
+    parent: spokeVnets[index]
+    name: 'Subnet-1'
+    properties: {
+      addressPrefix: spoke.subnetPrefix
+      routeTable: {
+        id: spokeRouteTables[index].id
+      }
+    }
+  }
+]
+
+resource gatewaySubnetRouteAssociation 'Microsoft.Network/virtualNetworks/subnets@2024-05-01' = if (deployAzureFirewall && deployVpnGateway) {
+  parent: vnet
+  name: 'GatewaySubnet'
+  properties: {
+    addressPrefix: gatewaySubnetPrefix
+    routeTable: {
+      id: gatewayReturnRouteTable.id
+    }
+  }
+}
 
 // --- Hub-to-spoke peering (offers the hub VPN gateway) ------
 resource hubToSpokePeerings 'Microsoft.Network/virtualNetworks/virtualNetworkPeerings@2023-11-01' = [
@@ -591,6 +786,11 @@ resource spokeVms 'Microsoft.Compute/virtualMachines@2024-03-01' = [
           }
         ]
       }
+      diagnosticsProfile: {
+        bootDiagnostics: {
+          enabled: true
+        }
+      }
     }
   }
 ]
@@ -608,7 +808,15 @@ output vpnGatewayName string = deployVpnGateway ? vpnGateway.name : ''
 output vpnGatewayId string = deployVpnGateway ? vpnGateway.id : ''
 output azureFirewallSku string = azureFirewallSku
 output azureFirewallName string = deployAzureFirewall ? azureFirewall.name : ''
+output azureFirewallPolicyName string = deployAzureFirewall ? azureFirewallPolicy.name : ''
 output azureFirewallPrivateIp string = deployAzureFirewall ? azureFirewall!.properties.ipConfigurations[0].properties.privateIPAddress : ''
+output hubRouteTableId string = deployAzureFirewall ? hubRouteTable.id : ''
+output spokeRouteTableIds array = deployAzureFirewall ? [
+  resourceId('Microsoft.Network/routeTables', 'rt-${spokeConfigs[0].name}-vnet-via-azfw')
+  resourceId('Microsoft.Network/routeTables', 'rt-${spokeConfigs[1].name}-vnet-via-azfw')
+  resourceId('Microsoft.Network/routeTables', 'rt-${spokeConfigs[2].name}-vnet-via-azfw')
+] : []
+output gatewayReturnRouteTableId string = deployAzureFirewall && deployVpnGateway ? gatewayReturnRouteTable.id : ''
 output spokeVnetNames array = [for (spoke, i) in spokeConfigs: spokeVnets[i].name]
 output spokeVmNames array = [for (spoke, i) in spokeConfigs: spokeVms[i].name]
 output spokeVmPrivateIps array = [for (spoke, i) in spokeConfigs: spokeNics[i].properties.ipConfigurations[0].properties.privateIPAddress]
