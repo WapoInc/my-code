@@ -25,7 +25,7 @@ config vpn ipsec phase1-interface
         set proposal aes256-sha256
         set dhgrp 2
         set nattraversal disable
-        set remote-gw 4.253.126.10
+        set remote-gw 4.253.170.111
         set psksecret "S2SPSK123!"
     next
 end
@@ -38,9 +38,20 @@ config vpn ipsec phase2-interface
         set phase1name "AzureS2S"
         set proposal aes256-sha256
         set pfs disable
-        set keylifeseconds 27000
+        set keylifeseconds 3600
         set src-subnet 0.0.0.0 0.0.0.0
         set dst-subnet 0.0.0.0 0.0.0.0
+    next
+end
+
+# ---- Tunnel interface addressing (loopback-style local IP + remote peer IP) --
+# Matches the GUI "Address" panel: local IP 66.66.66.66/32 on the AzureS2S
+# tunnel interface, far-end tunnel IP 10.20.0.254/32. Gives the tunnel a
+# source IP for ping tests / link monitoring / BGP peering over the tunnel.
+config system interface
+    edit "AzureS2S"
+        set ip 66.66.66.66 255.255.255.255
+        set remote-ip 10.20.0.254 255.255.255.255
     next
 end
 
@@ -49,43 +60,47 @@ config firewall address
     edit "onprem-192.168.2.0_24"
         set subnet 192.168.2.0 255.255.255.0
     next
-    edit "azure-hub-10.20.0.0_16"
-        set subnet 10.20.0.0 255.255.0.0
+    edit "azure-hub-10.20.0.0_20"
+        set subnet 10.20.0.0 255.255.240.0
     next
-    edit "azure-spoke1-10.21.0.0_24"
-        set subnet 10.21.0.0 255.255.255.0
+    edit "azure-spoke1-10.21.0.0_20"
+        set subnet 10.21.0.0 255.255.240.0
     next
     edit "azure-spoke2-10.22.0.0_24"
-        set subnet 10.22.0.0 255.255.255.0
+        set subnet 10.22.0.0 255.255.240.0
     next
     edit "azure-spoke3-10.23.0.0_24"
-        set subnet 10.23.0.0 255.255.255.0
+        set subnet 10.23.0.0 255.255.240.0
     next
 end
 
 config firewall addrgrp
     edit "azure-networks"
-        set member "azure-hub-10.20.0.0_16" "azure-spoke1-10.21.0.0_24" "azure-spoke2-10.22.0.0_24" "azure-spoke3-10.23.0.0_24"
+        set member "azure-hub-10.20.0.0_20" "azure-spoke1-10.21.0.0_20" "azure-spoke2-10.22.0.0_20" "azure-spoke3-10.23.0.0_20"
     next
 end
 
 # ---- Static routes into Azure via the tunnel interface ----------------------
 config router static
     edit 0
-        set dst 10.20.0.0 255.255.0.0
+        set dst 10.20.0.0 255.255.240.0
         set device "AzureS2S"
+        set status disable
     next
     edit 0
-        set dst 10.21.0.0 255.255.255.0
+        set dst 10.21.0.0 255.255.240.0
         set device "AzureS2S"
+        set status disable
     next
     edit 0
-        set dst 10.22.0.0 255.255.255.0
+        set dst 10.22.0.0 255.255.240.0
         set device "AzureS2S"
+        set status disable
     next
     edit 0
-        set dst 10.23.0.0 255.255.255.0
+        set dst 10.23.0.0 255.255.240.0
         set device "AzureS2S"
+        set status disable
     next
 end
 

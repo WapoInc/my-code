@@ -1,0 +1,17 @@
+vnet	subnet	currentRouteTableId
+za-east-southafricanorth-vnet	GatewaySubnet	None
+za-east-southafricanorth-vnet	AzureFirewallSubnet	None
+za-east-southafricanorth-vnet	AzureFirewallManagementSubnet	None
+za-east-southafricanorth-vnet	AzureBastionSubnet	None
+za-east-southafricanorth-vnet	ZA-East-Hub	None
+za-east-southafricanorth-vnet	ZA-East-Subnet-1	None
+za-east-southafricanorth-vnet	ZA-East-Subnet-2	None
+za-east-southafricanorth-vnet	PEP	None
+za-east-southafricanorth-vnet	InBound-EP	None
+za-east-southafricanorth-vnet	OutBound-EP1	None
+za-east-southafricanorth-vnet	Ping-test	None
+za-east-southafricanorth-vnet	AppGW-SubNet	None
+za-east-southafricanorth-vnet	CloudShell	None
+za-east-spoke-1-vnet	Subnet-1	None
+za-east-spoke-2-vnet	Subnet-1	None
+za-east-spoke-3-vnet	Subnet-1	None
