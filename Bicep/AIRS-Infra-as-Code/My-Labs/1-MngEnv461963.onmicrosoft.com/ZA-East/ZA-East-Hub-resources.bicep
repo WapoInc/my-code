@@ -530,9 +530,6 @@ resource fortiGateLocalNetworkGateway 'Microsoft.Network/localNetworkGateways@20
   location: location
   properties: {
     gatewayIpAddress: fortiGatePublicIp
-    localNetworkAddressSpace: {
-      addressPrefixes: onPremisesAddressPrefixes
-    }
     bgpSettings: enableFortiGateBgp ? {
       asn: fortiGateBgpAsn
       bgpPeeringAddress: fortiGateBgpPeerIp
