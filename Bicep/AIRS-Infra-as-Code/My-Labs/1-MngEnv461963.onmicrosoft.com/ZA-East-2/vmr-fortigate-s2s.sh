@@ -25,7 +25,7 @@ config vpn ipsec phase1-interface
         set proposal aes256-sha256
         set dhgrp 2
         set nattraversal disable
-        set remote-gw 4.253.168.135
+        set remote-gw 4.253.1.155
         set psksecret "S2SPSK123!"
     next
 end
