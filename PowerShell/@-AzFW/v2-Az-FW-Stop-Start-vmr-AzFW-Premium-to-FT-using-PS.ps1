@@ -28,7 +28,7 @@ Select-AzSubscription -SubscriptionName "viresent-New-AIRS"
 ########################################################################################
 ########################################################################################
 # Test using variables #################################################################
-$RG =           "ZA-East-vDC-2"
+$RG =           "za-east-southafricanorth"
 $VNETName =     "za-east-southafricanorth-vnet"
 $AzFWName =     "AzFW-ZA-East-southafricanorth"
 $AzFWName_PIP = "AzFW-ZA-East-southafricanorth-pip"
