@@ -15,6 +15,19 @@ param virtualHubAddressPrefix string = '10.200.1.0/24'
 @description('Resource tags applied to the Virtual WAN and Virtual Hub.')
 param tags object = {}
 
+@description('Name of the existing ExpressRoute circuit connected to the hub.')
+param circuitName string = 'ER-Metro'
+
+@description('Resource group containing the existing ExpressRoute circuit.')
+param circuitResourceGroup string = 'ER-LTSA-rg'
+
+@description('Subscription ID containing the existing ExpressRoute circuit.')
+param circuitSubscriptionId string = subscription().subscriptionId
+
+@description('Authorization key used when the ExpressRoute circuit is in another subscription.')
+@secure()
+param circuitAuthorizationKey string = ''
+
 resource virtualWan 'Microsoft.Network/virtualWans@2024-05-01' = {
   name: virtualWanName
   location: location
@@ -45,6 +58,9 @@ output virtualHubId string = virtualHub.id
 
 @description('Administrator username for the Ubuntu VM.')
 param spokeVmAdminUsername string = 'rootadmin'
+
+@description('Size used by the Ubuntu spoke VMs in all regions.')
+param spokeVmSize string = 'Standard_B1ms'
 
 @description('Administrator password for the Ubuntu VM.')
 @secure()
@@ -104,7 +120,7 @@ resource spokeVm 'Microsoft.Compute/virtualMachines@2024-07-01' = {
   tags: tags
   properties: {
     hardwareProfile: {
-      vmSize: 'Standard_B1ls'
+      vmSize: spokeVmSize
     }
     storageProfile: {
       imageReference: {
@@ -211,7 +227,7 @@ resource spokeVm2 'Microsoft.Compute/virtualMachines@2024-07-01' = {
   tags: tags
   properties: {
     hardwareProfile: {
-      vmSize: 'Standard_B1ls'
+      vmSize: spokeVmSize
     }
     storageProfile: {
       imageReference: {
@@ -270,16 +286,8 @@ output spokeVm2Id string = spokeVm2.id
 
 var expressRouteGatewayName = 'ZAN-Hub-ER-Gateway'
 var expressRouteConnectionName = 'ER-Metro-to-ZAN-Hub'
-
-resource erMetroCircuit 'Microsoft.Network/expressRouteCircuits@2024-05-01' existing = {
-  scope: resourceGroup(subscription().subscriptionId, 'ER-LTSA-rg')
-  name: 'ER-Metro'
-}
-
-resource erMetroPrivatePeering 'Microsoft.Network/expressRouteCircuits/peerings@2024-05-01' existing = {
-  parent: erMetroCircuit
-  name: 'AzurePrivatePeering'
-}
+var erMetroCircuitId = resourceId(circuitSubscriptionId, circuitResourceGroup, 'Microsoft.Network/expressRouteCircuits', circuitName)
+var erMetroPrivatePeeringId = '${erMetroCircuitId}/peerings/AzurePrivatePeering'
 
 resource expressRouteGateway 'Microsoft.Network/expressRouteGateways@2024-05-01' = {
   name: expressRouteGatewayName
@@ -302,9 +310,10 @@ resource erMetroConnection 'Microsoft.Network/expressRouteGateways/expressRouteC
   parent: expressRouteGateway
   name: expressRouteConnectionName
   properties: {
+    authorizationKey: empty(circuitAuthorizationKey) ? null : circuitAuthorizationKey
     enableInternetSecurity: false
     expressRouteCircuitPeering: {
-      id: erMetroPrivatePeering.id
+      id: erMetroPrivatePeeringId
     }
     routingWeight: 0
   }
@@ -514,7 +523,7 @@ resource sawSpokeVms 'Microsoft.Compute/virtualMachines@2024-07-01' = [
     tags: tags
     properties: {
       hardwareProfile: {
-        vmSize: 'Standard_B1ls'
+        vmSize: spokeVmSize
       }
       storageProfile: {
         imageReference: {

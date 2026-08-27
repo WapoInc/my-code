@@ -35,9 +35,25 @@ param virtualHubAddressPrefix string = '10.200.1.0/24'
 @secure()
 param spokeVmAdminPassword string
 
+@description('Size used by the Ubuntu spoke VMs in all regions.')
+param spokeVmSize string = 'Standard_B1ms'
+
 @description('Pre-shared key for the FortiGate site-to-site VPN connection.')
 @secure()
 param fortiGateVpnSharedKey string
+
+@description('Name of the existing ExpressRoute circuit connected to the hub.')
+param circuitName string = 'ER-Metro'
+
+@description('Resource group containing the existing ExpressRoute circuit.')
+param circuitResourceGroup string = 'ER-LTSA-rg'
+
+@description('Subscription ID containing the existing ExpressRoute circuit.')
+param circuitSubscriptionId string = subscription().subscriptionId
+
+@description('Authorization key used when the ExpressRoute circuit is in another subscription.')
+@secure()
+param circuitAuthorizationKey string = ''
 
 resource resourceGroup 'Microsoft.Resources/resourceGroups@2024-11-01' = {
   name: resourceGroupName
@@ -56,7 +72,12 @@ module virtualWanResources 'Global-vWAN-resources.bicep' = {
     virtualHubName: virtualHubName
     virtualHubAddressPrefix: virtualHubAddressPrefix
     spokeVmAdminPassword: spokeVmAdminPassword
+    spokeVmSize: spokeVmSize
     fortiGateVpnSharedKey: fortiGateVpnSharedKey
+    circuitName: circuitName
+    circuitResourceGroup: circuitResourceGroup
+    circuitSubscriptionId: circuitSubscriptionId
+    circuitAuthorizationKey: circuitAuthorizationKey
     tags: tags
   }
 }

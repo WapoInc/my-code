@@ -17,6 +17,11 @@ subscription_tenants=(
   'b91a5236-cd06-4bc7-889b-db71c19230ae'
   '2b8e427b-9e78-4589-9338-f870c84292ca'
 )
+circuit_name='ER-Metro'
+circuit_resource_group='ER-LTSA-rg'
+circuit_subscription_id='0cfd0d2a-2b38-4c93-ba14-cf79185bc683'
+circuit_tenant_id='5cba78fe-cc40-479a-9ee1-255423641bc9'
+spoke_vm_size='Standard_B1ms'
 deployment_name="deploy-global-vwan-$(date -u +%Y%m%d-%H%M%S)-$$"
 location='southafricanorth'
 default_resource_group_name='Global-vWAN'
@@ -66,7 +71,7 @@ if (( $# == 0 )); then
   echo '  2) Deploy the resources'
   read -r -p 'Selection [1/2]: ' deployment_choice
 
-  case "$deployment_choice" in
+  case "$deployment_choice" in  
     1)
       deployment_action='what-if'
       ;;
@@ -95,9 +100,10 @@ echo
 
 vm_password='P@ssw0rd123!'
 vpn_shared_key='S2SPSK123!'
+circuit_authorization_key=''
 
 cleanup() {
-  unset vm_password vpn_shared_key
+  unset vm_password vpn_shared_key circuit_authorization_key
 }
 trap cleanup EXIT
 
@@ -122,6 +128,41 @@ if (( complexity_classes < 3 )); then
   exit 1
 fi
 
+if [[ "$subscription_id" != "$circuit_subscription_id" ]]; then
+  authorization_name="AuthKey-to-ZAN-Hub-ER-Gateway-${subscription_id}"
+  echo "Creating or reusing ExpressRoute authorization '$authorization_name'..."
+
+  if ! az account show --subscription "$circuit_subscription_id" >/dev/null 2>&1; then
+    echo "Signing in to the ExpressRoute circuit tenant $circuit_tenant_id..."
+    az login --tenant "$circuit_tenant_id" >/dev/null
+  fi
+
+  circuit_authorization_key="$(az network express-route auth show \
+    --subscription "$circuit_subscription_id" \
+    --resource-group "$circuit_resource_group" \
+    --circuit-name "$circuit_name" \
+    --name "$authorization_name" \
+    --query authorizationKey \
+    --output tsv 2>/dev/null || true)"
+
+  if [[ -z "$circuit_authorization_key" ]]; then
+    circuit_authorization_key="$(az network express-route auth create \
+      --subscription "$circuit_subscription_id" \
+      --resource-group "$circuit_resource_group" \
+      --circuit-name "$circuit_name" \
+      --name "$authorization_name" \
+      --query authorizationKey \
+      --output tsv)"
+  fi
+
+  az account set --subscription "$subscription_id"
+
+  if [[ -z "$circuit_authorization_key" ]]; then
+    echo 'Could not create or read the ExpressRoute circuit authorization key.' >&2
+    exit 1
+  fi
+fi
+
 run_deployment() {
   local action="$1"
 
@@ -134,7 +175,12 @@ run_deployment() {
       deploymentName="$deployment_name" \
       resourceGroupName="$resource_group_name" \
       spokeVmAdminPassword="$vm_password" \
-      fortiGateVpnSharedKey="$vpn_shared_key"
+      spokeVmSize="$spoke_vm_size" \
+      fortiGateVpnSharedKey="$vpn_shared_key" \
+      circuitName="$circuit_name" \
+      circuitResourceGroup="$circuit_resource_group" \
+      circuitSubscriptionId="$circuit_subscription_id" \
+      circuitAuthorizationKey="$circuit_authorization_key"
 }
 
 check_resource_group_state() {
