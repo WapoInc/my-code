@@ -16,12 +16,13 @@ read -p "Continue in THIS subscription? (y/n): " ok
 echo
 
 # --- Prompts ----------------------------------------------------------------
-read -p "Azure region (e.g. eastus, westeurope):           " LOCATION
-read -p "Resource group name:                              " RG
-read -p "VNet name:                                        " VNET
-read -p "Subnet name:                                      " SUBNET
-read -p "VM name:                                          " VMNAME
-read -p "Admin username:                                   " ADMIN_USER
+read -p "Azure region [southafricanorth]:                  " LOCATION
+LOCATION="${LOCATION:-southafricanorth}"
+read -p "Resource group name:               " RG
+read -p "VNet name:                         " VNET
+read -p "Subnet name:                       " SUBNET
+read -p "VM name:                           " VMNAME
+read -p "Admin username:                    " ADMIN_USER
 
 while true; do
   read -s -p "Admin password (12-72 chars, 3 of: upper/lower/digit/symbol): " ADMIN_PASS; echo
