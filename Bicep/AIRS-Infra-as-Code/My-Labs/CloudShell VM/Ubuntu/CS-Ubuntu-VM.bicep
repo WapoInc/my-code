@@ -32,6 +32,9 @@ param vnetCidr string = '10.0.0.0/16'
 @description('Address prefix for the subnet.')
 param subnetCidr string = '10.0.1.0/24'
 
+@description('Create and attach a Standard public IP address.')
+param createPublicIp bool = false
+
 resource resourceGroup 'Microsoft.Resources/resourceGroups@2025-04-01' = {
   name: resourceGroupName
   location: location
@@ -49,10 +52,13 @@ module vmResources 'CS-Ubuntu-VM.resources.bicep' = {
     vmSize: vmSize
     vnetCidr: vnetCidr
     subnetCidr: subnetCidr
+    createPublicIp: createPublicIp
   }
 }
 
 output resourceGroupId string = resourceGroup.id
 output vmId string = vmResources.outputs.vmId
+output vmName string = vmResources.outputs.vmName
+output adminUsername string = vmResources.outputs.adminUsername
 output privateIpAddress string = vmResources.outputs.privateIpAddress
 output publicIpAddress string = vmResources.outputs.publicIpAddress

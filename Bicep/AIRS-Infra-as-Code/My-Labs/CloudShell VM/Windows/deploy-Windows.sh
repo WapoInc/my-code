@@ -2,7 +2,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-TEMPLATE_FILE="$SCRIPT_DIR/CS-Ubuntu-VM.bicep"
+TEMPLATE_FILE="$SCRIPT_DIR/CS-Win-VM.bicep"
 
 if [[ ! -f "$TEMPLATE_FILE" ]]; then
   echo "Bicep template not found: $TEMPLATE_FILE" >&2
@@ -26,10 +26,15 @@ LOCATION="${LOCATION:-southafricanorth}"
 RESOURCE_GROUP_NAME="$(read_required 'Resource group name')"
 VNET_NAME="$(read_required 'VNet name')"
 SUBNET_NAME="$(read_required 'Subnet name')"
-VM_NAME="$(read_required 'VM name')"
+VM_NAME="$(read_required 'VM name (maximum 15 characters)')"
 
-read -r -p 'Admin username [rootadmin]: ' ADMIN_USERNAME
-ADMIN_USERNAME="${ADMIN_USERNAME:-rootadmin}"
+if (( ${#VM_NAME} > 15 )); then
+  echo 'Windows VM name must be 15 characters or fewer.' >&2
+  exit 1
+fi
+
+read -r -p 'Admin username [adminroot]: ' ADMIN_USERNAME
+ADMIN_USERNAME="${ADMIN_USERNAME:-adminroot}"
 
 while true; do
   read -r -s -p 'Admin password: ' ADMIN_PASSWORD
@@ -40,6 +45,13 @@ done
 
 read -r -p 'VM size [Standard_B2s]: ' VM_SIZE
 VM_SIZE="${VM_SIZE:-Standard_B2s}"
+
+read -r -p 'Create a public IP address? [y/N]: ' CREATE_PUBLIC_IP_RESPONSE
+if [[ "$CREATE_PUBLIC_IP_RESPONSE" =~ ^[Yy]([Ee][Ss])?$ ]]; then
+  CREATE_PUBLIC_IP=true
+else
+  CREATE_PUBLIC_IP=false
+fi
 
 VNET_EXISTS=false
 if [[ "$(az group exists --name "$RESOURCE_GROUP_NAME" --output tsv)" == 'true' ]] &&
@@ -110,7 +122,7 @@ else
   SUBNET_CIDR="${SUBNET_CIDR:-10.0.1.0/24}"
 fi
 
-DEPLOYMENT_NAME="ubuntu-vm-$(date +%Y%m%d-%H%M%S)"
+DEPLOYMENT_NAME="windows-vm-$(date +%Y%m%d-%H%M%S)"
 
 echo
 echo 'Deployment settings:'
@@ -121,6 +133,8 @@ echo "  VNet           : $VNET_NAME ($VNET_CIDR)"
 echo "  Subnet         : $SUBNET_NAME ($SUBNET_CIDR)"
 echo "  VM             : $VM_NAME ($VM_SIZE)"
 echo "  Admin username : $ADMIN_USERNAME"
+echo "  Public IP      : $CREATE_PUBLIC_IP"
+echo '  NSG inbound    : TCP/3389 from Any to Any'
 
 read -r -p 'Deploy these resources? [y/N]: ' CONFIRMATION
 if [[ ! "$CONFIRMATION" =~ ^[Yy]([Ee][Ss])?$ ]]; then
@@ -144,7 +158,9 @@ DEPLOYMENT_ARGUMENTS=(
   "vmSize=$VM_SIZE"
   "vnetCidr=$VNET_CIDR"
   "subnetCidr=$SUBNET_CIDR"
-  --output json
+  "createPublicIp=$CREATE_PUBLIC_IP"
+  --query 'properties.outputs.{VMName:vmName.value,Username:adminUsername.value,PrivateIP:privateIpAddress.value,PublicIP:publicIpAddress.value}'
+  --output table
 )
 
 az "${DEPLOYMENT_ARGUMENTS[@]}"

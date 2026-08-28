@@ -12,6 +12,7 @@ param adminPassword string
 param vmSize string
 param vnetCidr string
 param subnetCidr string
+param createPublicIp bool
 
 var nicName = '${vmName}-nic'
 var nsgName = '${vmName}-nsg'
@@ -37,7 +38,7 @@ resource subnet 'Microsoft.Network/virtualNetworks/subnets@2024-05-01' = {
   }
 }
 
-resource publicIp 'Microsoft.Network/publicIPAddresses@2024-05-01' = {
+resource publicIp 'Microsoft.Network/publicIPAddresses@2024-05-01' = if (createPublicIp) {
   name: publicIpName
   location: location
   sku: {
@@ -54,7 +55,7 @@ resource nsg 'Microsoft.Network/networkSecurityGroups@2024-05-01' = {
   properties: {
     securityRules: [
       {
-        name: 'Allow-SSH'
+        name: 'Allow-SSH-Any'
         properties: {
           priority: 1000
           access: 'Allow'
@@ -80,15 +81,16 @@ resource nic 'Microsoft.Network/networkInterfaces@2024-05-01' = {
     ipConfigurations: [
       {
         name: 'ipconfig1'
-        properties: {
+        properties: union({
           privateIPAllocationMethod: 'Dynamic'
           subnet: {
             id: subnet.id
           }
+        }, createPublicIp ? {
           publicIPAddress: {
-            id: publicIp.id
+            id: resourceId('Microsoft.Network/publicIPAddresses', publicIpName)
           }
-        }
+        } : {})
       }
     ]
   }
@@ -138,5 +140,7 @@ resource vm 'Microsoft.Compute/virtualMachines@2024-11-01' = {
 }
 
 output vmId string = vm.id
+output vmName string = vm.name
+output adminUsername string = adminUsername
 output privateIpAddress string = nic.properties.ipConfigurations[0].properties.privateIPAddress
-output publicIpAddress string = publicIp.properties.ipAddress
+output publicIpAddress string = publicIp.?properties.?ipAddress ?? ''
