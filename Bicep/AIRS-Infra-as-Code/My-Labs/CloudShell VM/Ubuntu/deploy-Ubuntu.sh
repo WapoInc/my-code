@@ -9,6 +9,36 @@ if [[ ! -f "$TEMPLATE_FILE" ]]; then
   exit 1
 fi
 
+if ! command -v az >/dev/null 2>&1; then
+  echo 'Azure CLI is required but was not found.' >&2
+  exit 1
+fi
+
+if az account show --output none 2>/dev/null; then
+  TENANT_ID="$(az account show --query tenantId --output tsv)"
+  SUBSCRIPTION_ID="$(az account show --query id --output tsv)"
+
+  if [[ -z "$TENANT_ID" || -z "$SUBSCRIPTION_ID" ]]; then
+    echo 'Unable to determine the active Azure tenant or subscription.' >&2
+    exit 1
+  fi
+
+  echo 'Refreshing the Azure CLI session. Complete the MFA device-code sign-in when prompted.'
+  az logout
+  az login \
+    --tenant "$TENANT_ID" \
+    --scope 'https://management.core.windows.net//.default' \
+    --use-device-code \
+    --output none
+  az account set --subscription "$SUBSCRIPTION_ID"
+else
+  echo 'Sign in to Azure. Complete the MFA device-code sign-in when prompted.'
+  az login \
+    --scope 'https://management.core.windows.net//.default' \
+    --use-device-code \
+    --output none
+fi
+
 read_required() {
   local prompt="$1"
   local value=''
