@@ -163,7 +163,7 @@ if [[ "$DEPLOY_ER_CONNECTION" == "true" ]]; then
   fi
 fi
 
-DNS_INBOUND_IP="$(az deployment sub create \
+az deployment sub create \
   --name "$DEPLOYMENT_NAME" \
   --location "$LOCATION" \
   --template-file "$TEMPLATE_FILE" \
@@ -177,13 +177,4 @@ DNS_INBOUND_IP="$(az deployment sub create \
     circuitResourceGroup="$CIRCUIT_RESOURCE_GROUP" \
     circuitSubscriptionId="$CIRCUIT_SUBSCRIPTION_ID" \
     authorizationKey="$AUTHORIZATION_KEY" \
-  --subscription "$selected_subscription_id" \
-  --query properties.outputs.dnsInboundEndpointIp.value \
-  --output tsv)"
-
-printf '\nDNS Private Resolver inbound IP: %s\n\n' "$DNS_INBOUND_IP"
-printf '%s\n' 'Run these commands from an on-premises PowerShell host:' ''
-printf '%s\n' 'Resolve-DnsName litstorageacc1.privatelink.blob.core.windows.net `' \
-  "    -Server $DNS_INBOUND_IP" ''
-printf '%s\n' 'Resolve-DnsName litstorageacc1.privatelink.file.core.windows.net `' \
-  "    -Server $DNS_INBOUND_IP"
+  --subscription "$selected_subscription_id"

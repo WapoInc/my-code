@@ -86,5 +86,3 @@ output erGatewayName string = resources.outputs.erGatewayName
 output erGatewayId string = resources.outputs.erGatewayId
 output erConnectionName string = resources.outputs.erConnectionName
 output erConnectionId string = resources.outputs.erConnectionId
-output dnsResolverName string = resources.outputs.dnsResolverName
-output dnsInboundEndpointIp string = resources.outputs.dnsInboundEndpointIp

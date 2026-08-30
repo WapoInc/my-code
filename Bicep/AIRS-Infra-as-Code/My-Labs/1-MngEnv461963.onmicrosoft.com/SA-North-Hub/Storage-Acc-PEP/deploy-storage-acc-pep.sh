@@ -3,13 +3,14 @@
 # Deploys storage account + blob/file private endpoints into southafricanorth.
 #
 # Usage:
-#   ./infra_deploy.sh                 # deploy
-#   ./infra_deploy.sh --what-if       # preview changes only
-#   ./infra_deploy.sh --validate      # validate template only
+#   ./deploy-storage-acc-pep.sh                 # deploy
+#   ./deploy-storage-acc-pep.sh --what-if       # preview changes only
+#   ./deploy-storage-acc-pep.sh --validate      # validate template only
 #
 # Overridable via environment variables:
 #   SUBSCRIPTION_ID, RG, LOCATION, VNET_NAME, VNET_RG, SUBNET_NAME, SUBNET_PREFIX,
-#   STORAGE_ACCOUNT_NAME, TEMPLATE_FILE
+#   DNS_INBOUND_SUBNET_NAME, DNS_INBOUND_SUBNET_PREFIX, STORAGE_ACCOUNT_NAME,
+#   TEMPLATE_FILE
 #
 set -euo pipefail
 
@@ -21,10 +22,12 @@ VNET_NAME="${VNET_NAME:-southafricanorth-vnet}"
 VNET_RG="${VNET_RG:-$RG}"
 SUBNET_NAME="${SUBNET_NAME:-Priv-end-points}"
 SUBNET_PREFIX="${SUBNET_PREFIX:-10.10.4.0/24}"
+DNS_INBOUND_SUBNET_NAME="${DNS_INBOUND_SUBNET_NAME:-DnsResolverInboundSubnet}"
+DNS_INBOUND_SUBNET_PREFIX="${DNS_INBOUND_SUBNET_PREFIX:-10.10.2.64/27}"
 STORAGE_ACCOUNT_NAME="${STORAGE_ACCOUNT_NAME:-litstorageacc1}"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-TEMPLATE_FILE="${TEMPLATE_FILE:-$SCRIPT_DIR/main.bicep}"
+TEMPLATE_FILE="${TEMPLATE_FILE:-$SCRIPT_DIR/storage-acc-pep-resources.bicep}"
 DEPLOYMENT_NAME="stg-pe-$(date -u +%Y%m%d-%H%M%S)"
 
 MODE="deploy"
@@ -95,6 +98,23 @@ else
   echo "Private endpoint network policies already disabled."
 fi
 
+if ! az network vnet subnet show -g "$VNET_RG" --vnet-name "$VNET_NAME" \
+  -n "$DNS_INBOUND_SUBNET_NAME" -o none 2>/dev/null; then
+  log "Creating DNS resolver subnet '$DNS_INBOUND_SUBNET_NAME' ($DNS_INBOUND_SUBNET_PREFIX)"
+  az network vnet subnet create -g "$VNET_RG" --vnet-name "$VNET_NAME" \
+    -n "$DNS_INBOUND_SUBNET_NAME" --address-prefixes "$DNS_INBOUND_SUBNET_PREFIX" \
+    --delegations Microsoft.Network/dnsResolvers -o none
+fi
+
+DNS_DELEGATION=$(az network vnet subnet show -g "$VNET_RG" --vnet-name "$VNET_NAME" \
+  -n "$DNS_INBOUND_SUBNET_NAME" --query "delegations[?serviceName=='Microsoft.Network/dnsResolvers'].serviceName | [0]" -o tsv)
+
+if [[ "$DNS_DELEGATION" != "Microsoft.Network/dnsResolvers" ]]; then
+  log "Delegating '$DNS_INBOUND_SUBNET_NAME' to Microsoft.Network/dnsResolvers"
+  az network vnet subnet update -g "$VNET_RG" --vnet-name "$VNET_NAME" \
+    -n "$DNS_INBOUND_SUBNET_NAME" --delegations Microsoft.Network/dnsResolvers -o none
+fi
+
 # -------------------------------------------------------------- deploy -----
 COMMON_ARGS=(
   --resource-group "$RG"
@@ -103,6 +123,7 @@ COMMON_ARGS=(
                vnetName="$VNET_NAME"
                vnetResourceGroupName="$VNET_RG"
                subnetName="$SUBNET_NAME"
+               dnsInboundSubnetName="$DNS_INBOUND_SUBNET_NAME"
                storageAccountName="$STORAGE_ACCOUNT_NAME"
 )
 
@@ -128,6 +149,10 @@ log "Deployment complete"
 az deployment group show -g "$RG" -n "$DEPLOYMENT_NAME" \
   --query properties.outputs -o json
 
+DNS_INBOUND_IP=$(az deployment group show -g "$RG" -n "$DEPLOYMENT_NAME" \
+  --query properties.outputs.dnsInboundEndpointIp.value -o tsv)
+printf '\nDNS Private Resolver inbound IP: %s\n' "$DNS_INBOUND_IP"
+
 echo
 log "Private endpoint IP assignments"
 for SUB in blob file; do
@@ -152,6 +177,6 @@ From a VM inside '$VNET_NAME', confirm DNS resolves to the private IPs above:
   nslookup ${STORAGE_ACCOUNT_NAME}.blob.core.windows.net
   nslookup ${STORAGE_ACCOUNT_NAME}.file.core.windows.net
 
-Public network access is disabled, so data-plane calls from outside the
-VNet (including this shell) will fail with AuthorizationFailure / 403.
+Public network access is disabled. Storage data-plane traffic must use
+the blob or file private endpoint from a connected network.
 EOF

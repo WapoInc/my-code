@@ -12,6 +12,12 @@ param vnetResourceGroupName string = resourceGroup().name
 @description('Existing subnet used for private endpoints.')
 param subnetName string = 'Priv-end-points'
 
+@description('Existing subnet delegated to Azure DNS Private Resolver.')
+param dnsInboundSubnetName string = 'DnsResolverInboundSubnet'
+
+param dnsResolverName string = 'dnspr-southafricanorth'
+param dnsInboundEndpointName string = 'inbound-onprem'
+
 @description('Globally unique storage account name (3-24 lowercase alphanumeric).')
 @minLength(3)
 @maxLength(24)
@@ -37,10 +43,43 @@ resource peSubnet 'Microsoft.Network/virtualNetworks/subnets@2023-11-01' existin
   name: subnetName
 }
 
+resource dnsInboundSubnet 'Microsoft.Network/virtualNetworks/subnets@2023-11-01' existing = {
+  parent: vnet
+  name: dnsInboundSubnetName
+}
+
+resource dnsResolver 'Microsoft.Network/dnsResolvers@2022-07-01' = {
+  name: dnsResolverName
+  location: location
+  properties: {
+    virtualNetwork: {
+      id: vnet.id
+    }
+  }
+}
+
+resource dnsInboundEndpoint 'Microsoft.Network/dnsResolvers/inboundEndpoints@2022-07-01' = {
+  parent: dnsResolver
+  name: dnsInboundEndpointName
+  location: location
+  properties: {
+    ipConfigurations: [
+      {
+        privateIpAllocationMethod: 'Dynamic'
+        subnet: {
+          id: dnsInboundSubnet.id
+        }
+      }
+    ]
+  }
+}
+
 resource storage 'Microsoft.Storage/storageAccounts@2023-05-01' = {
   name: storageAccountName
   location: location
-  tags: tags
+  tags: union(tags, {
+    SecurityControl: 'Ignore'
+  })
   sku: { name: storageSku }
   kind: 'StorageV2'
   properties: {
@@ -48,9 +87,19 @@ resource storage 'Microsoft.Storage/storageAccounts@2023-05-01' = {
     supportsHttpsTrafficOnly: true
     allowBlobPublicAccess: false
     allowSharedKeyAccess: true
-    publicNetworkAccess: 'Enabled'
-    networkAcls: { bypass: 'None', defaultAction: 'Allow' }
+    publicNetworkAccess: 'Disabled'
+    networkAcls: { bypass: 'None', defaultAction: 'Deny' }
   }
+}
+
+resource fileService 'Microsoft.Storage/storageAccounts/fileServices@2023-05-01' = {
+  parent: storage
+  name: 'default'
+}
+
+resource fileShare 'Microsoft.Storage/storageAccounts/fileServices/shares@2023-05-01' = {
+  parent: fileService
+  name: 'vmr'
 }
 
 resource dnsZones 'Microsoft.Network/privateDnsZones@2020-06-01' = [for group in groups: {
@@ -99,7 +148,10 @@ resource peDnsGroups 'Microsoft.Network/privateEndpoints/privateDnsZoneGroups@20
 }]
 
 output storageAccountId string = storage.id
+output fileShareId string = fileShare.id
 output privateEndpointIds array = [for (group, index) in groups: privateEndpoints[index].id]
+output dnsResolverName string = dnsResolver.name
+output dnsInboundEndpointIp string = dnsInboundEndpoint.properties.ipConfigurations[0].privateIpAddress
 output fqdns array = [
   '${storageAccountName}.blob.${environment().suffixes.storage}'
   '${storageAccountName}.file.${environment().suffixes.storage}'

@@ -21,8 +21,6 @@ param location string = 'southafricanorth'
 
 param vnetName string = 'southafricanorth-vnet'
 param vnetPrefix string = '10.10.0.0/16'
-param dnsResolverName string = 'dnspr-southafricanorth'
-param dnsInboundEndpointName string = 'inbound-onprem'
 
 param subnet1Name string = 'SubNet-1'
 param nsgName string = '${location}-default-nsg'
@@ -200,32 +198,6 @@ resource vnet 'Microsoft.Network/virtualNetworks@2023-11-01' = {
   }
 }
 
-resource dnsResolver 'Microsoft.Network/dnsResolvers@2022-07-01' = {
-  name: dnsResolverName
-  location: location
-  properties: {
-    virtualNetwork: {
-      id: vnet.id
-    }
-  }
-}
-
-resource dnsInboundEndpoint 'Microsoft.Network/dnsResolvers/inboundEndpoints@2022-07-01' = {
-  parent: dnsResolver
-  name: dnsInboundEndpointName
-  location: location
-  properties: {
-    ipConfigurations: [
-      {
-        privateIpAllocationMethod: 'Dynamic'
-        subnet: {
-          id: '${vnet.id}/subnets/DnsResolverInboundSubnet'
-        }
-      }
-    ]
-  }
-}
-
 // --- ExpressRoute Gateway -----------------------------------
 resource ergw 'Microsoft.Network/virtualNetworkGateways@2023-11-01' = {
   name: gwName
@@ -355,5 +327,3 @@ output erGatewayName string = ergw.name
 output erGatewayId string = ergw.id
 output erConnectionName string = deployErConnection ? erConnection.name : ''
 output erConnectionId string = deployErConnection ? erConnection.id : ''
-output dnsResolverName string = dnsResolver.name
-output dnsInboundEndpointIp string = dnsInboundEndpoint.properties.ipConfigurations[0].privateIpAddress
