@@ -21,10 +21,13 @@
 targetScope = 'subscription'
 
 @description('Name of the resource group to create.')
-param resourceGroupName string = '${location}-region'
+param resourceGroupName string = 'southafricanorth-region'
 
 @description('Azure region for the resource group and all resources.')
 param location string = 'southafricanorth'
+
+@description('Name of the hub virtual network.')
+param vnetName string = 'southafricanorth-vnet'
 
 @secure()
 param adminPassword string
@@ -60,6 +63,7 @@ module resources 'ZAN-Hub-resources.bicep' = {
   scope: rg
   params: {
     location: location
+    vnetName: vnetName
     adminPassword: adminPassword
     deployErConnection: deployErConnection
     circuitName: circuitName
@@ -82,3 +86,5 @@ output erGatewayName string = resources.outputs.erGatewayName
 output erGatewayId string = resources.outputs.erGatewayId
 output erConnectionName string = resources.outputs.erConnectionName
 output erConnectionId string = resources.outputs.erConnectionId
+output dnsResolverName string = resources.outputs.dnsResolverName
+output dnsInboundEndpointIp string = resources.outputs.dnsInboundEndpointIp

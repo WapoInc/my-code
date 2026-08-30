@@ -19,8 +19,10 @@ targetScope = 'resourceGroup'
 @description('Azure region for all resources.')
 param location string = 'southafricanorth'
 
-param vnetName string = '${location}-vnet'
+param vnetName string = 'southafricanorth-vnet'
 param vnetPrefix string = '10.10.0.0/16'
+param dnsResolverName string = 'dnspr-southafricanorth'
+param dnsInboundEndpointName string = 'inbound-onprem'
 
 param subnet1Name string = 'SubNet-1'
 param nsgName string = '${location}-default-nsg'
@@ -80,6 +82,7 @@ var routeServerSubnetPrefix = '10.10.2.0/26'
 var dnsInboundSubnetPrefix = '10.10.2.64/27'
 var dnsOutboundSubnetPrefix = '10.10.2.96/27'
 var appGwSubnetPrefix = '10.10.3.0/24'
+var privateEndpointSubnetPrefix = '10.10.4.0/24'
 
 // --- Default NSG (Azure built-in rules only) ----------------
 resource nsg 'Microsoft.Network/networkSecurityGroups@2023-11-01' = {
@@ -184,6 +187,39 @@ resource vnet 'Microsoft.Network/virtualNetworks@2023-11-01' = {
         name: 'AppGatewaySubnet'
         properties: {
           addressPrefix: appGwSubnetPrefix
+        }
+      }
+      {
+        name: 'Priv-end-points'
+        properties: {
+          addressPrefix: privateEndpointSubnetPrefix
+          privateEndpointNetworkPolicies: 'Disabled'
+        }
+      }
+    ]
+  }
+}
+
+resource dnsResolver 'Microsoft.Network/dnsResolvers@2022-07-01' = {
+  name: dnsResolverName
+  location: location
+  properties: {
+    virtualNetwork: {
+      id: vnet.id
+    }
+  }
+}
+
+resource dnsInboundEndpoint 'Microsoft.Network/dnsResolvers/inboundEndpoints@2022-07-01' = {
+  parent: dnsResolver
+  name: dnsInboundEndpointName
+  location: location
+  properties: {
+    ipConfigurations: [
+      {
+        privateIpAllocationMethod: 'Dynamic'
+        subnet: {
+          id: '${vnet.id}/subnets/DnsResolverInboundSubnet'
         }
       }
     ]
@@ -319,3 +355,5 @@ output erGatewayName string = ergw.name
 output erGatewayId string = ergw.id
 output erConnectionName string = deployErConnection ? erConnection.name : ''
 output erConnectionId string = deployErConnection ? erConnection.id : ''
+output dnsResolverName string = dnsResolver.name
+output dnsInboundEndpointIp string = dnsInboundEndpoint.properties.ipConfigurations[0].privateIpAddress

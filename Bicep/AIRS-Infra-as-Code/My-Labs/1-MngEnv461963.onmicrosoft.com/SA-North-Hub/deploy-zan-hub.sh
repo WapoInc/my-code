@@ -4,6 +4,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TEMPLATE_FILE="$SCRIPT_DIR/ZAN-Hub-resources-rg.bicep"
+DEPLOYMENT_NAME="zan-hub-$(date -u +%Y%m%d-%H%M%S)"
 
 # --- Selectable deployment regions ---
 region_options=(
@@ -79,11 +80,10 @@ select selected_region in "${region_options[@]}" "Cancel"; do
 done
 
 ADMIN_PASSWORD="P@ssw0rd123!"
+VNET_NAME="southafricanorth-vnet"
+RESOURCE_GROUP_NAME="southafricanorth-region"
 
 # --- Prompt for ZAN-Hub-resources-rg.bicep parameters (Enter accepts default) ---
-read -r -p "Resource group name [${LOCATION}-region]: " RESOURCE_GROUP_NAME
-RESOURCE_GROUP_NAME="${RESOURCE_GROUP_NAME:-${LOCATION}-region}"
-
 read -r -p "Create ExpressRoute connection? (true/false) [true]: " DEPLOY_ER_CONNECTION
 DEPLOY_ER_CONNECTION="${DEPLOY_ER_CONNECTION:-true}"
 
@@ -100,6 +100,7 @@ echo "  ID:             $selected_subscription_id"
 echo "  Tenant:         $selected_tenant_id"
 echo "  Location:       $LOCATION"
 echo "  Resource grp:   $RESOURCE_GROUP_NAME"
+echo "  VNet:           $VNET_NAME"
 echo "  ER connection:  $DEPLOY_ER_CONNECTION"
 echo "  ER circuit:     $CIRCUIT_NAME (rg: $CIRCUIT_RESOURCE_GROUP)"
 echo "  ER circuit sub: $CIRCUIT_SUBSCRIPTION_ID"
@@ -162,17 +163,27 @@ if [[ "$DEPLOY_ER_CONNECTION" == "true" ]]; then
   fi
 fi
 
-az deployment sub create \
-  --name "zan-hub-$(date -u +%Y%m%d-%H%M%S)" \
+DNS_INBOUND_IP="$(az deployment sub create \
+  --name "$DEPLOYMENT_NAME" \
   --location "$LOCATION" \
   --template-file "$TEMPLATE_FILE" \
   --parameters \
     adminPassword="$ADMIN_PASSWORD" \
     location="$LOCATION" \
     resourceGroupName="$RESOURCE_GROUP_NAME" \
+    vnetName="$VNET_NAME" \
     deployErConnection="$DEPLOY_ER_CONNECTION" \
     circuitName="$CIRCUIT_NAME" \
     circuitResourceGroup="$CIRCUIT_RESOURCE_GROUP" \
     circuitSubscriptionId="$CIRCUIT_SUBSCRIPTION_ID" \
     authorizationKey="$AUTHORIZATION_KEY" \
-  --subscription "$selected_subscription_id"
+  --subscription "$selected_subscription_id" \
+  --query properties.outputs.dnsInboundEndpointIp.value \
+  --output tsv)"
+
+printf '\nDNS Private Resolver inbound IP: %s\n\n' "$DNS_INBOUND_IP"
+printf '%s\n' 'Run these commands from an on-premises PowerShell host:' ''
+printf '%s\n' 'Resolve-DnsName litstorageacc1.privatelink.blob.core.windows.net `' \
+  "    -Server $DNS_INBOUND_IP" ''
+printf '%s\n' 'Resolve-DnsName litstorageacc1.privatelink.file.core.windows.net `' \
+  "    -Server $DNS_INBOUND_IP"
