@@ -126,6 +126,11 @@ resource vm 'Microsoft.Compute/virtualMachines@2024-11-01' = {
         provisionVMAgent: true
       }
     }
+    diagnosticsProfile: {
+      bootDiagnostics: {
+        enabled: true
+      }
+    }
     networkProfile: {
       networkInterfaces: [
         {
