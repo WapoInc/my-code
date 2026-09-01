@@ -1,0 +1,129 @@
+#===============================================================================
+# FortiGate site-to-site IPsec VPN to Azure (ZA-East hub)
+#
+# Peer (Azure) gateway public IP : 4.253.126.27
+# Local (on-prem) network        : 192.168.2.0/24
+# Azure networks reached over VPN: 10.20.0.0/16, 10.21.0.0/24,
+#                                  10.22.0.0/24, 10.23.0.0/24
+#
+# Route-based (interface-mode) tunnel, IKEv2, static routing (no BGP).
+# Phase 1 : AES256 / SHA256 / DH group 2 / lifetime 28800s / NAT-T disabled
+# Phase 2 : AES256 / SHA256 / no PFS      / lifetime 27000s
+#
+# Interfaces are set for this device: WAN = wan2, LAN = b.
+# Tunnel endpoint (set remote-gw) is the Azure VPN gateway public IP 4.253.126.27.
+#===============================================================================
+
+# ---- Phase 1 (IKE) ----------------------------------------------------------
+config vpn ipsec phase1-interface
+    edit "AzureS2S"
+        set interface "wan1"
+        set ike-version 2
+        set keylife 28800
+        set peertype any
+        set net-device disable
+        set proposal aes256-sha256
+        set dhgrp 2
+        set nattraversal disable
+        set remote-gw 4.253.1.155
+        set psksecret "S2SPSK123!"
+    next
+end
+
+# ---- Phase 2 (IPsec) --------------------------------------------------------
+# Wildcard selectors (0.0.0.0/0) match the Azure route-based gateway; routing
+# and firewall policy decide which traffic uses the tunnel.
+config vpn ipsec phase2-interface
+    edit "AzureS2S-P2"
+        set phase1name "AzureS2S"
+        set proposal aes256-sha256
+        set pfs disable
+        set keylifeseconds 3600
+        set src-subnet 0.0.0.0 0.0.0.0
+        set dst-subnet 0.0.0.0 0.0.0.0
+    next
+end
+
+# ---- Tunnel interface addressing (loopback-style local IP + remote peer IP) --
+# Matches the GUI "Address" panel: local IP 66.66.66.66/32 on the AzureS2S
+# tunnel interface, far-end tunnel IP 10.20.0.254/32. Gives the tunnel a
+# source IP for ping tests / link monitoring / BGP peering over the tunnel.
+config system interface
+    edit "AzureS2S"
+        set ip 66.66.66.66 255.255.255.255
+        set remote-ip 10.20.0.254 255.255.255.255
+    next
+end
+
+# ---- Address objects --------------------------------------------------------
+config firewall address
+    edit "onprem-192.168.2.0_24"
+        set subnet 192.168.2.0 255.255.255.0
+    next
+    edit "azure-hub-10.20.0.0_20"
+        set subnet 10.20.0.0 255.255.240.0
+    next
+    edit "azure-spoke1-10.21.0.0_20"
+        set subnet 10.21.0.0 255.255.240.0
+    next
+    edit "azure-spoke2-10.22.0.0_24"
+        set subnet 10.22.0.0 255.255.240.0
+    next
+    edit "azure-spoke3-10.23.0.0_24"
+        set subnet 10.23.0.0 255.255.240.0
+    next
+end
+
+config firewall addrgrp
+    edit "azure-networks"
+        set member "azure-hub-10.20.0.0_20" "azure-spoke1-10.21.0.0_20" "azure-spoke2-10.22.0.0_20" "azure-spoke3-10.23.0.0_20"
+    next
+end
+
+# ---- Static routes into Azure via the tunnel interface ----------------------
+config router static
+    edit 0
+        set dst 10.20.0.0 255.255.240.0
+        set device "AzureS2S"
+        set status disable
+    next
+    edit 0
+        set dst 10.21.0.0 255.255.240.0
+        set device "AzureS2S"
+        set status disable
+    next
+    edit 0
+        set dst 10.22.0.0 255.255.240.0
+        set device "AzureS2S"
+        set status disable
+    next
+    edit 0
+        set dst 10.23.0.0 255.255.240.0
+        set device "AzureS2S"
+        set status disable
+    next
+end
+
+# ---- Firewall policies (both directions) ------------------------------------
+config firewall policy
+    edit 0
+        set name "onprem-to-azure"
+        set srcintf "b"
+        set dstintf "AzureS2S"
+        set srcaddr "onprem-192.168.2.0_24"
+        set dstaddr "azure-networks"
+        set action accept
+        set schedule "always"
+        set service "ALL"
+    next
+    edit 0
+        set name "azure-to-onprem"
+        set srcintf "AzureS2S"
+        set dstintf "b"
+        set srcaddr "azure-networks"
+        set dstaddr "onprem-192.168.2.0_24"
+        set action accept
+        set schedule "always"
+        set service "ALL"
+    next
+end
