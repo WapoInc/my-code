@@ -79,7 +79,6 @@ select selected_region in "${region_options[@]}" "Cancel"; do
   echo "Invalid selection. Choose a number from 1 to $((${#region_options[@]} + 1))."
 done
 
-ADMIN_PASSWORD="P@ssw0rd123!"
 VNET_NAME="southafricanorth-vnet"
 RESOURCE_GROUP_NAME="southafricanorth-region"
 
@@ -111,6 +110,16 @@ read -r -p "Continue with this subscription? [y/N] " confirmation
 if [[ ! "$confirmation" =~ ^[Yy]$ ]]; then
   echo "Deployment cancelled."
   exit 0
+fi
+
+read -r -s -p "Windows VM password (adminroot): " WINDOWS_ADMIN_PASSWORD
+echo
+read -r -s -p "Ubuntu VM password (rootadmin): " UBUNTU_ADMIN_PASSWORD
+echo
+
+if [[ -z "$WINDOWS_ADMIN_PASSWORD" || -z "$UBUNTU_ADMIN_PASSWORD" ]]; then
+  echo "Both VM passwords are required." >&2
+  exit 1
 fi
 
 # Ensure signed in to the correct tenant and that the subscription is visible.
@@ -168,7 +177,8 @@ az deployment sub create \
   --location "$LOCATION" \
   --template-file "$TEMPLATE_FILE" \
   --parameters \
-    adminPassword="$ADMIN_PASSWORD" \
+    windowsAdminPassword="$WINDOWS_ADMIN_PASSWORD" \
+    ubuntuAdminPassword="$UBUNTU_ADMIN_PASSWORD" \
     location="$LOCATION" \
     resourceGroupName="$RESOURCE_GROUP_NAME" \
     vnetName="$VNET_NAME" \

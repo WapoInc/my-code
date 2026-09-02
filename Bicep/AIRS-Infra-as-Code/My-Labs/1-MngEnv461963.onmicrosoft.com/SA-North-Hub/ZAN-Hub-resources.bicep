@@ -20,7 +20,7 @@ targetScope = 'resourceGroup'
 param location string = 'southafricanorth'
 
 param vnetName string = 'southafricanorth-vnet'
-param vnetPrefix string = '10.10.0.0/16'
+param vnetPrefix string = '10.10.0.0/20'
 
 param subnet1Name string = 'SubNet-1'
 param nsgName string = '${location}-default-nsg'
@@ -61,14 +61,19 @@ param routingWeight int = 0
 @secure()
 param authorizationKey string = ''
 
-param vmName string = '${location}-JB-1'
-param vmNicName string = '${vmName}-nic'
+param windowsVmName string = 'SA-North-JB1'
+param windowsVmPrivateIp string = '10.10.1.4'
+param windowsAdminUsername string = 'adminroot'
+param ubuntuVmName string = 'SA-North-JB2'
+param ubuntuVmPrivateIp string = '10.10.1.5'
+param ubuntuAdminUsername string = 'rootadmin'
 param vmSize string = 'Standard_B2s'
-param vmPrivateIp string = '10.10.1.5'
-param adminUsername string = 'rootadmin'
 
 @secure()
-param adminPassword string
+param windowsAdminPassword string
+
+@secure()
+param ubuntuAdminPassword string
 
 // --- Subnet address prefixes (recommended hub sizes) --------
 var gatewaySubnetPrefix = '10.10.0.0/26'
@@ -142,9 +147,6 @@ resource vnet 'Microsoft.Network/virtualNetworks@2023-11-01' = {
         name: subnet1Name
         properties: {
           addressPrefix: subnet1Prefix
-          networkSecurityGroup: {
-            id: nsg.id
-          }
         }
       }
       {
@@ -255,41 +257,143 @@ resource erConnection 'Microsoft.Network/connections@2023-11-01' = if (deployErC
   }
 }
 
-// --- VM NIC (static private IP, no public IP) ---------------
-resource nic 'Microsoft.Network/networkInterfaces@2023-11-01' = {
-  name: vmNicName
+resource windowsNsg 'Microsoft.Network/networkSecurityGroups@2024-05-01' = {
+  name: '${windowsVmName}-nsg'
   location: location
   properties: {
-    ipConfigurations: [
+    securityRules: [
       {
-        name: 'ipconfig1'
+        name: 'Allow-RDP-Any'
         properties: {
-          subnet: {
-            id: '${vnet.id}/subnets/${subnet1Name}'
-          }
-          privateIPAllocationMethod: 'Static'
-          privateIPAddress: vmPrivateIp
+          priority: 1000
+          access: 'Allow'
+          direction: 'Inbound'
+          protocol: 'Tcp'
+          sourcePortRange: '*'
+          destinationPortRange: '3389'
+          sourceAddressPrefix: '*'
+          destinationAddressPrefix: '*'
         }
       }
     ]
   }
 }
 
-// --- Ubuntu 22.04 VM ----------------------------------------
-resource vm 'Microsoft.Compute/virtualMachines@2024-03-01' = {
-  name: vmName
+resource ubuntuNsg 'Microsoft.Network/networkSecurityGroups@2024-05-01' = {
+  name: '${ubuntuVmName}-nsg'
+  location: location
+  properties: {
+    securityRules: [
+      {
+        name: 'Allow-SSH-Any'
+        properties: {
+          priority: 1000
+          access: 'Allow'
+          direction: 'Inbound'
+          protocol: 'Tcp'
+          sourcePortRange: '*'
+          destinationPortRange: '22'
+          sourceAddressPrefix: '*'
+          destinationAddressPrefix: '*'
+        }
+      }
+    ]
+  }
+}
+
+resource windowsNic 'Microsoft.Network/networkInterfaces@2024-05-01' = {
+  name: '${windowsVmName}-nic'
+  location: location
+  properties: {
+    networkSecurityGroup: {
+      id: windowsNsg.id
+    }
+    ipConfigurations: [
+      {
+        name: 'ipconfig1'
+        properties: {
+          privateIPAllocationMethod: 'Static'
+          privateIPAddress: windowsVmPrivateIp
+          subnet: {
+            id: '${vnet.id}/subnets/${subnet1Name}'
+          }
+        }
+      }
+    ]
+  }
+}
+
+resource ubuntuNic 'Microsoft.Network/networkInterfaces@2024-05-01' = {
+  name: '${ubuntuVmName}-nic'
+  location: location
+  properties: {
+    networkSecurityGroup: {
+      id: ubuntuNsg.id
+    }
+    ipConfigurations: [
+      {
+        name: 'ipconfig1'
+        properties: {
+          privateIPAllocationMethod: 'Static'
+          privateIPAddress: ubuntuVmPrivateIp
+          subnet: {
+            id: '${vnet.id}/subnets/${subnet1Name}'
+          }
+        }
+      }
+    ]
+  }
+}
+
+resource windowsVm 'Microsoft.Compute/virtualMachines@2024-11-01' = {
+  name: windowsVmName
   location: location
   properties: {
     hardwareProfile: {
       vmSize: vmSize
     }
-    osProfile: {
-      computerName: vmName
-      adminUsername: adminUsername
-      adminPassword: adminPassword
-      linuxConfiguration: {
-        disablePasswordAuthentication: false
+    storageProfile: {
+      imageReference: {
+        publisher: 'MicrosoftWindowsServer'
+        offer: 'WindowsServer'
+        sku: '2022-datacenter-azure-edition'
+        version: 'latest'
       }
+      osDisk: {
+        createOption: 'FromImage'
+        managedDisk: {
+          storageAccountType: 'StandardSSD_LRS'
+        }
+      }
+    }
+    osProfile: {
+      computerName: windowsVmName
+      adminUsername: windowsAdminUsername
+      adminPassword: windowsAdminPassword
+      windowsConfiguration: {
+        enableAutomaticUpdates: true
+        provisionVMAgent: true
+      }
+    }
+    networkProfile: {
+      networkInterfaces: [
+        {
+          id: windowsNic.id
+          properties: {
+            primary: true
+          }
+        }
+      ]
+    }
+  }
+}
+
+resource ubuntuVm 'Microsoft.Compute/virtualMachines@2024-11-01' = {
+  name: ubuntuVmName
+  location: location
+  properties: {
+    hardwareProfile: {
+      vmSize: vmSize
     }
     storageProfile: {
       imageReference: {
@@ -301,14 +405,31 @@ resource vm 'Microsoft.Compute/virtualMachines@2024-03-01' = {
       osDisk: {
         createOption: 'FromImage'
         managedDisk: {
-          storageAccountType: 'Standard_LRS'
+          storageAccountType: 'StandardSSD_LRS'
         }
+      }
+    }
+    osProfile: {
+      computerName: ubuntuVmName
+      adminUsername: ubuntuAdminUsername
+      adminPassword: ubuntuAdminPassword
+      linuxConfiguration: {
+        disablePasswordAuthentication: false
+        provisionVMAgent: true
+      }
+    }
+    diagnosticsProfile: {
+      bootDiagnostics: {
+        enabled: true
       }
     }
     networkProfile: {
       networkInterfaces: [
         {
-          id: nic.id
+          id: ubuntuNic.id
+          properties: {
+            primary: true
+          }
         }
       ]
     }
@@ -320,9 +441,12 @@ output networkSecurityGroupName string = nsg.name
 output gatewayPublicIpName string = gwPip.name
 output vnetName string = vnet.name
 output vnetId string = vnet.id
-output vmName string = vm.name
-output vmNicName string = nic.name
-output vmPrivateIp string = nic.properties.ipConfigurations[0].properties.privateIPAddress
+output windowsVmName string = windowsVm.name
+output windowsVmNicName string = windowsNic.name
+output windowsVmPrivateIp string = windowsNic.properties.ipConfigurations[0].properties.privateIPAddress
+output ubuntuVmName string = ubuntuVm.name
+output ubuntuVmNicName string = ubuntuNic.name
+output ubuntuVmPrivateIp string = ubuntuNic.properties.ipConfigurations[0].properties.privateIPAddress
 output erGatewayName string = ergw.name
 output erGatewayId string = ergw.id
 output erConnectionName string = deployErConnection ? erConnection.name : ''
