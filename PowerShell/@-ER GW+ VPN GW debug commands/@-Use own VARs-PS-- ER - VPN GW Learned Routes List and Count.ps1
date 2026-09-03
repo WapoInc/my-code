@@ -18,6 +18,23 @@ $RG = "rg-vnet-hub-prod-southafricanorth"
 $GateWayName = "ergw-tnalz01-prod-southafricanorth" 
 $ER_Circuit_Name = "tn-expressroute-tnalz01"
 #--------------------------------------------------------------------------------------
+#--- ER-Metro -----------------------------------------------------------------------------------
+$RG = "ER-LTSA-RG"
+# $ER_Circuit_Name = "ER-Metro"
+# # use bash ----- Show Pri and Sec info + ER Metro Azure Ports
+# az network express-route peering show \
+#   --resource-group ER-LTSA-RG \
+#   --circuit-name ER-Metro \
+#   --name AzurePrivatePeering \
+#   -o table
+# #------------------------------------------------------------------------------------------------  
+# # use bash ---- show the ER Metro azure Ports
+# az network express-route peering show \
+#   --resource-group ER-LTSA-RG \
+#   --circuit-name ER-Metro \
+#   --name AzurePrivatePeering \
+#   --query "{Primary:primaryAzurePort,Secondary:secondaryAzurePort}" \
+#   -o table
 #My own variables
 Select-AzSubscription -SubscriptionName "viresent New AIRS" -Tenant MngEnv461963.onmicrosoft.com
 #- SA North -------------------------------------------------------------------------------------
