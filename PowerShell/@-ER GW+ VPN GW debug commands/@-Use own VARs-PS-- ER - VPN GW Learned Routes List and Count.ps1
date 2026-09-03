@@ -6,7 +6,7 @@ Select-AzSubscription -SubscriptionName "viresent-New-AIRS" -Tenant MngEnv461963
 #@#
 Get-AzSubscription
 Select-AzSubscription -SubscriptionName "Enter your Sub name"
-
+##@@##
 #--------------------------------------------------------------------------------------
 #Enter your variables
 $RG = "Enter your Resource Group name"
