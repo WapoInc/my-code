@@ -7,14 +7,12 @@ Select-AzSubscription -SubscriptionName "viresent-New-AIRS" -Tenant MngEnv461963
 Get-AzSubscription
 Select-AzSubscription -SubscriptionName "Enter your Sub name"
 
-
 #--------------------------------------------------------------------------------------
 #Enter your variables
 $RG = "Enter your Resource Group name"
 $GateWayName = "Enter your ER or VPN Gateway name" 
 $ER_Circuit_Name = "Enter your ER Circuit name"
-
-
+#####
 #--Transnet. ---------
 $RG = "rg-vnet-hub-prod-southafricanorth"
 $GateWayName = "ergw-tnalz01-prod-southafricanorth" 
@@ -22,7 +20,6 @@ $ER_Circuit_Name = "tn-expressroute-tnalz01"
 #--------------------------------------------------------------------------------------
 #My own variables
 Select-AzSubscription -SubscriptionName "viresent New AIRS" -Tenant MngEnv461963.onmicrosoft.com
-
 #- SA North -------------------------------------------------------------------------------------
 $RG = "ER-LTSA-RG"
 $GateWayName = "ER-GateWay-SA-North-Standard" 
