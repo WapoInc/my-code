@@ -3,7 +3,7 @@
 Connect-AzAccount -Tenant MngEnv461963.onmicrosoft.com
 Connect-AzAccount -SubscriptionName "viresent New AIRS"
 Select-AzSubscription -SubscriptionName "viresent-New-AIRS" -Tenant MngEnv461963.onmicrosoft.com
-
+#@#
 Get-AzSubscription
 Select-AzSubscription -SubscriptionName "Enter your Sub name"
 
