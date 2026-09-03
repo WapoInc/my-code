@@ -1,18 +1,45 @@
-﻿
+﻿# =====================================================================
+#  vWAN Hub / Route Table - clear "Failed" provisioning state
+#  RG pinned to: 1  (resource group holding the Global-vWAN hubs)
+#  RUN AS A FILE:  ./this.ps1   (don't paste line-by-line)
+# =====================================================================
+
+$rg = '1'
+
+# --- Connect & select the subscription holding Global-vWAN ---
 Connect-AzAccount
-Get-AzSubscription
 Select-AzSubscription -SubscriptionName "viresent-New-AIRS"
 
+# --- Which hubs + which built-in route table to poke on each ---
+$targets = @(
+    @{ Hub = 'ZAN-Hub-1'; RouteTable = 'defaultRouteTable' }
+    @{ Hub = 'ZAW-Hub-1'; RouteTable = 'noneRouteTable'    }
+)
 
+# --- Inventory the hubs in this RG so you can see their state first ---
+Write-Host "`n=== Virtual hubs in RG '$rg' ===" -ForegroundColor Cyan
+Get-AzVirtualHub -ResourceGroupName $rg |
+    Select-Object Name, ResourceGroupName, Location, ProvisioningState |
+    Format-Table -AutoSize
 
+# =====================================================================
+#  Process each target hub
+# =====================================================================
+foreach ($t in $targets) {
 
-$rt = Get-AzVHubRouteTable -ResourceGroupName Global-vWAN-rg -ParentResourceName ZAN-Hub-1 -Name RouteTable-defaultRouteTable -debug -verbose
+    Write-Host "`n=== Processing $($t.Hub) in RG '$rg' ===" -ForegroundColor Yellow
 
-$rt = Get-AzVHubRouteTable -ResourceGroupName Global-vWAN-rg -ParentResourceName ZAW-Hub-1 -Name RouteTable-noneRouteTable -debug -verbose
+    # --- Route table (child of hub -> same RG) ---
+    $rt = Get-AzVHubRouteTable -ResourceGroupName $rg -ParentResourceName $t.Hub -Name $t.RouteTable -ErrorAction SilentlyContinue
+    if ($rt) { Update-AzVHubRouteTable -InputObject $rt -Debug -Verbose } else { Write-Warning "[$($t.Hub)] route table '$($t.RouteTable)' not retrieved - skipping." }
 
-Update-AzVHubRouteTable -InputObject $rt -debug -verbose  -debug -verbose
+    # --- Virtual hub (Get/Put no-op) ---
+    $hub = Get-AzVirtualHub -ResourceGroupName $rg -Name $t.Hub -ErrorAction SilentlyContinue
+    if ($hub) { Update-AzVirtualHub -InputObject $hub -Debug -Verbose } else { Write-Warning "[$($t.Hub)] hub not found in RG '$rg' - skipping." }
 
-Get/Put on the vhub without any changes to get it out of failed state
- 
-$hub = Get-AzVirtualHub -Name ZAN-Hub-1 -ResourceGroupName MTN-vWAN-Demo-rg -debug -verbose
-$hub = Get-AzVirtualHub -Name ZAW-Hub-1 -ResourceGroupName MTN-vWAN-Demo-rg -debug -verbose
+    # --- Confirm result ---
+    $after = (Get-AzVirtualHub -ResourceGroupName $rg -Name $t.Hub -ErrorAction SilentlyContinue).ProvisioningState
+    Write-Host "$($t.Hub) provisioning state now: $after" -ForegroundColor Green
+}
+
+Write-Host "`n=== Done ===" -ForegroundColor Green

@@ -442,7 +442,7 @@ output fortiGateVpnConnectionId string = fortiGateVpnConnection.id
 @description('Azure region for the West Europe hub and spokes.')
 param sawLocation string = 'westeurope'
 
-var sawVirtualHubName = 'ZAW-Hub-1'
+var sawVirtualHubName = 'WEU-Hub-1'
 
 resource sawVirtualHub 'Microsoft.Network/virtualHubs@2024-05-01' = {
   name: sawVirtualHubName
@@ -459,14 +459,14 @@ resource sawVirtualHub 'Microsoft.Network/virtualHubs@2024-05-01' = {
 
 var sawSpokeConfigs = [
   {
-    name: 'ZAW-Spoke-VNet-1'
-    vmName: 'ZAW-Spoke-VM-1'
+    name: 'WEU-Spoke-VNet-1'
+    vmName: 'WEU-Spoke-VM-1'
     vnetPrefix: '10.200.8.0/24'
     subnetPrefix: '10.200.8.0/25'
   }
   {
-    name: 'ZAW-Spoke-VNet-2'
-    vmName: 'ZAW-Spoke-VM-2'
+    name: 'WEU-Spoke-VNet-2'
+    vmName: 'WEU-Spoke-VM-2'
     vnetPrefix: '10.200.9.0/24'
     subnetPrefix: '10.200.9.0/25'
   }
