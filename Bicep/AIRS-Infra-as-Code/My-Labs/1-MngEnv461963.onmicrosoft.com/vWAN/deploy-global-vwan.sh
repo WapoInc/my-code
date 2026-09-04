@@ -24,7 +24,6 @@ circuit_tenant_id='5cba78fe-cc40-479a-9ee1-255423641bc9'
 spoke_vm_size='Standard_B1ms'
 deployment_name="deploy-global-vwan-$(date -u +%Y%m%d-%H%M%S)-$$"
 location='southafricanorth'
-default_resource_group_name='Global-vWAN'
 default_resource_group_name='Global-vWAN-PoC'
 script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 template_file="${script_dir}/Global-vWAN-rg.bicep"
