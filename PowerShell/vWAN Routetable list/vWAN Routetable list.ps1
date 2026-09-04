@@ -1,13 +1,13 @@
 ﻿# =====================================================================
 #  vWAN Hub / Route Table - clear "Failed" provisioning state
-#  RG pinned to: 1  (resource group holding the Global-vWAN hubs)
+#  RG pinned to: Global-vWAN
 #  RUN AS A FILE:  ./this.ps1   (don't paste line-by-line)
 # =====================================================================
 
-$rg = '1'
+$rg = 'Global-vWAN-PoC'
 
 # --- Connect & select the subscription holding Global-vWAN ---
-Connect-AzAccount
+# Connect-AzAccount
 Select-AzSubscription -SubscriptionName "viresent-New-AIRS"
 
 # --- Which hubs + which built-in route table to poke on each ---
