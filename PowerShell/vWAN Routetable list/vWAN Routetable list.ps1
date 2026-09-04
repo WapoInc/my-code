@@ -1,45 +1,103 @@
 ﻿# =====================================================================
-#  vWAN Hub / Route Table - clear "Failed" provisioning state
-#  RG pinned to: Global-vWAN
-#  RUN AS A FILE:  ./this.ps1   (don't paste line-by-line)
+#  Azure Virtual WAN - hub route inventory
+#  Lists configured routes in every hub route table and effective routes
+#  in each hub's defaultRouteTable.
 # =====================================================================
 
-$rg = 'Global-vWAN-PoC'
-
-# --- Connect & select the subscription holding Global-vWAN ---
-# Connect-AzAccount
-Select-AzSubscription -SubscriptionName "viresent-New-AIRS"
-
-# --- Which hubs + which built-in route table to poke on each ---
-$targets = @(
-    @{ Hub = 'ZAN-Hub-1'; RouteTable = 'defaultRouteTable' }
-    @{ Hub = 'ZAW-Hub-1'; RouteTable = 'noneRouteTable'    }
+[CmdletBinding()]
+param(
+    [string]$ResourceGroupName = 'Global-vWAN-PoC',
+    [string]$SubscriptionName = 'viresent-New-AIRS'
 )
 
-# --- Inventory the hubs in this RG so you can see their state first ---
-Write-Host "`n=== Virtual hubs in RG '$rg' ===" -ForegroundColor Cyan
-Get-AzVirtualHub -ResourceGroupName $rg |
-    Select-Object Name, ResourceGroupName, Location, ProvisioningState |
-    Format-Table -AutoSize
+$ErrorActionPreference = 'Stop'
 
-# =====================================================================
-#  Process each target hub
-# =====================================================================
-foreach ($t in $targets) {
-
-    Write-Host "`n=== Processing $($t.Hub) in RG '$rg' ===" -ForegroundColor Yellow
-
-    # --- Route table (child of hub -> same RG) ---
-    $rt = Get-AzVHubRouteTable -ResourceGroupName $rg -ParentResourceName $t.Hub -Name $t.RouteTable -ErrorAction SilentlyContinue
-    if ($rt) { Update-AzVHubRouteTable -InputObject $rt -Debug -Verbose } else { Write-Warning "[$($t.Hub)] route table '$($t.RouteTable)' not retrieved - skipping." }
-
-    # --- Virtual hub (Get/Put no-op) ---
-    $hub = Get-AzVirtualHub -ResourceGroupName $rg -Name $t.Hub -ErrorAction SilentlyContinue
-    if ($hub) { Update-AzVirtualHub -InputObject $hub -Debug -Verbose } else { Write-Warning "[$($t.Hub)] hub not found in RG '$rg' - skipping." }
-
-    # --- Confirm result ---
-    $after = (Get-AzVirtualHub -ResourceGroupName $rg -Name $t.Hub -ErrorAction SilentlyContinue).ProvisioningState
-    Write-Host "$($t.Hub) provisioning state now: $after" -ForegroundColor Green
+if (-not (Get-Module -ListAvailable -Name Az.Network)) {
+    throw "The Az.Network module is required. Install it with: Install-Module Az.Network -Scope CurrentUser"
 }
 
-Write-Host "`n=== Done ===" -ForegroundColor Green
+function Get-NextHopName {
+    param([AllowNull()][object]$NextHop)
+
+    @($NextHop) | ForEach-Object {
+        $value = ([string]$_).Trim().TrimEnd('/')
+        if ($value) {
+            ($value -split '/')[-1]
+        }
+    }
+}
+
+try {
+    $null = Get-AzContext
+    Select-AzSubscription -SubscriptionName $SubscriptionName | Out-Null
+} catch {
+    throw "Unable to select subscription '$SubscriptionName'. Run Connect-AzAccount and try again. $($_.Exception.Message)"
+}
+
+try {
+    $hubs = @(Get-AzVirtualHub -ResourceGroupName $ResourceGroupName)
+} catch {
+    throw "Unable to list virtual hubs in resource group '$ResourceGroupName'. $($_.Exception.Message)"
+}
+
+if ($hubs.Count -eq 0) {
+    Write-Warning "No virtual hubs were found in resource group '$ResourceGroupName'."
+    return
+}
+
+$effectiveRouteRows = foreach ($hub in $hubs) {
+    try {
+        $routeTables = @(Get-AzVHubRouteTable `
+            -VirtualHub $hub)
+    } catch {
+        Write-Warning "[$($hub.Name)] Unable to list hub route tables. $($_.Exception.Message)"
+        continue
+    }
+
+    $defaultRouteTable = $routeTables |
+        Where-Object Name -EQ 'defaultRouteTable' |
+        Select-Object -First 1
+
+    if (-not $defaultRouteTable) {
+        Write-Warning "[$($hub.Name)] defaultRouteTable was not found."
+        continue
+    }
+
+    try {
+        $effectiveResult = Get-AzVHubEffectiveRoute `
+            -VirtualHubObject $hub `
+            -ResourceId $defaultRouteTable.Id `
+            -VirtualWanResourceType 'RouteTable'
+
+        $effectiveRoutes = $effectiveResult.Value
+        if ($effectiveRoutes -is [string]) {
+            $effectiveRoutes = $effectiveRoutes | ConvertFrom-Json
+        }
+
+        foreach ($route in @($effectiveRoutes)) {
+            [pscustomobject]@{
+                Hub             = $hub.Name
+                RouteTable      = $defaultRouteTable.Name
+                AddressPrefixes = @($route.AddressPrefixes) -join ', '
+                NextHopType     = $route.NextHopType
+                NextHop         = @(Get-NextHopName $route.NextHops) -join ', '
+            }
+        }
+    } catch {
+        Write-Warning "[$($hub.Name)] Unable to retrieve effective routes. $($_.Exception.Message)"
+    }
+}
+
+if ($effectiveRouteRows) {
+    foreach ($hubName in @($effectiveRouteRows.Hub | Sort-Object -Unique)) {
+        Write-Host "`n=== Hub: $hubName - defaultRouteTable ===" -ForegroundColor Cyan
+        $effectiveRouteRows |
+            Where-Object Hub -EQ $hubName |
+            Sort-Object AddressPrefixes |
+            Select-Object AddressPrefixes, NextHopType, NextHop |
+            Format-Table -AutoSize -Wrap |
+            Out-Host
+    }
+} else {
+    Write-Host 'No effective routes returned.'
+}
