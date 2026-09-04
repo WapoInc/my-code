@@ -24,7 +24,7 @@
 #     [String]
 #     $StgContainerName
 # )
-Connect-AzAccount
+# Connect-AzAccount
 
 $VPNGWName        = "ZA-East-vDC-VPN-GW"
 $VPNGWRG          = "za-east-vdc"
