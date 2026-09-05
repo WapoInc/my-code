@@ -4,38 +4,26 @@ param location string
 param vnetName string
 param subnetName string
 param vmName string
+
+@description('Windows host name (max 15 characters). Defaults to the VM name.')
+@maxLength(15)
+param computerName string = vmName
 param adminUsername string
 
 @secure()
 param adminPassword string
 
 param vmSize string
-param vnetCidr string
-param subnetCidr string
 param createPublicIp bool
 
 var nicName = '${vmName}-nic'
 var nsgName = '${vmName}-nsg'
 var publicIpName = '${vmName}-pip'
 
-resource vnet 'Microsoft.Network/virtualNetworks@2024-05-01' = {
-  name: vnetName
-  location: location
-  properties: {
-    addressSpace: {
-      addressPrefixes: [
-        vnetCidr
-      ]
-    }
-  }
-}
-
-resource subnet 'Microsoft.Network/virtualNetworks/subnets@2024-05-01' = {
-  parent: vnet
-  name: subnetName
-  properties: {
-    addressPrefix: subnetCidr
-  }
+// The VNet and subnet are provisioned once by the deploy script before the
+// parallel VM deployments run, so they are referenced here as existing.
+resource subnet 'Microsoft.Network/virtualNetworks/subnets@2024-05-01' existing = {
+  name: '${vnetName}/${subnetName}'
 }
 
 resource publicIp 'Microsoft.Network/publicIPAddresses@2024-05-01' = if (createPublicIp) {
@@ -118,7 +106,7 @@ resource vm 'Microsoft.Compute/virtualMachines@2024-11-01' = {
       }
     }
     osProfile: {
-      computerName: vmName
+      computerName: computerName
       adminUsername: adminUsername
       adminPassword: adminPassword
       windowsConfiguration: {

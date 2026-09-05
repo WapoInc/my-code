@@ -2,7 +2,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-TEMPLATE_FILE="$SCRIPT_DIR/CS-Win-VM.bicep"
+TEMPLATE_FILE="$SCRIPT_DIR/Multi-VM-CS-Win-VM.vm.bicep"
 
 if [[ ! -f "$TEMPLATE_FILE" ]]; then
   echo "Bicep template not found: $TEMPLATE_FILE" >&2
@@ -36,18 +36,22 @@ while true; do
   echo 'Enter a positive whole number.' >&2
 done
 
-# When deploying more than one VM each name gets a "-<n>" suffix, so the base
-# name must leave room for that suffix within the 15-character Windows limit.
-if (( VM_COUNT > 1 )); then
-  MAX_SUFFIX_LEN=$(( ${#VM_COUNT} + 1 ))
-  if (( ${#VM_NAME} + MAX_SUFFIX_LEN > 15 )); then
-    echo "Windows VM name '$VM_NAME' plus a numeric suffix must be 15 characters or fewer." >&2
-    exit 1
-  fi
-elif (( ${#VM_NAME} > 15 )); then
-  echo 'Windows VM name must be 15 characters or fewer.' >&2
+# The VM resource name may be up to 64 characters; the Windows host name is
+# capped at 15 and is derived separately below.
+if (( ${#VM_NAME} > 64 )); then
+  echo 'VM name must be 64 characters or fewer.' >&2
   exit 1
 fi
+
+# Windows caps the host (computer) name at 15 characters. Derive a name that
+# still carries the sequential suffix so each host name stays unique.
+make_computer_name() {
+  local base="$1" suffix="$2"
+  local max_base=$(( 15 - ${#suffix} ))
+  local trimmed="${base:0:max_base}"
+  trimmed="${trimmed%-}"
+  printf '%s%s' "$trimmed" "$suffix"
+}
 
 read -r -p 'Admin username [adminroot]: ' ADMIN_USERNAME
 ADMIN_USERNAME="${ADMIN_USERNAME:-adminroot}"
@@ -141,11 +145,14 @@ fi
 # Build the list of VM names to deploy. A single VM keeps the base name; two or
 # more append a "-<n>" suffix so each name is unique.
 VM_NAMES=()
+COMPUTER_NAMES=()
 if (( VM_COUNT == 1 )); then
   VM_NAMES+=("$VM_NAME")
+  COMPUTER_NAMES+=("$(make_computer_name "$VM_NAME" '')")
 else
   for (( i = 1; i <= VM_COUNT; i++ )); do
     VM_NAMES+=("$VM_NAME-$i")
+    COMPUTER_NAMES+=("$(make_computer_name "$VM_NAME" "-$i")")
   done
 fi
 
@@ -156,6 +163,7 @@ echo "  Resource group : $RESOURCE_GROUP_NAME"
 echo "  VNet           : $VNET_NAME ($VNET_CIDR)"
 echo "  Subnet         : $SUBNET_NAME ($SUBNET_CIDR)"
 echo "  VMs            : ${VM_NAMES[*]} ($VM_SIZE)"
+echo "  Host names     : ${COMPUTER_NAMES[*]}"
 echo "  Private IP     : Dynamic"
 echo "  Admin username : $ADMIN_USERNAME"
 echo "  Public IP      : $CREATE_PUBLIC_IP"
@@ -167,37 +175,84 @@ if [[ ! "$CONFIRMATION" =~ ^[Yy]([Ee][Ss])?$ ]]; then
   exit 0
 fi
 
-for CURRENT_VM_NAME in "${VM_NAMES[@]}"; do
-  DEPLOYMENT_NAME="windows-vm-$CURRENT_VM_NAME-$(date +%Y%m%d-%H%M%S)"
+# Provision the shared resource group, VNet and subnet once, up front. Doing
+# this before the parallel VM deployments avoids concurrent writes to the same
+# VNet (which Azure rejects with "AnotherOperationInProgress").
+echo
+echo 'Ensuring resource group, VNet and subnet exist...'
+az group create --name "$RESOURCE_GROUP_NAME" --location "$LOCATION" --output none
 
-  echo
-  echo "Deploying '$CURRENT_VM_NAME'..."
+if [[ "$VNET_EXISTS" != 'true' ]]; then
+  az network vnet create \
+    --resource-group "$RESOURCE_GROUP_NAME" \
+    --name "$VNET_NAME" \
+    --address-prefixes "$VNET_CIDR" \
+    --subnet-name "$SUBNET_NAME" \
+    --subnet-prefixes "$SUBNET_CIDR" \
+    --output none
+elif [[ "$SUBNET_EXISTS" != 'true' ]]; then
+  az network vnet subnet create \
+    --resource-group "$RESOURCE_GROUP_NAME" \
+    --vnet-name "$VNET_NAME" \
+    --name "$SUBNET_NAME" \
+    --address-prefixes "$SUBNET_CIDR" \
+    --output none
+fi
 
-  DEPLOYMENT_ARGUMENTS=(
-    deployment sub create
-    --name "$DEPLOYMENT_NAME"
-    --location "$LOCATION"
-    --template-file "$TEMPLATE_FILE"
-    --parameters
-    "resourceGroupName=$RESOURCE_GROUP_NAME"
-    "location=$LOCATION"
-    "vnetName=$VNET_NAME"
-    "subnetName=$SUBNET_NAME"
-    "vmName=$CURRENT_VM_NAME"
-    "adminUsername=$ADMIN_USERNAME"
-    "adminPassword=$ADMIN_PASSWORD"
-    "vmSize=$VM_SIZE"
-    "vnetCidr=$VNET_CIDR"
-    "subnetCidr=$SUBNET_CIDR"
-    "createPublicIp=$CREATE_PUBLIC_IP"
-    --query 'properties.outputs.{VMName:vmName.value,Username:adminUsername.value,PrivateIP:privateIpAddress.value,PublicIP:publicIpAddress.value}'
-    --output table
-  )
-
-  az "${DEPLOYMENT_ARGUMENTS[@]}"
-
-  echo "Deployment '$DEPLOYMENT_NAME' completed successfully."
-done
+LOG_DIR="$(mktemp -d)"
+PIDS=()
+PID_NAMES=()
 
 echo
+echo "Starting ${#VM_NAMES[@]} VM deployment(s) in parallel..."
+
+for idx in "${!VM_NAMES[@]}"; do
+  CURRENT_VM_NAME="${VM_NAMES[$idx]}"
+  CURRENT_COMPUTER_NAME="${COMPUTER_NAMES[$idx]}"
+  DEPLOYMENT_NAME="windows-vm-$CURRENT_VM_NAME-$(date +%Y%m%d-%H%M%S)"
+  LOG_FILE="$LOG_DIR/$CURRENT_VM_NAME.log"
+
+  az deployment group create \
+    --resource-group "$RESOURCE_GROUP_NAME" \
+    --name "$DEPLOYMENT_NAME" \
+    --template-file "$TEMPLATE_FILE" \
+    --parameters \
+    "location=$LOCATION" \
+    "vnetName=$VNET_NAME" \
+    "subnetName=$SUBNET_NAME" \
+    "vmName=$CURRENT_VM_NAME" \
+    "computerName=$CURRENT_COMPUTER_NAME" \
+    "adminUsername=$ADMIN_USERNAME" \
+    "adminPassword=$ADMIN_PASSWORD" \
+    "vmSize=$VM_SIZE" \
+    "createPublicIp=$CREATE_PUBLIC_IP" \
+    --query 'properties.outputs.{VMName:vmName.value,Username:adminUsername.value,PrivateIP:privateIpAddress.value,PublicIP:publicIpAddress.value}' \
+    --output table >"$LOG_FILE" 2>&1 &
+
+  PIDS+=("$!")
+  PID_NAMES+=("$CURRENT_VM_NAME")
+  echo "  Launched '$CURRENT_VM_NAME' (host: $CURRENT_COMPUTER_NAME, deployment: $DEPLOYMENT_NAME)"
+done
+
+FAILED=0
+for idx in "${!PIDS[@]}"; do
+  if wait "${PIDS[$idx]}"; then
+    echo
+    echo "Deployment for '${PID_NAMES[$idx]}' completed successfully:"
+  else
+    echo
+    echo "Deployment for '${PID_NAMES[$idx]}' FAILED:" >&2
+    FAILED=1
+  fi
+  cat "$LOG_DIR/${PID_NAMES[$idx]}.log"
+done
+
+rm -rf "$LOG_DIR"
+
+echo
+if (( FAILED )); then
+  echo 'One or more VM deployments failed.' >&2
+  exit 1
+fi
+
 echo "All ${#VM_NAMES[@]} VM deployment(s) completed successfully."

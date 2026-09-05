@@ -40,7 +40,7 @@ resource resourceGroup 'Microsoft.Resources/resourceGroups@2025-04-01' = {
   location: location
 }
 
-module vmResources 'CS-Win-VM.resources.bicep' = {
+module vmResources 'Multi-VM-CS-Win-VM.resources.bicep' = {
   scope: resourceGroup
   params: {
     location: location
