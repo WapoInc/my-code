@@ -253,11 +253,11 @@ rm -rf "$LOG_DIR"
 
 END_TIME=$(date +%s)
 ELAPSED=$(( END_TIME - START_TIME ))
+ELAPSED_HMS=$(printf '%02d:%02d:%02d' $(( ELAPSED / 3600 )) $(( (ELAPSED % 3600) / 60 )) $(( ELAPSED % 60 )))
 
 echo
 echo "Start time : $(date -r "$START_TIME" '+%Y-%m-%d %H:%M:%S')"
 echo "End time   : $(date -r "$END_TIME" '+%Y-%m-%d %H:%M:%S')"
-printf 'Time taken : %02d:%02d:%02d (hh:mm:ss)\n' $(( ELAPSED / 3600 )) $(( (ELAPSED % 3600) / 60 )) $(( ELAPSED % 60 ))
 
 echo
 if (( FAILED )); then
@@ -265,4 +265,4 @@ if (( FAILED )); then
   exit 1
 fi
 
-echo "All ${#VM_NAMES[@]} VM deployment(s) completed successfully."
+echo "All ${#VM_NAMES[@]} VM deployment(s) completed successfully in- $ELAPSED_HMS (hh:mm:ss)"
