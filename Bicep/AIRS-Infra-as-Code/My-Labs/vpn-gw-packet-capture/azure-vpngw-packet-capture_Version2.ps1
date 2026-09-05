@@ -4,7 +4,27 @@ $StgName = "zaeastvpngwcapture"
 $StgRG = "za-east-southafricanorth"
 $StgContainerName = "vpncapture"
 
-Connect-AzAccount
+#     [Parameter(Mandatory=$true,
+#     HelpMessage="Add VPN Gateway Resource Group Name")]
+#     [String]
+#     $VPNGWRG,
+
+#     [Parameter(Mandatory=$true,
+#     HelpMessage="Add Storage Account Name")]
+#     [String]
+#     $StgName,
+
+#     [Parameter(Mandatory=$true,
+#     HelpMessage="Add Storage Account Resource Group Name")]
+#     [String]
+#     $StgRG,
+
+#     [Parameter(Mandatory=$true,
+#     HelpMessage="Add Storage Account blob container Name")]
+#     [String]
+#     $StgContainerName
+# )
+# Connect-AzAccount
 
 # Variables that can be adjusted based in your needs.
 
