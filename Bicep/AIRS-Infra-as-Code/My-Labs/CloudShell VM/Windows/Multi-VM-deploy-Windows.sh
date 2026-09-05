@@ -203,7 +203,9 @@ LOG_DIR="$(mktemp -d)"
 PIDS=()
 PID_NAMES=()
 
+START_TIME=$(date +%s)
 echo
+echo "Start time: $(date '+%Y-%m-%d %H:%M:%S')"
 echo "Starting ${#VM_NAMES[@]} VM deployment(s) in parallel..."
 
 for idx in "${!VM_NAMES[@]}"; do
@@ -248,6 +250,14 @@ for idx in "${!PIDS[@]}"; do
 done
 
 rm -rf "$LOG_DIR"
+
+END_TIME=$(date +%s)
+ELAPSED=$(( END_TIME - START_TIME ))
+
+echo
+echo "Start time : $(date -r "$START_TIME" '+%Y-%m-%d %H:%M:%S')"
+echo "End time   : $(date -r "$END_TIME" '+%Y-%m-%d %H:%M:%S')"
+printf 'Time taken : %02d:%02d:%02d (hh:mm:ss)\n' $(( ELAPSED / 3600 )) $(( (ELAPSED % 3600) / 60 )) $(( ELAPSED % 60 ))
 
 echo
 if (( FAILED )); then
