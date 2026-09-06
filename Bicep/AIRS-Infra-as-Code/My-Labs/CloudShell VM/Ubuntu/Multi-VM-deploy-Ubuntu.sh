@@ -3,6 +3,8 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 TEMPLATE_FILE="$SCRIPT_DIR/Multi-VM-CS-Ubuntu-VM.vm.bicep"
+OS_VERSION='Ubuntu 24.04 LTS'
+KERNEL_VERSION='6.8.0-1042-azure'
 
 if [[ ! -f "$TEMPLATE_FILE" ]]; then
   echo "Bicep template not found: $TEMPLATE_FILE" >&2
@@ -15,22 +17,7 @@ if ! command -v az >/dev/null 2>&1; then
 fi
 
 if az account show --output none 2>/dev/null; then
-  TENANT_ID="$(az account show --query tenantId --output tsv)"
-  SUBSCRIPTION_ID="$(az account show --query id --output tsv)"
-
-  if [[ -z "$TENANT_ID" || -z "$SUBSCRIPTION_ID" ]]; then
-    echo 'Unable to determine the active Azure tenant or subscription.' >&2
-    exit 1
-  fi
-
-  echo 'Refreshing the Azure CLI session. Complete the MFA device-code sign-in when prompted.'
-  az logout
-  az login \
-    --tenant "$TENANT_ID" \
-    --scope 'https://management.core.windows.net//.default' \
-    --use-device-code \
-    --output none
-  az account set --subscription "$SUBSCRIPTION_ID"
+  echo "Using current Azure CLI session: $(az account show --query name --output tsv)"
 else
   echo 'Sign in to Azure. Complete the MFA device-code sign-in when prompted.'
   az login \
@@ -75,11 +62,34 @@ fi
 read -r -p 'Admin username [rootadmin]: ' ADMIN_USERNAME
 ADMIN_USERNAME="${ADMIN_USERNAME:-rootadmin}"
 
+# Azure Linux VM password rules: 12-72 chars and at least 3 of: lowercase,
+# uppercase, digit, special character. A few common passwords are disallowed.
+validate_admin_password() {
+  local password="$1"
+
+  if (( ${#password} < 12 || ${#password} > 72 )); then
+    echo 'Password must be between 12 and 72 characters.' >&2
+    return 1
+  fi
+
+  local classes=0
+  [[ "$password" == *[[:lower:]]* ]] && (( classes++ ))
+  [[ "$password" == *[[:upper:]]* ]] && (( classes++ ))
+  [[ "$password" == *[[:digit:]]* ]] && (( classes++ ))
+  [[ "$password" == *[^[:alnum:]]* ]] && (( classes++ ))
+
+  if (( classes < 3 )); then
+    echo 'Password must contain at least 3 of: lowercase, uppercase, digit, special character.' >&2
+    return 1
+  fi
+
+  return 0
+}
+
 while true; do
   read -r -s -p 'Admin password: ' ADMIN_PASSWORD
   echo
-  [[ -n "$ADMIN_PASSWORD" ]] && break
-  echo 'Admin password cannot be empty.' >&2
+  validate_admin_password "$ADMIN_PASSWORD" && break
 done
 
 read -r -p 'VM size [Standard_B2s]: ' VM_SIZE
@@ -179,6 +189,8 @@ echo "  Resource group : $RESOURCE_GROUP_NAME"
 echo "  VNet           : $VNET_NAME ($VNET_CIDR)"
 echo "  Subnet         : $SUBNET_NAME ($SUBNET_CIDR)"
 echo "  VMs            : ${VM_NAMES[*]} ($VM_SIZE)"
+echo "  OS             : $OS_VERSION"
+echo "  Azure kernel   : $KERNEL_VERSION"
 echo "  Private IP     : Dynamic"
 echo "  Admin username : $ADMIN_USERNAME"
 echo "  Public IP      : $CREATE_PUBLIC_IP"
@@ -240,7 +252,7 @@ for CURRENT_VM_NAME in "${VM_NAMES[@]}"; do
     "adminPassword=$ADMIN_PASSWORD" \
     "vmSize=$VM_SIZE" \
     "createPublicIp=$CREATE_PUBLIC_IP" \
-    --query 'properties.outputs.{VMName:vmName.value,Username:adminUsername.value,PrivateIP:privateIpAddress.value,PublicIP:publicIpAddress.value}' \
+    --query 'properties.outputs.{VMName:vmName.value,OS:osVersion.value,Kernel:kernelVersion.value,Username:adminUsername.value,PrivateIP:privateIpAddress.value,PublicIP:publicIpAddress.value}' \
     --output table >"$LOG_FILE" 2>&1 &
 
   PIDS+=("$!")
@@ -263,6 +275,38 @@ done
 
 rm -rf "$LOG_DIR"
 
+if (( FAILED )); then
+  echo 'One or more VM deployments failed.' >&2
+  exit 1
+fi
+
+echo
+echo "Restarting VMs into Azure kernel $KERNEL_VERSION and verifying the running version..."
+for CURRENT_VM_NAME in "${VM_NAMES[@]}"; do
+  if ! az vm restart \
+    --resource-group "$RESOURCE_GROUP_NAME" \
+    --name "$CURRENT_VM_NAME" \
+    --output none; then
+    echo "Restart failed for '$CURRENT_VM_NAME'." >&2
+    FAILED=1
+    continue
+  fi
+
+  if KERNEL_OUTPUT="$(az vm run-command invoke \
+    --resource-group "$RESOURCE_GROUP_NAME" \
+    --name "$CURRENT_VM_NAME" \
+    --command-id RunShellScript \
+    --scripts 'uname -r' \
+    --query 'value[0].message' \
+    --output tsv)" && grep -Fq "$KERNEL_VERSION" <<<"$KERNEL_OUTPUT"; then
+    echo "  $CURRENT_VM_NAME: verified $KERNEL_VERSION"
+  else
+    echo "  $CURRENT_VM_NAME: expected $KERNEL_VERSION, but runtime verification failed." >&2
+    [[ -n "${KERNEL_OUTPUT:-}" ]] && printf '%s\n' "$KERNEL_OUTPUT" >&2
+    FAILED=1
+  fi
+done
+
 END_TIME=$(date +%s)
 ELAPSED=$(( END_TIME - START_TIME ))
 ELAPSED_HMS=$(printf '%02d:%02d:%02d' $(( ELAPSED / 3600 )) $(( (ELAPSED % 3600) / 60 )) $(( ELAPSED % 60 )))
@@ -273,7 +317,7 @@ echo "End time   : $(date -r "$END_TIME" '+%Y-%m-%d %H:%M:%S')"
 
 echo
 if (( FAILED )); then
-  echo 'One or more VM deployments failed.' >&2
+  echo 'One or more VMs did not restart with the requested kernel.' >&2
   exit 1
 fi
 
