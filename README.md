@@ -1,1 +1,1 @@
-# Vince's play pen ... Vibe coding is KING !!!
+# Vince's play pen ... Vibe coding is KING
