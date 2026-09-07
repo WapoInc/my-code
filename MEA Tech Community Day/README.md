@@ -6,4 +6,5 @@ Here are the Azure scripts I created for testing Azure networking scenarios. Fee
 
 If you would like a one-on-one session or a session with a small, focused group, please contact me and we can arrange one.
 
-Happy hacking!!! guys, enjoy it !!! ............
+Happy hacking!!! 
+guys, enjoy it !!! ..... xxx .......
