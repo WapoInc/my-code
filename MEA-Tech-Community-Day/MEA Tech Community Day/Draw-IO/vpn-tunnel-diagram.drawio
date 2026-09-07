@@ -1,0 +1,67 @@
+<mxfile host="65bd71144e">
+    <diagram name="IKE VPN Tunnel" id="vpn-tunnel">
+        <mxGraphModel dx="1632" dy="660" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1100" pageHeight="850" math="0" shadow="0">
+            <root>
+                <mxCell id="0"/>
+                <mxCell id="1" parent="0"/>
+                <mxCell id="local-network" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;strokeWidth=2;" parent="1" vertex="1">
+                    <mxGeometry x="80" y="200" width="280" height="300" as="geometry"/>
+                </mxCell>
+                <mxCell id="local-title" value="&lt;b&gt;Local Network&lt;/b&gt;" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=16;" parent="1" vertex="1">
+                    <mxGeometry x="140" y="215" width="160" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="local-subnet" value="&lt;b&gt;Local Subnet&lt;/b&gt;&lt;br&gt;192.168.0.0 - 192.168.3.255&lt;br&gt;/22 Network" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;" parent="1" vertex="1">
+                    <mxGeometry x="110" y="260" width="220" height="70" as="geometry"/>
+                </mxCell>
+                <mxCell id="local-gateway" value="&lt;b&gt;Local VPN Gateway&lt;/b&gt;&lt;br&gt;&lt;br&gt;IKE Tunnel ID: 0x1&lt;br&gt;iCookie: 0xEA37C4F2C5B1911&lt;br&gt;rCookie: 0xBF4A7946135DC5C4" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;strokeWidth=2;" parent="1" vertex="1">
+                    <mxGeometry x="110" y="360" width="220" height="110" as="geometry"/>
+                </mxCell>
+                <mxCell id="remote-network" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;strokeWidth=2;" parent="1" vertex="1">
+                    <mxGeometry x="740" y="200" width="280" height="300" as="geometry"/>
+                </mxCell>
+                <mxCell id="remote-title" value="&lt;b&gt;Remote Network&lt;/b&gt;" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=16;" parent="1" vertex="1">
+                    <mxGeometry x="800" y="215" width="160" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="remote-subnet" value="&lt;b&gt;Remote Subnet&lt;/b&gt;&lt;br&gt;10.70.0.0 - 10.70.3.255&lt;br&gt;/22 Network" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;" parent="1" vertex="1">
+                    <mxGeometry x="770" y="260" width="220" height="70" as="geometry"/>
+                </mxCell>
+                <mxCell id="remote-gateway" value="&lt;b&gt;Remote VPN Gateway&lt;/b&gt;&lt;br&gt;&lt;br&gt;Received SA_INIT&lt;br&gt;Multiple iCookies received" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;strokeWidth=2;" parent="1" vertex="1">
+                    <mxGeometry x="770" y="360" width="220" height="110" as="geometry"/>
+                </mxCell>
+                <mxCell id="tunnel-line" value="" style="shape=flexArrow;endArrow=classic;startArrow=classic;html=1;fillColor=#d5e8d4;strokeColor=#82b366;strokeWidth=3;width=20;endSize=6;startSize=6;" parent="1" source="local-gateway" target="remote-gateway" edge="1">
+                    <mxGeometry width="100" height="100" relative="1" as="geometry">
+                        <mxPoint x="450" y="450" as="sourcePoint"/>
+                        <mxPoint x="550" y="350" as="targetPoint"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="tunnel-label" value="&lt;b&gt;IKE/IPSec VPN Tunnel&lt;/b&gt;&lt;br&gt;Status: ✅ ESTABLISHED&lt;br&gt;&lt;br&gt;IKE Phase 1:&lt;br&gt;• Cipher: AES-CBC-128&lt;br&gt;• Integrity: SHA384&lt;br&gt;• DH Group: DhGroup24&lt;br&gt;• Auth: PreShared Key&lt;br&gt;&lt;br&gt;IPSec Phase 2:&lt;br&gt;• Cipher: DES&lt;br&gt;• Integrity: MD5&lt;br&gt;• TS ID: 0x11&lt;br&gt;&lt;br&gt;Traffic Selectors:&lt;br&gt;TSi: 192.168.0.0/22&lt;br&gt;TSr: 10.70.0.0/22" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;align=left;verticalAlign=top;" parent="1" vertex="1">
+                    <mxGeometry x="390" y="240" width="220" height="280" as="geometry"/>
+                </mxCell>
+                <mxCell id="internet" value="&lt;b&gt;INTERNET&lt;/b&gt;" style="ellipse;shape=cloud;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=14;fontStyle=1" parent="1" vertex="1">
+                    <mxGeometry x="420" y="80" width="160" height="100" as="geometry"/>
+                </mxCell>
+                <mxCell id="local-to-internet" value="" style="endArrow=none;html=1;strokeWidth=2;strokeColor=#666666;dashed=1;" parent="1" source="local-gateway" target="internet" edge="1">
+                    <mxGeometry width="50" height="50" relative="1" as="geometry">
+                        <mxPoint x="400" y="400" as="sourcePoint"/>
+                        <mxPoint x="450" y="350" as="targetPoint"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="remote-to-internet" value="" style="endArrow=none;html=1;strokeWidth=2;strokeColor=#666666;dashed=1;" parent="1" source="remote-gateway" target="internet" edge="1">
+                    <mxGeometry width="50" height="50" relative="1" as="geometry">
+                        <mxPoint x="600" y="400" as="sourcePoint"/>
+                        <mxPoint x="650" y="350" as="targetPoint"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="diagram-title" value="&lt;b style=&quot;font-size: 20px;&quot;&gt;IKE VPN Tunnel Architecture&lt;/b&gt;&lt;br&gt;Tunnel ID: 0x1 | Status: Active" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=14;" parent="1" vertex="1">
+                    <mxGeometry x="320" y="40" width="460" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="issue-note" value="&lt;b&gt;Issue Resolved:&lt;/b&gt; Policy mismatch corrected&lt;br&gt;Local adjusted to match remote requirements&lt;br&gt;(AES-CBC-128, SHA384, DhGroup24)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;align=left;" parent="1" vertex="1">
+                    <mxGeometry x="80" y="540" width="940" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="port-info" value="&lt;b&gt;All Protocols/Ports Allowed:&lt;/b&gt;&lt;br&gt;Protocol: 0 (All) | Ports: 0-65535" style="text;html=1;strokeColor=#6c8ebf;fillColor=#dae8fc;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=1;" parent="1" vertex="1">
+                    <mxGeometry x="390" y="540" width="220" height="50" as="geometry"/>
+                </mxCell>
+            </root>
+        </mxGraphModel>
+    </diagram>
+</mxfile>
