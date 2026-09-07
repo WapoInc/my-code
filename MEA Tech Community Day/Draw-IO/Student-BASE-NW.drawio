@@ -1,6 +1,6 @@
 <mxfile host="65bd71144e" pages="2">
     <diagram name="Student - Base-NW" id="_p3iuzQLFhGVJzzwwzrs">
-        <mxGraphModel dx="4505" dy="1538" grid="0" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="0" pageScale="1" pageWidth="1169" pageHeight="827" math="0" shadow="0">
+        <mxGraphModel dx="5272" dy="2276" grid="0" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="0" pageScale="1" pageWidth="1169" pageHeight="827" math="0" shadow="0">
             <root>
                 <mxCell id="HkXO99kAm7R3lD4eRJBm-0"/>
                 <mxCell id="HkXO99kAm7R3lD4eRJBm-1" value="IP Subnetting" parent="HkXO99kAm7R3lD4eRJBm-0"/>
