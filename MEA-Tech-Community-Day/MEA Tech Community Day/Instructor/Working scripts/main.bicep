@@ -314,8 +314,13 @@ resource azureGatewaySubnet 'Microsoft.Network/virtualNetworks/subnets@2024-05-0
 }
 
 resource onpremGatewayPublicIp 'Microsoft.Network/publicIPAddresses@2024-05-01' = {
-  name: 'onprem-gateway-pip'
+  name: 'onprem-gateway-pip-zr'
   location: location
+  zones: [
+    '1'
+    '2'
+    '3'
+  ]
   tags: tags
   sku: {
     name: 'Standard'
@@ -327,8 +332,13 @@ resource onpremGatewayPublicIp 'Microsoft.Network/publicIPAddresses@2024-05-01' 
 }
 
 resource azureGatewayPublicIp 'Microsoft.Network/publicIPAddresses@2024-05-01' = {
-  name: 'azure-gateway-pip'
+  name: 'azure-gateway-pip-zr'
   location: location
+  zones: [
+    '1'
+    '2'
+    '3'
+  ]
   tags: tags
   sku: {
     name: 'Standard'
