@@ -1,4 +1,9 @@
-Hi MEA CSA + SE teams ....... Here are my Azure scripts I have created to use for testing Azure Networking scenarios
-Feel free to download the Student script and run it. check the Instructor Draw.IO Scenario TABS for tips and tricks to resolve the issues.
-If anyone needs a 1:1 or a small focused group ping me and we can have a session
-... Happy Hacking !!!!!
+# Azure Networking Test Scenarios
+
+Hi, MEA CSA and SE teams!
+
+Here are the Azure scripts I created for testing Azure networking scenarios. Feel free to download and run the student script. Check the scenario tabs in the instructor Draw.io diagram for tips and guidance on resolving the issues.
+
+If you would like a one-on-one session or a session with a small, focused group, please contact me and we can arrange one.
+
+Happy hacking!!! guys ....
