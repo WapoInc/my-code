@@ -1,6 +1,6 @@
 <mxfile host="65bd71144e" pages="2">
     <diagram name="Student - Base-NW" id="_p3iuzQLFhGVJzzwwzrs">
-        <mxGraphModel dx="14605" dy="5090" grid="0" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="0" pageScale="1" pageWidth="1169" pageHeight="827" math="0" shadow="0">
+        <mxGraphModel dx="4505" dy="1538" grid="0" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="0" pageScale="1" pageWidth="1169" pageHeight="827" math="0" shadow="0">
             <root>
                 <mxCell id="HkXO99kAm7R3lD4eRJBm-0"/>
                 <mxCell id="HkXO99kAm7R3lD4eRJBm-1" value="IP Subnetting" parent="HkXO99kAm7R3lD4eRJBm-0"/>
@@ -187,7 +187,7 @@
         </mxGraphModel>
     </diagram>
     <diagram id="WVpeS4PPq6Ohgr1VNbgj" name="Tips and Tricks - Tools">
-        <mxGraphModel dx="2121" dy="858" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="827" math="0" shadow="0">
+        <mxGraphModel dx="1590" dy="1845" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="827" math="0" shadow="0">
             <root>
                 <mxCell id="0"/>
                 <mxCell id="1" parent="0"/>
@@ -200,11 +200,11 @@
                     </mxCell>
                 </UserObject>
                 <mxCell id="YJiPWFCKD7wX-O-GAN2b-2" value="&lt;div&gt;&lt;b&gt;&lt;u&gt;Using TCPDUMP&lt;/u&gt;&lt;/b&gt;&lt;/div&gt;&lt;div&gt;&lt;b&gt;&lt;u&gt;&lt;br&gt;&lt;/u&gt;&lt;/b&gt;&lt;/div&gt;&lt;div&gt;&lt;b&gt;&lt;u&gt;&lt;br&gt;&lt;/u&gt;&lt;/b&gt;&lt;/div&gt;&lt;b&gt;How to see who is Pinging the host&lt;br&gt;&lt;/b&gt;sudo tcpdump -ni eth0 icmp&lt;br&gt;&lt;br&gt;&lt;b&gt;How to see only traffic from 1 IP  who is Pinging the host&lt;br&gt;&lt;/b&gt;sudo tcpdump -ni eth0 icmp and host 172.21.1.33&lt;br&gt;&lt;br&gt;&lt;b&gt;How to see only traffic from 1 IP range who is Pinging the host&lt;br&gt;&lt;/b&gt;sudo tcpdump -ni eth0 icmp and host 172.21.1.4&lt;br&gt;&lt;br&gt;&lt;b&gt;How to see only traffic from 1 IP range who is Pinging the host&lt;br&gt;&lt;/b&gt;sudo tcpdump -ni eth0 icmp and net 192.168.4.0/24 -c 10&lt;br&gt;&lt;br&gt;&lt;b&gt;How to see only traffic from ANY IP on port 22&lt;br&gt;&lt;/b&gt;sudo tcpdump -i any src port 22&lt;br&gt; tcpdump -ni eth0 port 22 and net 192.168.1.0/24&lt;br&gt; tcpdump -ni eth0 port 22 and host 192.168.1.4&lt;div&gt;&lt;b&gt;&lt;u&gt;&lt;br&gt;&lt;/u&gt;&lt;/b&gt;&lt;/div&gt;&lt;div&gt;&lt;b&gt;&lt;u&gt;Check what is listening on a port&lt;/u&gt;&lt;/b&gt;&lt;/div&gt;&lt;div&gt;sudo ss -tulpn | grep :22&lt;/div&gt;&lt;div&gt;&lt;div&gt;sudo ss -tulpn | grep :443&lt;/div&gt;&lt;div&gt;&lt;br&gt;&lt;/div&gt;&lt;/div&gt;" style="text;whiteSpace=wrap;html=1;fontFamily=Comic Sans MS;fontSize=16;" parent="1" vertex="1">
-                    <mxGeometry x="930" y="590" width="560" height="250" as="geometry"/>
+                    <mxGeometry x="290" y="600" width="560" height="250" as="geometry"/>
                 </mxCell>
                 <UserObject label="&lt;b&gt;&lt;u&gt;Install hping3&lt;br&gt;&lt;/u&gt;&lt;/b&gt;&lt;br&gt;sudo apt install -y hping3&lt;br&gt;When installation is finished, we can check hping3 version:&lt;br&gt;&lt;br&gt;hping3 --version&lt;br&gt;&lt;br&gt;&lt;div&gt;&lt;b&gt;&lt;u&gt;Testing hping3&lt;br&gt;&lt;/u&gt;&lt;/b&gt;Now we can test. Let&#39;s say we want to check whether port 443 is open and calculate the round-trip time (RTT). Run the following command to do that:&lt;br&gt;&lt;br&gt;To do a normal ICMP Ping&lt;br&gt;sudo hping3 -1 8.8.8.8&lt;br&gt;&lt;br&gt;To ping to a IP addi and specific Port&lt;br&gt;sudo hping3 -S -p 22 za-east.fortiddns.com&lt;br&gt;sudo hping3 --icmp -c 10 bing.com&lt;br&gt;sudo hping3 -S -p 22 --beep za-east.fortiddns.com&lt;br&gt;sudo hping3 --icmp -c 10 --beep -i 2 www.bing.com&lt;/div&gt;" link="Install hping3&#xa;&#xa;sudo apt install -y hping3&#xa;When installation is finished, we can check hping3 version:&#xa;&#xa;1&#xa;hping3 --version&#xa;Testing hping3&#xa;Now we can test. Let&#39;s say we want to check whether port 443 is open and calculate the round-trip time (RTT). Run the following command to do that:&#xa;&#xa;Examples&#xa;&#xa;To do a normal ICMP Ping&#xa;sudo hping3 -1 8.8.8.8&#xa;&#xa;To ping to a IP addi and specific Port&#xa;sudo hping3 -S -p 22 za-east.fortiddns.com&#xa;sudo hping3 --icmp -c 10 bing.com&#xa;sudo hping3 -S -p 22 --beep za-east.fortiddns.com&#xa;sudo hping3 --icmp -c 10 --beep -i 2 www.bing.com" id="YJiPWFCKD7wX-O-GAN2b-3">
                     <mxCell style="text;whiteSpace=wrap;html=1;fontFamily=Comic Sans MS;fontSize=16;" parent="1" vertex="1">
-                        <mxGeometry x="1070" y="66" width="560" height="330" as="geometry"/>
+                        <mxGeometry x="850" y="78" width="560" height="330" as="geometry"/>
                     </mxCell>
                 </UserObject>
             </root>
