@@ -57,21 +57,21 @@ Set-AzExpressRouteCircuit -ExpressRouteCircuit $ckt
 =======================================================================================================
 #Run to see list and count Learned Routes
 =======================================================================================================
-Get-AzVirtualNetworkGatewayLearnedRoute -ResourceGroupName $RG -VirtualNetworkGatewayname $GateWayName
-Get-AzVirtualNetworkGatewayLearnedRoute -ResourceGroupName $RG -VirtualNetworkGatewayname $GateWayName | ForEach-Object Network | Measure-Object | Select-Object Count
+Get-AzVirtualNetworkGatewayLearnedRoute -ResourceGroupName $GatewayResourceGroup -VirtualNetworkGatewayname $GateWayName
+Get-AzVirtualNetworkGatewayLearnedRoute -ResourceGroupName $GatewayResourceGroup -VirtualNetworkGatewayname $GateWayName | ForEach-Object Network | Measure-Object | Select-Object Count
 
 =======================================================================================================
 #Run2 to see list and count Learned Routes (used VSCode and Claude Sonnet 4.6)
 =======================================================================================================
-$gw = Get-AzVirtualNetworkGateway -ResourceGroupName "ER-LTSA-RG" | Where-Object { $_.GatewayType -eq "ExpressRoute" }
-Get-AzVirtualNetworkGatewayLearnedRoute -VirtualNetworkGatewayName $gw.Name -ResourceGroupName "ER-LTSA-RG" | Format-Table
+$gw = Get-AzVirtualNetworkGateway -ResourceGroupName $GatewayResourceGroup | Where-Object { $_.GatewayType -eq "ExpressRoute" }
+Get-AzVirtualNetworkGatewayLearnedRoute -VirtualNetworkGatewayName $gw.Name -ResourceGroupName $GatewayResourceGroup | Format-Table
 
 
 =======================================================================================================
 #Run to see list and count Learned Routes and Sort by Network
 =======================================================================================================
-Get-AzVirtualNetworkGatewayLearnedRoute -ResourceGroupName $RG -VirtualNetworkGatewayname $GateWayName |Sort-Object Network
-Get-AzVirtualNetworkGatewayLearnedRoute -ResourceGroupName $RG -VirtualNetworkGatewayname $GateWayName | ForEach-Object Network | Measure-Object | Select-Object Count
+Get-AzVirtualNetworkGatewayLearnedRoute -ResourceGroupName $GatewayResourceGroup -VirtualNetworkGatewayName $GateWayName | Sort-Object Network
+Get-AzVirtualNetworkGatewayLearnedRoute -ResourceGroupName $GatewayResourceGroup -VirtualNetworkGatewayName $GateWayName | ForEach-Object Network | Measure-Object | Select-Object Count
 
 
 
@@ -86,8 +86,8 @@ Get-AzVirtualNetworkGatewayLearnedRoute -ResourceGroupName $RG -VirtualNetworkGa
 =======================================================================================================
 #Run to get ER primary and Secondary links ARP table 
 =======================================================================================================
-AzExpressRouteCircuitARPTable -ResourceGroupName $RG -ExpressRouteCircuitName $ER_Circuit_Name -PeeringType AzurePrivatePeering -DevicePath Primary
-AzExpressRouteCircuitARPTable -ResourceGroupName $RG -ExpressRouteCircuitName $ER_Circuit_Name -PeeringType AzurePrivatePeering -DevicePath Secondary
+Get-AzExpressRouteCircuitARPTable -ResourceGroupName $CircuitResourceGroup -ExpressRouteCircuitName $ER_Circuit_Name -PeeringType AzurePrivatePeering -DevicePath Primary
+Get-AzExpressRouteCircuitARPTable -ResourceGroupName $CircuitResourceGroup -ExpressRouteCircuitName $ER_Circuit_Name -PeeringType AzurePrivatePeering -DevicePath Secondary
 
 
 
