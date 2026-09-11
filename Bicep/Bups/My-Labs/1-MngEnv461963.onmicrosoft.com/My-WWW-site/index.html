@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>wapoinc.tech</title>
+  <style>
+    body {
+      display: grid;
+      min-height: 100vh;
+      margin: 0;
+      padding: 24px;
+      box-sizing: border-box;
+      place-items: center;
+    }
+
+    main {
+      display: grid;
+      justify-items: center;
+      width: min(100%, 760px);
+      padding: 16px;
+      border: 3px solid yellow;
+      box-sizing: border-box;
+    }
+
+    img {
+      display: block;
+      height: auto;
+    }
+
+    .portrait-frame {
+      position: relative;
+      width: min(100%, 720px);
+      padding-top: min(25%, 180px);
+    }
+
+    .portrait {
+      width: 100%;
+    }
+
+    .logo {
+      position: absolute;
+      z-index: 1;
+      top: 0;
+      left: 50%;
+      width: min(56%, 400px);
+      transform: translateX(-50%);
+    }
+
+    h1 {
+      margin: 16px 0 0;
+      color: #003b73;
+      font-family: Georgia, 'Times New Roman', serif;
+      font-size: 2rem;
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="portrait-frame">
+      <img class="portrait" src="ieee-8021x.jpg" alt="Azure networking architect">
+      <img class="logo" src="802dot1x-logo-transparent.png" alt="IEEE 802.1X security logo">
+    </div>
+    <h1>hello World</h1>
+  </main>
+</body>
+</html>

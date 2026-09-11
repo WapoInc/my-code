@@ -1,8 +1,8 @@
-# Param(
-#     [Parameter(Mandatory=$true,
-#     HelpMessage="Add ")]
-#     [String]
-#     $VPNGWName,
+$VPNGWName = "za-east-VPN-Gateway-southafricanorth-VpnGw1AZ"
+$VPNGWRG = "za-east-southafricanorth"
+$StgName = "zaeastvpngwcapture"
+$StgRG = "za-east-southafricanorth"
+$StgContainerName = "vpncapture"
 
 #     [Parameter(Mandatory=$true,
 #     HelpMessage="Add VPN Gateway Resource Group Name")]
@@ -24,19 +24,7 @@
 #     [String]
 #     $StgContainerName
 # )
-Connect-AzAccount
-
-$VPNGWName        = "ZA-East-vDC-VPN-GW"
-$VPNGWRG          = "za-east-vdc"
-$StgName          = "myhdstash"
-$StgRG            = "My-HD-Stash"
-$StgContainerName = "vpngateway-capture"
-
-# $VPNGWName        = "Azure-VPN-GW"
-# $VPNGWRG          = "PoC-1-RG"
-# $StgName          = "vpngatewaycapture"
-# $StgRG            = "PoC-1-RG"
-# $StgContainerName = "vpngateway-capture"
+# Connect-AzAccount
 
 # Variables that can be adjusted based in your needs.
 

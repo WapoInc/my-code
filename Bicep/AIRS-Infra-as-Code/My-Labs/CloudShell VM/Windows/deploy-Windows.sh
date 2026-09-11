@@ -26,9 +26,25 @@ LOCATION="${LOCATION:-southafricanorth}"
 RESOURCE_GROUP_NAME="$(read_required 'Resource group name')"
 VNET_NAME="$(read_required 'VNet name')"
 SUBNET_NAME="$(read_required 'Subnet name')"
-VM_NAME="$(read_required 'VM name (maximum 15 characters)')"
+read -r -p 'VM name [SA-North-JB1]: ' VM_NAME
+VM_NAME="${VM_NAME:-SA-North-JB1}"
 
-if (( ${#VM_NAME} > 15 )); then
+while true; do
+  read -r -p 'Number of Windows VMs to deploy [1]: ' VM_COUNT
+  VM_COUNT="${VM_COUNT:-1}"
+  [[ "$VM_COUNT" =~ ^[0-9]+$ && "$VM_COUNT" -ge 1 ]] && break
+  echo 'Enter a positive whole number.' >&2
+done
+
+# When deploying more than one VM each name gets a "-<n>" suffix, so the base
+# name must leave room for that suffix within the 15-character Windows limit.
+if (( VM_COUNT > 1 )); then
+  MAX_SUFFIX_LEN=$(( ${#VM_COUNT} + 1 ))
+  if (( ${#VM_NAME} + MAX_SUFFIX_LEN > 15 )); then
+    echo "Windows VM name '$VM_NAME' plus a numeric suffix must be 15 characters or fewer." >&2
+    exit 1
+  fi
+elif (( ${#VM_NAME} > 15 )); then
   echo 'Windows VM name must be 15 characters or fewer.' >&2
   exit 1
 fi
@@ -75,8 +91,8 @@ if [[ "$VNET_EXISTS" == 'true' ]]; then
     VNET_CIDR="$(read_required 'New VNet CIDR')"
   fi
 else
-  read -r -p 'VNet does not exist. VNet CIDR [10.0.0.0/16]: ' VNET_CIDR
-  VNET_CIDR="${VNET_CIDR:-10.0.0.0/16}"
+  read -r -p 'VNet does not exist. VNet CIDR [10.20.0.0/16]: ' VNET_CIDR
+  VNET_CIDR="${VNET_CIDR:-10.20.0.0/16}"
 fi
 
 SUBNET_EXISTS=false
@@ -118,20 +134,29 @@ if [[ "$SUBNET_EXISTS" == 'true' ]]; then
     SUBNET_CIDR="$(read_required 'New subnet CIDR')"
   fi
 else
-  read -r -p "Subnet does not exist. Enter a CIDR within $VNET_CIDR [10.0.1.0/24]: " SUBNET_CIDR
-  SUBNET_CIDR="${SUBNET_CIDR:-10.0.1.0/24}"
+  read -r -p "Subnet does not exist. Enter a CIDR within $VNET_CIDR [10.20.1.0/24]: " SUBNET_CIDR
+  SUBNET_CIDR="${SUBNET_CIDR:-10.20.1.0/24}"
 fi
 
-DEPLOYMENT_NAME="windows-vm-$(date +%Y%m%d-%H%M%S)"
+# Build the list of VM names to deploy. A single VM keeps the base name; two or
+# more append a "-<n>" suffix so each name is unique.
+VM_NAMES=()
+if (( VM_COUNT == 1 )); then
+  VM_NAMES+=("$VM_NAME")
+else
+  for (( i = 1; i <= VM_COUNT; i++ )); do
+    VM_NAMES+=("$VM_NAME-$i")
+  done
+fi
 
 echo
 echo 'Deployment settings:'
-echo "  Deployment     : $DEPLOYMENT_NAME"
 echo "  Location       : $LOCATION"
 echo "  Resource group : $RESOURCE_GROUP_NAME"
 echo "  VNet           : $VNET_NAME ($VNET_CIDR)"
 echo "  Subnet         : $SUBNET_NAME ($SUBNET_CIDR)"
-echo "  VM             : $VM_NAME ($VM_SIZE)"
+echo "  VMs            : ${VM_NAMES[*]} ($VM_SIZE)"
+echo "  Private IP     : Dynamic"
 echo "  Admin username : $ADMIN_USERNAME"
 echo "  Public IP      : $CREATE_PUBLIC_IP"
 echo '  NSG inbound    : TCP/3389 from Any to Any'
@@ -142,28 +167,37 @@ if [[ ! "$CONFIRMATION" =~ ^[Yy]([Ee][Ss])?$ ]]; then
   exit 0
 fi
 
-DEPLOYMENT_ARGUMENTS=(
-  deployment sub create
-  --name "$DEPLOYMENT_NAME"
-  --location "$LOCATION"
-  --template-file "$TEMPLATE_FILE"
-  --parameters
-  "resourceGroupName=$RESOURCE_GROUP_NAME"
-  "location=$LOCATION"
-  "vnetName=$VNET_NAME"
-  "subnetName=$SUBNET_NAME"
-  "vmName=$VM_NAME"
-  "adminUsername=$ADMIN_USERNAME"
-  "adminPassword=$ADMIN_PASSWORD"
-  "vmSize=$VM_SIZE"
-  "vnetCidr=$VNET_CIDR"
-  "subnetCidr=$SUBNET_CIDR"
-  "createPublicIp=$CREATE_PUBLIC_IP"
-  --query 'properties.outputs.{VMName:vmName.value,Username:adminUsername.value,PrivateIP:privateIpAddress.value,PublicIP:publicIpAddress.value}'
-  --output table
-)
+for CURRENT_VM_NAME in "${VM_NAMES[@]}"; do
+  DEPLOYMENT_NAME="windows-vm-$CURRENT_VM_NAME-$(date +%Y%m%d-%H%M%S)"
 
-az "${DEPLOYMENT_ARGUMENTS[@]}"
+  echo
+  echo "Deploying '$CURRENT_VM_NAME'..."
+
+  DEPLOYMENT_ARGUMENTS=(
+    deployment sub create
+    --name "$DEPLOYMENT_NAME"
+    --location "$LOCATION"
+    --template-file "$TEMPLATE_FILE"
+    --parameters
+    "resourceGroupName=$RESOURCE_GROUP_NAME"
+    "location=$LOCATION"
+    "vnetName=$VNET_NAME"
+    "subnetName=$SUBNET_NAME"
+    "vmName=$CURRENT_VM_NAME"
+    "adminUsername=$ADMIN_USERNAME"
+    "adminPassword=$ADMIN_PASSWORD"
+    "vmSize=$VM_SIZE"
+    "vnetCidr=$VNET_CIDR"
+    "subnetCidr=$SUBNET_CIDR"
+    "createPublicIp=$CREATE_PUBLIC_IP"
+    --query 'properties.outputs.{VMName:vmName.value,Username:adminUsername.value,PrivateIP:privateIpAddress.value,PublicIP:publicIpAddress.value}'
+    --output table
+  )
+
+  az "${DEPLOYMENT_ARGUMENTS[@]}"
+
+  echo "Deployment '$DEPLOYMENT_NAME' completed successfully."
+done
 
 echo
-echo "Deployment '$DEPLOYMENT_NAME' completed successfully."
+echo "All ${#VM_NAMES[@]} VM deployment(s) completed successfully."

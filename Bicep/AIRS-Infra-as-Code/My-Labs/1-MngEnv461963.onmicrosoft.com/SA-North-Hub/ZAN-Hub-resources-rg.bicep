@@ -9,7 +9,7 @@
 // az deployment sub create \
 //   -l southafricanorth \
 //   -f ZAN-Hub-resources-rg.bicep \
-//   -p adminPassword='P@ssw0rd123!'
+//   -p windowsAdminPassword='<secure-value>' ubuntuAdminPassword='<secure-value>'
 //
 //
 
@@ -30,7 +30,10 @@ param location string = 'southafricanorth'
 param vnetName string = 'southafricanorth-vnet'
 
 @secure()
-param adminPassword string
+param windowsAdminPassword string
+
+@secure()
+param ubuntuAdminPassword string
 
 @description('Create the ExpressRoute connection after the gateway is ready.')
 param deployErConnection bool = true
@@ -64,7 +67,8 @@ module resources 'ZAN-Hub-resources.bicep' = {
   params: {
     location: location
     vnetName: vnetName
-    adminPassword: adminPassword
+    windowsAdminPassword: windowsAdminPassword
+    ubuntuAdminPassword: ubuntuAdminPassword
     deployErConnection: deployErConnection
     circuitName: circuitName
     circuitResourceGroup: circuitResourceGroup
@@ -79,9 +83,12 @@ output networkSecurityGroupName string = resources.outputs.networkSecurityGroupN
 output gatewayPublicIpName string = resources.outputs.gatewayPublicIpName
 output vnetName string = resources.outputs.vnetName
 output vnetId string = resources.outputs.vnetId
-output vmName string = resources.outputs.vmName
-output vmNicName string = resources.outputs.vmNicName
-output vmPrivateIp string = resources.outputs.vmPrivateIp
+output windowsVmName string = resources.outputs.windowsVmName
+output windowsVmNicName string = resources.outputs.windowsVmNicName
+output windowsVmPrivateIp string = resources.outputs.windowsVmPrivateIp
+output ubuntuVmName string = resources.outputs.ubuntuVmName
+output ubuntuVmNicName string = resources.outputs.ubuntuVmNicName
+output ubuntuVmPrivateIp string = resources.outputs.ubuntuVmPrivateIp
 output erGatewayName string = resources.outputs.erGatewayName
 output erGatewayId string = resources.outputs.erGatewayId
 output erConnectionName string = resources.outputs.erConnectionName

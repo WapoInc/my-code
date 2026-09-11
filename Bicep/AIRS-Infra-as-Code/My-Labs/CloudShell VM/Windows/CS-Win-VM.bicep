@@ -14,7 +14,7 @@ param subnetName string
 
 @description('Name of the Windows virtual machine.')
 @maxLength(15)
-param vmName string
+param vmName string = 'SA-North-JB1'
 
 @description('Administrator username for the virtual machine.')
 param adminUsername string = 'adminroot'
@@ -27,10 +27,10 @@ param adminPassword string
 param vmSize string = 'Standard_B2s'
 
 @description('Address space for the virtual network.')
-param vnetCidr string = '10.0.0.0/16'
+param vnetCidr string = '10.20.0.0/16'
 
 @description('Address prefix for the subnet.')
-param subnetCidr string = '10.0.1.0/24'
+param subnetCidr string = '10.20.1.0/24'
 
 @description('Create and attach a Standard public IP address.')
 param createPublicIp bool = false

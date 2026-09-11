@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Hub + 3 Spokes Lab — South Africa North</title>
+<style>
+  html, body { margin: 0; padding: 0; background: #ffffff; }
+  #diagram { width: 1280px; height: 860px; }
+  text { font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+</style>
+</head>
+<body>
+<svg id="diagram" viewBox="0 0 1280 860" xmlns="http://www.w3.org/2000/svg">
+  <!-- background -->
+  <rect x="0" y="0" width="1280" height="860" fill="#ffffff"/>
+
+  <!-- title -->
+  <text x="40" y="48" font-size="28" font-weight="700" fill="#0b3d5c">Hub &amp; Spoke Lab — South Africa North</text>
+  <text x="40" y="78" font-size="16" fill="#5b6b73">Resource group: sa-north-hub-spokes-rg  •  Private DNS: lab.internal  •  4 × Ubuntu 22.04 VMs (public IP, password auth)</text>
+
+  <!-- Private DNS zone banner -->
+  <rect x="820" y="110" width="420" height="120" rx="12" fill="#eef7ee" stroke="#3a8a3a" stroke-width="2"/>
+  <text x="840" y="142" font-size="18" font-weight="700" fill="#2f6f2f">Private DNS zone: lab.internal</text>
+  <text x="840" y="168" font-size="14" fill="#3a6b3a">A records:</text>
+  <text x="840" y="190" font-size="13" fill="#3a6b3a">hub-vm → 10.30.0.4   spoke1-vm → 10.31.0.4</text>
+  <text x="840" y="210" font-size="13" fill="#3a6b3a">spoke2-vm → 10.32.0.4   spoke3-vm → 10.33.0.4</text>
+
+  <!-- Hub -->
+  <rect x="500" y="300" width="300" height="150" rx="14" fill="#e8f1fb" stroke="#1f6fb2" stroke-width="3"/>
+  <text x="520" y="332" font-size="20" font-weight="700" fill="#134a78">hub-vnet</text>
+  <text x="520" y="356" font-size="14" fill="#2b6ea0">10.30.0.0/24</text>
+  <rect x="520" y="372" width="260" height="60" rx="8" fill="#ffffff" stroke="#8bb7db"/>
+  <text x="536" y="394" font-size="13" fill="#134a78" font-weight="600">subnet-1 · 10.30.0.0/25</text>
+  <text x="536" y="416" font-size="13" fill="#333">🖥 hub-vm · 10.30.0.4 · +PIP</text>
+
+  <!-- Spoke 1 -->
+  <rect x="80" y="300" width="300" height="150" rx="14" fill="#f6effb" stroke="#7a3fb0" stroke-width="3"/>
+  <text x="100" y="332" font-size="20" font-weight="700" fill="#552a80">spoke1-vnet</text>
+  <text x="100" y="356" font-size="14" fill="#6d3a9c">10.31.0.0/24</text>
+  <rect x="100" y="372" width="260" height="60" rx="8" fill="#ffffff" stroke="#c0a0dd"/>
+  <text x="116" y="394" font-size="13" fill="#552a80" font-weight="600">subnet-1 · 10.31.0.0/25</text>
+  <text x="116" y="416" font-size="13" fill="#333">🖥 spoke1-vm · 10.31.0.4 · +PIP</text>
+
+  <!-- Spoke 2 -->
+  <rect x="500" y="560" width="300" height="150" rx="14" fill="#f6effb" stroke="#7a3fb0" stroke-width="3"/>
+  <text x="520" y="592" font-size="20" font-weight="700" fill="#552a80">spoke2-vnet</text>
+  <text x="520" y="616" font-size="14" fill="#6d3a9c">10.32.0.0/24</text>
+  <rect x="520" y="632" width="260" height="60" rx="8" fill="#ffffff" stroke="#c0a0dd"/>
+  <text x="536" y="654" font-size="13" fill="#552a80" font-weight="600">subnet-1 · 10.32.0.0/25</text>
+  <text x="536" y="676" font-size="13" fill="#333">🖥 spoke2-vm · 10.32.0.4 · +PIP</text>
+
+  <!-- Spoke 3 -->
+  <rect x="920" y="300" width="300" height="150" rx="14" fill="#f6effb" stroke="#7a3fb0" stroke-width="3"/>
+  <text x="940" y="332" font-size="20" font-weight="700" fill="#552a80">spoke3-vnet</text>
+  <text x="940" y="356" font-size="14" fill="#6d3a9c">10.33.0.0/24</text>
+  <rect x="940" y="372" width="260" height="60" rx="8" fill="#ffffff" stroke="#c0a0dd"/>
+  <text x="956" y="394" font-size="13" fill="#552a80" font-weight="600">subnet-1 · 10.33.0.0/25</text>
+  <text x="956" y="416" font-size="13" fill="#333">🖥 spoke3-vm · 10.33.0.4 · +PIP</text>
+
+  <!-- Peering lines (bidirectional) -->
+  <g stroke="#1f6fb2" stroke-width="3" fill="none">
+    <line x1="380" y1="375" x2="500" y2="375" marker-start="url(#arrow)" marker-end="url(#arrow)"/>
+    <line x1="800" y1="375" x2="920" y2="375" marker-start="url(#arrow)" marker-end="url(#arrow)"/>
+    <line x1="650" y1="450" x2="650" y2="560" marker-start="url(#arrow)" marker-end="url(#arrow)"/>
+  </g>
+  <text x="392" y="365" font-size="12" fill="#1f6fb2">peering ↔</text>
+  <text x="812" y="365" font-size="12" fill="#1f6fb2">peering ↔</text>
+  <text x="660" y="510" font-size="12" fill="#1f6fb2">peering ↔</text>
+
+  <!-- DNS link dashed lines -->
+  <g stroke="#3a8a3a" stroke-width="1.5" stroke-dasharray="5 4" fill="none">
+    <line x1="820" y1="200" x2="800" y2="330"/>
+    <line x1="900" y1="230" x2="1070" y2="300"/>
+    <line x1="850" y1="230" x2="360" y2="330"/>
+    <line x1="850" y1="230" x2="650" y2="560"/>
+  </g>
+
+  <!-- NSG note -->
+  <rect x="80" y="560" width="360" height="150" rx="12" fill="#fff7e6" stroke="#c98a1b" stroke-width="2"/>
+  <text x="100" y="592" font-size="18" font-weight="700" fill="#8a5f10">NSG: hub-spokes-lab-nsg</text>
+  <text x="100" y="620" font-size="14" fill="#8a5f10">• Allow-SSH (TCP 22) from *</text>
+  <text x="100" y="644" font-size="14" fill="#8a5f10">• Allow-ICMP within VirtualNetwork</text>
+  <text x="100" y="676" font-size="13" fill="#6b6b6b">Applied to subnet-1 in every VNet</text>
+
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="6" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L6,3 L0,6 Z" fill="#1f6fb2"/>
+    </marker>
+  </defs>
+</svg>
+</body>
+</html>
