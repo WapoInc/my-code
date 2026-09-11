@@ -24,9 +24,9 @@ $ER_Circuit_Name = "tn-expressroute-tnalz01"
 Select-AzSubscription -SubscriptionName "viresent New AIRS" -Tenant MngEnv461963.onmicrosoft.com
 
 #- SA North -------------------------------------------------------------------------------------
-$RG = "ER-LTSA-RG"
-$GateWayName = "ER-GateWay-SA-North-Standard" 
-$ER_Circuit_Name = "ER-LIT-SA-North"
+$RG = "southafricanorth-region"
+$GateWayName = "ER-GateWay-southafricanorth-Standard" 
+$ER_Circuit_Name = "ER-LIT-ZAN"
 Get-AzVirtualNetworkGatewayLearnedRoute -ResourceGroupName $RG -VirtualNetworkGatewayname $GateWayName
 Get-AzExpressRouteCircuit -ResourceGroupName $RG -Name $ER_Circuit_Name
 #- SA West -------------------------------------------------------------------------------------
