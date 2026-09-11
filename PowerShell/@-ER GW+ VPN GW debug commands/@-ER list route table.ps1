@@ -21,12 +21,8 @@ Get-AzExpressRouteCircuit -ResourceGroupName $CircuitResourceGroup -Name $ER_Cir
 #- Get Effective Routes -------------------------------------------------------------------------------------
 
 az network nic show-effective-route-table --resource-group AVS-ZA-North --name vm-1-west-us-2765 -o table
-
-
 #- Example
 az network nic show-effective-route-table --resource-group >>>Resource-Group-Name<<< --name >>>VM-NIC-Name<<< -o table
-
-
 ==================================================================================================
 #ExpressRoute Circuit Status and show S-Tag
 ==================================================================================================
@@ -61,19 +57,10 @@ Get-AzVirtualNetworkGatewayLearnedRoute -ResourceGroupName $GatewayResourceGroup
 Get-AzVirtualNetworkGatewayLearnedRoute -ResourceGroupName $GatewayResourceGroup -VirtualNetworkGatewayname $GateWayName | ForEach-Object Network | Measure-Object | Select-Object Count
 
 =======================================================================================================
-#Run2 to see list and count Learned Routes (used VSCode and Claude Sonnet 4.6)
-=======================================================================================================
-$gw = Get-AzVirtualNetworkGateway -ResourceGroupName $GatewayResourceGroup | Where-Object { $_.GatewayType -eq "ExpressRoute" }
-Get-AzVirtualNetworkGatewayLearnedRoute -VirtualNetworkGatewayName $gw.Name -ResourceGroupName $GatewayResourceGroup | Format-Table
-
-
-=======================================================================================================
 #Run to see list and count Learned Routes and Sort by Network
 =======================================================================================================
 Get-AzVirtualNetworkGatewayLearnedRoute -ResourceGroupName $GatewayResourceGroup -VirtualNetworkGatewayName $GateWayName | Sort-Object Network
 Get-AzVirtualNetworkGatewayLearnedRoute -ResourceGroupName $GatewayResourceGroup -VirtualNetworkGatewayName $GateWayName | ForEach-Object Network | Measure-Object | Select-Object Count
-
-
 
 
 =======================================================================================================
@@ -81,14 +68,11 @@ Get-AzVirtualNetworkGatewayLearnedRoute -ResourceGroupName $GatewayResourceGroup
 =======================================================================================================
 Get-AzVirtualNetworkGatewayLearnedRoute -ResourceGroupName $RG -VirtualNetworkGatewayname $GateWayName | Measure-Object | Select-Object Count
 
-
-
 =======================================================================================================
 #Run to get ER primary and Secondary links ARP table 
 =======================================================================================================
 Get-AzExpressRouteCircuitARPTable -ResourceGroupName $CircuitResourceGroup -ExpressRouteCircuitName $ER_Circuit_Name -PeeringType AzurePrivatePeering -DevicePath Primary
 Get-AzExpressRouteCircuitARPTable -ResourceGroupName $CircuitResourceGroup -ExpressRouteCircuitName $ER_Circuit_Name -PeeringType AzurePrivatePeering -DevicePath Secondary
-
 
 
 =======================================================================================================  
