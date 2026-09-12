@@ -1,0 +1,39 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Validate self-provisioning AzFW script",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-n",
+				"Bicep/AIRS-Infra-as-Code/My-Labs/1-MngEnv461963.onmicrosoft.com/AzFW/AzFw-any-subscription/deploy-za-east-firewall-policy-udrs.sh"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "Show vWAN hub default routes",
+			"type": "process",
+			"command": "pwsh",
+			"args": [
+				"-NoLogo",
+				"-NoProfile",
+				"-NonInteractive",
+				"-File",
+				"${workspaceFolder}/PowerShell/vWAN Routetable list/vWAN Routetable list.ps1"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"presentation": {
+				"echo": false,
+				"reveal": "always",
+				"focus": false,
+				"panel": "dedicated",
+				"clear": true,
+				"showReuseMessage": false
+			}
+		}
+	]
+}
