@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 123
+#
 # Deploys the hub + 3 spokes lab (VNets, peerings, 4 Ubuntu VMs,
 # private DNS zone with an A record per VM) into South Africa North.
 #
