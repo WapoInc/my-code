@@ -1,6 +1,6 @@
 ﻿# Use this PSD script to build a VNET with 2 SubNets and 1 VM of Size you select
 #
-# ...
+# ... xxx
 #
 #
 #Connect to your Azure Subscription.
