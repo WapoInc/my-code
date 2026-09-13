@@ -193,7 +193,7 @@ resource firewallRuleCollectionGroup 'Microsoft.Network/firewallPolicies/ruleCol
               '10.70.1.0/24'
             ]
             destinationAddresses: [
-              '0.0.0.0/0'
+              '0.0.0.0'
             ]
             destinationPorts: [
               '*'
