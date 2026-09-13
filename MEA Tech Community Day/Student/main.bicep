@@ -342,7 +342,7 @@ resource azureGatewayPublicIp 'Microsoft.Network/publicIPAddresses@2024-05-01' =
 }
 
 resource onpremGateway 'Microsoft.Network/virtualNetworkGateways@2024-05-01' = {
-  name: 'onprem-gateway'
+  name: 'onprem-vpn-gw'
   location: location
   tags: tags
   properties: {
@@ -373,7 +373,7 @@ resource onpremGateway 'Microsoft.Network/virtualNetworkGateways@2024-05-01' = {
 }
 
 resource azureGateway 'Microsoft.Network/virtualNetworkGateways@2024-05-01' = {
-  name: 'azure-gateway'
+  name: 'azure-vpn-gw'
   location: location
   tags: tags
   properties: {
@@ -404,7 +404,7 @@ resource azureGateway 'Microsoft.Network/virtualNetworkGateways@2024-05-01' = {
 }
 
 resource azureLocalGateway 'Microsoft.Network/localNetworkGateways@2024-05-01' = {
-  name: 'azure-local-gateway'
+  name: 'azure-lng-gw'
   location: location
   tags: tags
   properties: {
@@ -422,7 +422,7 @@ resource azureLocalGateway 'Microsoft.Network/localNetworkGateways@2024-05-01' =
 }
 
 resource onpremLocalGateway 'Microsoft.Network/localNetworkGateways@2024-05-01' = {
-  name: 'onprem-local-gateway'
+  name: 'onprem-lng-gw'
   location: location
   tags: tags
   properties: {
