@@ -1,2 +1,4 @@
 # MEA Networking Lab1
-# Go for it !!!
+
+To fix in Student lab ::
+PSK of both Connections
