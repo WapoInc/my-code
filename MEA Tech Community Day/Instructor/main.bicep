@@ -20,6 +20,13 @@ param vpnSharedKey string
 ])
 param vpnGatewaySku string = 'VpnGw1AZ'
 
+@description('Name of the Log Analytics workspace that receives Azure Firewall logs.')
+param logAnalyticsWorkspaceName string = 'law-mea-tech-community-day'
+
+@description('Log Analytics retention period in days.')
+@minValue(30)
+param logAnalyticsRetentionInDays int = 30
+
 @description('Optional resource tags.')
 param tags object = {
   workload: 'MEA-Tech-Community-Day'
@@ -31,7 +38,6 @@ var azureVnetName = 'azure-vnet'
 var firewallName = 'AzFW'
 var firewallPolicyName = 'AzFW-Policy-01'
 var firewallPublicIpName = 'AzFW-Pub-IP'
-var logAnalyticsWorkspaceName = 'law-mea-tech-community-day'
 var bootDiagnosticsStorageName = 'bootdiag${uniqueString(subscription().id, resourceGroup().id)}'
 
 resource bootDiagnosticsStorage 'Microsoft.Storage/storageAccounts@2023-05-01' = {
@@ -57,7 +63,7 @@ resource logAnalyticsWorkspace 'Microsoft.OperationalInsights/workspaces@2023-09
     features: {
       enableLogAccessUsingOnlyResourcePermissions: true
     }
-    retentionInDays: 30
+    retentionInDays: logAnalyticsRetentionInDays
     sku: {
       name: 'PerGB2018'
     }
@@ -719,7 +725,10 @@ resource azureVm1 'Microsoft.Compute/virtualMachines@2024-03-01' = {
 
 output bootDiagnosticsStorageAccountName string = bootDiagnosticsStorage.name
 output logAnalyticsWorkspaceName string = logAnalyticsWorkspace.name
+output logAnalyticsWorkspaceId string = logAnalyticsWorkspace.id
+output firewallDiagnosticSettingName string = firewallDiagnostics.name
 output networkRuleTableName string = 'AZFWNetworkRule'
+output networkRuleSampleQuery string = 'AZFWNetworkRule | where TimeGenerated > ago(1h) | order by TimeGenerated desc'
 output firewallPrivateIpAddress string = firewall.properties.ipConfigurations[0].properties.privateIPAddress
 output firewallPublicIpAddress string = firewallPublicIp.properties.ipAddress
 output onpremGatewayPublicIpAddress string = onpremGatewayPublicIp.properties.ipAddress

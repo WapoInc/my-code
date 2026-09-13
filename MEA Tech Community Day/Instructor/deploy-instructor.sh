@@ -6,19 +6,16 @@ SCRIPT_START_EPOCH="$(date +%s)"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TEMPLATE_FILE="$SCRIPT_DIR/main.bicep"
-LOG_ANALYTICS_TEMPLATE_FILE="$SCRIPT_DIR/log-analytics.bicep"
 
 SUBSCRIPTION="${AZURE_SUBSCRIPTION:-ME-MngEnvMCAP158201-viresent-1}"
 DEFAULT_RESOURCE_GROUP="${AZURE_RESOURCE_GROUP:-POC-Test-12-45-8-Oct}"
 LOCATION="${AZURE_LOCATION:-southafricanorth}"
 ADMIN_USERNAME="${ADMIN_USERNAME:-adminazure}"
 
-MODE="full"
-case "${1:-}" in
-  --log-analytics-only) MODE="log-analytics-only" ;;
-  "") ;;
-  *) echo "Unknown argument: $1" >&2; exit 1 ;;
-esac
+if [[ -n "${1:-}" ]]; then
+  echo "Unknown argument: $1" >&2
+  exit 1
+fi
 
 for command_name in az python3; do
   if ! command -v "$command_name" >/dev/null 2>&1; then
@@ -36,52 +33,6 @@ az account set --subscription "$SUBSCRIPTION"
 
 read -r -p "Resource group [$DEFAULT_RESOURCE_GROUP]: " RESOURCE_GROUP
 RESOURCE_GROUP="${RESOURCE_GROUP:-$DEFAULT_RESOURCE_GROUP}"
-
-if [[ "$MODE" == "log-analytics-only" ]]; then
-  az group show --name "$RESOURCE_GROUP" --output none || {
-    echo "Resource group not found: $RESOURCE_GROUP" >&2
-    exit 1
-  }
-
-  az network firewall show \
-    --resource-group "$RESOURCE_GROUP" \
-    --name "AzFW" \
-    --output none || {
-      echo "Azure Firewall not found: $RESOURCE_GROUP/AzFW" >&2
-      exit 1
-    }
-
-  echo "Subscription: $SUBSCRIPTION"
-  echo "Resource group: $RESOURCE_GROUP"
-  echo "Location: $LOCATION"
-  echo "Scope: Log Analytics workspace and Azure Firewall network-rule diagnostics only"
-
-  LOG_ANALYTICS_ARGS=(
-    --resource-group "$RESOURCE_GROUP"
-    --template-file "$LOG_ANALYTICS_TEMPLATE_FILE"
-    --parameters location="$LOCATION"
-  )
-
-  az deployment group validate \
-    --name "mea-tech-log-analytics-validate" \
-    "${LOG_ANALYTICS_ARGS[@]}" \
-    --output none
-
-  DEPLOYMENT_NAME="mea-tech-log-analytics-$(date -u +%Y%m%d%H%M%S)"
-  az deployment group create \
-    --name "$DEPLOYMENT_NAME" \
-    "${LOG_ANALYTICS_ARGS[@]}" \
-    --output table
-
-  echo
-  echo "Log Analytics deployment complete. Outputs:"
-  az deployment group show \
-    --resource-group "$RESOURCE_GROUP" \
-    --name "$DEPLOYMENT_NAME" \
-    --query properties.outputs \
-    --output json
-  exit 0
-fi
 
 if [[ -z "${ADMIN_PASSWORD:-}" ]]; then
   read -r -s -p "VM administrator password: " ADMIN_PASSWORD
@@ -131,6 +82,7 @@ echo "Subscription: $SUBSCRIPTION"
 echo "Resource group: $RESOURCE_GROUP"
 echo "Location: $LOCATION"
 echo "VPN gateway SKU: VpnGw1AZ"
+echo "Log Analytics: workspace and AzureFirewallNetworkRule diagnostics included"
 
 az group create \
   --name "$RESOURCE_GROUP" \
@@ -166,11 +118,13 @@ TOTAL_SECONDS=$((SCRIPT_END_EPOCH - SCRIPT_START_EPOCH))
 TOTAL_HOURS=$((TOTAL_SECONDS / 3600))
 TOTAL_MINUTES=$(((TOTAL_SECONDS % 3600) / 60))
 TOTAL_REMAINING_SECONDS=$((TOTAL_SECONDS % 60))
-BOOT_DIAGNOSTICS_STORAGE_ACCOUNT="$(az deployment group show \
+DEPLOYMENT_OUTPUTS="$(az deployment group show \
   --resource-group "$RESOURCE_GROUP" \
   --name "$DEPLOYMENT_NAME" \
-  --query properties.outputs.bootDiagnosticsStorageAccountName.value \
+  --query "[properties.outputs.bootDiagnosticsStorageAccountName.value, properties.outputs.logAnalyticsWorkspaceName.value]" \
   --output tsv)"
+BOOT_DIAGNOSTICS_STORAGE_ACCOUNT="$(cut -f1 <<<"$DEPLOYMENT_OUTPUTS")"
+LOG_ANALYTICS_WORKSPACE="$(cut -f2 <<<"$DEPLOYMENT_OUTPUTS")"
 
 echo
 echo "Total Duration:  ${TOTAL_HOURS}h ${TOTAL_MINUTES}m ${TOTAL_REMAINING_SECONDS}s"
@@ -189,6 +143,7 @@ echo "  6. View VM boot diagnostics in Azure Portal"
 echo "     - Navigate to VM -> Boot diagnostics -> Screenshot/Serial log"
 echo "  7. Monitor VM performance and health"
 echo "  8. Verify UDR BGP propagation settings (should be 'No')"
+echo "  9. Query Azure Firewall network-rule logs in Log Analytics"
 echo "=========================================="
 echo
 echo "VM Boot Diagnostics Access:"
@@ -196,4 +151,12 @@ echo "  - Azure Portal -> Virtual Machines -> [VM Name] -> Boot diagnostics"
 echo "  - View screenshot of VM console"
 echo "  - Download serial log for troubleshooting"
 echo "  - Storage Account: $BOOT_DIAGNOSTICS_STORAGE_ACCOUNT"
+echo "=========================================="
+echo
+echo "Azure Firewall Log Analytics:"
+echo "  - Workspace: $LOG_ANALYTICS_WORKSPACE"
+echo "  - Azure Portal -> Log Analytics workspaces -> $LOG_ANALYTICS_WORKSPACE -> Logs"
+echo "  - Sample query:"
+echo "      AZFWNetworkRule | where TimeGenerated > ago(1h) | order by TimeGenerated desc"
+echo "  - Allow up to 10 minutes after first traffic for logs to appear."
 echo "=========================================="
