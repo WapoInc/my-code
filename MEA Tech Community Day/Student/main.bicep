@@ -11,27 +11,19 @@ param adminUsername string = 'adminazure'
 param adminPassword string
 
 @secure()
-@description('Pre-shared key used by both VPN connections.')
-param vpnSharedKey string
+@description('Pre-shared key for the on-premises-to-Azure VPN connection.')
+param onpremToAzureSharedKey string
 
-@description('Smallest Azure VPN Gateway SKU that supports availability zones.')
-@allowed([
-  'VpnGw1AZ'
-])
-param vpnGatewaySku string = 'VpnGw1AZ'
+@secure()
+@description('Pre-shared key for the Azure-to-on-premises VPN connection.')
+param azureToOnpremSharedKey string
 
 @description('Optional resource tags.')
 param tags object = {
   workload: 'MEA-Tech-Community-Day'
-  environment: 'Lab'
+  environment: 'Student-Lab'
 }
 
-var onpremVnetName = 'onprem-vnet'
-var azureVnetName = 'azure-vnet'
-var firewallName = 'AzFW'
-var firewallPolicyName = 'AzFW-Policy-01'
-var firewallPublicIpName = 'AzFW-Pub-IP'
-var logAnalyticsWorkspaceName = 'law-mea-tech-community-day'
 var bootDiagnosticsStorageName = 'bootdiag${uniqueString(subscription().id, resourceGroup().id)}'
 
 resource bootDiagnosticsStorage 'Microsoft.Storage/storageAccounts@2023-05-01' = {
@@ -49,23 +41,8 @@ resource bootDiagnosticsStorage 'Microsoft.Storage/storageAccounts@2023-05-01' =
   }
 }
 
-resource logAnalyticsWorkspace 'Microsoft.OperationalInsights/workspaces@2023-09-01' = {
-  name: logAnalyticsWorkspaceName
-  location: location
-  tags: tags
-  properties: {
-    features: {
-      enableLogAccessUsingOnlyResourcePermissions: true
-    }
-    retentionInDays: 30
-    sku: {
-      name: 'PerGB2018'
-    }
-  }
-}
-
 resource onpremVnet 'Microsoft.Network/virtualNetworks@2024-05-01' = {
-  name: onpremVnetName
+  name: 'onprem-vnet'
   location: location
   tags: tags
   properties: {
@@ -109,7 +86,7 @@ resource onpremGatewaySubnet 'Microsoft.Network/virtualNetworks/subnets@2024-05-
 }
 
 resource azureVnet 'Microsoft.Network/virtualNetworks@2024-05-01' = {
-  name: azureVnetName
+  name: 'azure-vnet'
   location: location
   tags: tags
   properties: {
@@ -130,7 +107,7 @@ resource azureFirewallSubnet 'Microsoft.Network/virtualNetworks/subnets@2024-05-
 }
 
 resource firewallPublicIp 'Microsoft.Network/publicIPAddresses@2024-05-01' = {
-  name: firewallPublicIpName
+  name: 'AzFW-Pub-IP'
   location: location
   tags: tags
   sku: {
@@ -143,7 +120,7 @@ resource firewallPublicIp 'Microsoft.Network/publicIPAddresses@2024-05-01' = {
 }
 
 resource firewallPolicy 'Microsoft.Network/firewallPolicies@2024-05-01' = {
-  name: firewallPolicyName
+  name: 'AzFW-Policy-01'
   location: location
   tags: tags
   properties: {
@@ -177,7 +154,7 @@ resource firewallRuleCollectionGroup 'Microsoft.Network/firewallPolicies/ruleCol
               'ICMP'
             ]
             sourceAddresses: [
-              '192.168.1.0/24'
+              '192.168.2.0/24'
             ]
             destinationAddresses: [
               '10.70.1.0/24'
@@ -195,7 +172,7 @@ resource firewallRuleCollectionGroup 'Microsoft.Network/firewallPolicies/ruleCol
               'ICMP'
             ]
             sourceAddresses: [
-              '192.168.4.0/24'
+              '192.168.5.0/24'
             ]
             destinationAddresses: [
               '10.70.1.0/24'
@@ -205,7 +182,7 @@ resource firewallRuleCollectionGroup 'Microsoft.Network/firewallPolicies/ruleCol
             ]
           }
           {
-            name: 'Allow-Azure-to-Onprem'
+            name: 'Allow-Azure-to-0-0-0-0'
             ruleType: 'NetworkRule'
             ipProtocols: [
               'TCP'
@@ -216,8 +193,7 @@ resource firewallRuleCollectionGroup 'Microsoft.Network/firewallPolicies/ruleCol
               '10.70.1.0/24'
             ]
             destinationAddresses: [
-              '192.168.1.0/24'
-              '192.168.4.0/24'
+              '0.0.0.0/0'
             ]
             destinationPorts: [
               '*'
@@ -230,7 +206,7 @@ resource firewallRuleCollectionGroup 'Microsoft.Network/firewallPolicies/ruleCol
 }
 
 resource firewall 'Microsoft.Network/azureFirewalls@2024-05-01' = {
-  name: firewallName
+  name: 'AzFW'
   location: location
   tags: tags
   properties: {
@@ -258,32 +234,17 @@ resource firewall 'Microsoft.Network/azureFirewalls@2024-05-01' = {
   }
 }
 
-resource firewallDiagnostics 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = {
-  name: 'send-network-rule-logs-to-log-analytics'
-  scope: firewall
-  properties: {
-    logAnalyticsDestinationType: 'Dedicated'
-    logs: [
-      {
-        category: 'AzureFirewallNetworkRule'
-        enabled: true
-      }
-    ]
-    workspaceId: logAnalyticsWorkspace.id
-  }
-}
-
 resource azureHubRouteTable 'Microsoft.Network/routeTables@2024-05-01' = {
   name: 'azure-subnet-rt'
   location: location
   tags: tags
   properties: {
-    disableBgpRoutePropagation: false
+    disableBgpRoutePropagation: true
     routes: [
       {
         name: 'route-to-onprem-192-168-1-0'
         properties: {
-          addressPrefix: '192.168.1.0/24'
+          addressPrefix: '192.168.2.0/24'
           nextHopType: 'VirtualAppliance'
           nextHopIpAddress: firewall.properties.ipConfigurations[0].properties.privateIPAddress
         }
@@ -291,7 +252,7 @@ resource azureHubRouteTable 'Microsoft.Network/routeTables@2024-05-01' = {
       {
         name: 'route-to-onprem-192-168-4-0'
         properties: {
-          addressPrefix: '192.168.4.0/24'
+          addressPrefix: '192.168.5.0/24'
           nextHopType: 'VirtualAppliance'
           nextHopIpAddress: firewall.properties.ipConfigurations[0].properties.privateIPAddress
         }
@@ -305,12 +266,12 @@ resource azureGatewayRouteTable 'Microsoft.Network/routeTables@2024-05-01' = {
   location: location
   tags: tags
   properties: {
-    disableBgpRoutePropagation: false
+    disableBgpRoutePropagation: true
     routes: [
       {
         name: 'route-to-hub-subnet'
         properties: {
-          addressPrefix: '10.70.1.0/24'
+          addressPrefix: '10.70.2.0/24'
           nextHopType: 'VirtualAppliance'
           nextHopIpAddress: firewall.properties.ipConfigurations[0].properties.privateIPAddress
         }
@@ -345,13 +306,8 @@ resource azureGatewaySubnet 'Microsoft.Network/virtualNetworks/subnets@2024-05-0
 }
 
 resource onpremGatewayPublicIp 'Microsoft.Network/publicIPAddresses@2024-05-01' = {
-  name: 'onprem-gateway-pip-zr'
+  name: 'onprem-gateway-pip'
   location: location
-  zones: [
-    '1'
-    '2'
-    '3'
-  ]
   tags: tags
   sku: {
     name: 'Standard'
@@ -363,13 +319,8 @@ resource onpremGatewayPublicIp 'Microsoft.Network/publicIPAddresses@2024-05-01' 
 }
 
 resource azureGatewayPublicIp 'Microsoft.Network/publicIPAddresses@2024-05-01' = {
-  name: 'azure-gateway-pip-zr'
+  name: 'azure-gateway-pip'
   location: location
-  zones: [
-    '1'
-    '2'
-    '3'
-  ]
   tags: tags
   sku: {
     name: 'Standard'
@@ -389,8 +340,8 @@ resource onpremGateway 'Microsoft.Network/virtualNetworkGateways@2024-05-01' = {
     enableBgp: false
     gatewayType: 'Vpn'
     sku: {
-      name: vpnGatewaySku
-      tier: vpnGatewaySku
+      name: 'VpnGw1'
+      tier: 'VpnGw1'
     }
     vpnGatewayGeneration: 'Generation1'
     vpnType: 'RouteBased'
@@ -420,8 +371,8 @@ resource azureGateway 'Microsoft.Network/virtualNetworkGateways@2024-05-01' = {
     enableBgp: false
     gatewayType: 'Vpn'
     sku: {
-      name: vpnGatewaySku
-      tier: vpnGatewaySku
+      name: 'VpnGw1'
+      tier: 'VpnGw1'
     }
     vpnGatewayGeneration: 'Generation1'
     vpnType: 'RouteBased'
@@ -467,8 +418,7 @@ resource onpremLocalGateway 'Microsoft.Network/localNetworkGateways@2024-05-01' 
     gatewayIpAddress: onpremGatewayPublicIp.properties.ipAddress
     localNetworkAddressSpace: {
       addressPrefixes: [
-        '192.168.0.0/22'
-        '192.168.4.0/22'
+        '192.168.8.0/22'
       ]
     }
   }
@@ -487,7 +437,7 @@ resource onpremToAzureConnection 'Microsoft.Network/connections@2024-05-01' = {
       id: azureLocalGateway.id
       properties: {}
     }
-    sharedKey: vpnSharedKey
+    sharedKey: onpremToAzureSharedKey
     virtualNetworkGateway1: {
       id: onpremGateway.id
       properties: {}
@@ -505,7 +455,7 @@ resource azureToOnpremConnection 'Microsoft.Network/connections@2024-05-01' = {
       id: onpremLocalGateway.id
       properties: {}
     }
-    sharedKey: vpnSharedKey
+    sharedKey: azureToOnpremSharedKey
     virtualNetworkGateway1: {
       id: azureGateway.id
       properties: {}
@@ -718,10 +668,7 @@ resource azureVm1 'Microsoft.Compute/virtualMachines@2024-03-01' = {
 }
 
 output bootDiagnosticsStorageAccountName string = bootDiagnosticsStorage.name
-output logAnalyticsWorkspaceName string = logAnalyticsWorkspace.name
-output networkRuleTableName string = 'AZFWNetworkRule'
 output firewallPrivateIpAddress string = firewall.properties.ipConfigurations[0].properties.privateIPAddress
 output firewallPublicIpAddress string = firewallPublicIp.properties.ipAddress
 output onpremGatewayPublicIpAddress string = onpremGatewayPublicIp.properties.ipAddress
 output azureGatewayPublicIpAddress string = azureGatewayPublicIp.properties.ipAddress
-output vpnGatewaySkuName string = vpnGatewaySku
