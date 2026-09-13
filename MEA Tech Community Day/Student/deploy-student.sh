@@ -156,6 +156,77 @@ case "$MODE" in
     ;;
 esac
 
+legacy_gateway_exists=false
+for legacy_gateway_name in onprem-gateway azure-gateway; do
+  if az network vnet-gateway show \
+    --resource-group "$RESOURCE_GROUP" \
+    --name "$legacy_gateway_name" \
+    --output none 2>/dev/null; then
+    legacy_gateway_exists=true
+  fi
+done
+
+legacy_lng_exists=false
+for legacy_lng_name in onprem-local-gateway azure-local-gateway; do
+  if az network local-gateway show \
+    --resource-group "$RESOURCE_GROUP" \
+    --name "$legacy_lng_name" \
+    --output none 2>/dev/null; then
+    legacy_lng_exists=true
+  fi
+done
+
+if [[ "$legacy_gateway_exists" == "true" || "$legacy_lng_exists" == "true" ]]; then
+  echo
+  echo "Removing legacy gateway resources that conflict with the renamed deployment..."
+
+  while IFS=$'\t' read -r connection_name virtual_gateway_id local_gateway_id; do
+    if [[ -z "$connection_name" ]]; then
+      continue
+    fi
+
+    if [[ "$virtual_gateway_id" == */virtualNetworkGateways/onprem-gateway ||
+      "$virtual_gateway_id" == */virtualNetworkGateways/azure-gateway ||
+      "$local_gateway_id" == */localNetworkGateways/onprem-local-gateway ||
+      "$local_gateway_id" == */localNetworkGateways/azure-local-gateway ]]; then
+      echo "Deleting legacy VPN connection: $connection_name"
+      az network vpn-connection delete \
+        --resource-group "$RESOURCE_GROUP" \
+        --name "$connection_name" \
+        --output none
+    fi
+  done < <(az network vpn-connection list \
+    --resource-group "$RESOURCE_GROUP" \
+    --query "[].[name, virtualNetworkGateway1.id, localNetworkGateway2.id]" \
+    --output tsv)
+
+  for legacy_gateway_name in onprem-gateway azure-gateway; do
+    if az network vnet-gateway show \
+      --resource-group "$RESOURCE_GROUP" \
+      --name "$legacy_gateway_name" \
+      --output none 2>/dev/null; then
+      echo "Deleting legacy VPN gateway: $legacy_gateway_name"
+      az network vnet-gateway delete \
+        --resource-group "$RESOURCE_GROUP" \
+        --name "$legacy_gateway_name" \
+        --output none
+    fi
+  done
+
+  for legacy_lng_name in onprem-local-gateway azure-local-gateway; do
+    if az network local-gateway show \
+      --resource-group "$RESOURCE_GROUP" \
+      --name "$legacy_lng_name" \
+      --output none 2>/dev/null; then
+      echo "Deleting legacy local network gateway: $legacy_lng_name"
+      az network local-gateway delete \
+        --resource-group "$RESOURCE_GROUP" \
+        --name "$legacy_lng_name" \
+        --output none
+    fi
+  done
+fi
+
 az deployment group validate "${COMMON_ARGS[@]}" --output none
 
 DEPLOYMENT_NAME="mea-tech-student-$(date -u +%Y%m%d%H%M%S)"
