@@ -12,7 +12,6 @@ SUBSCRIPTION="${AZURE_SUBSCRIPTION:-ME-MngEnvMCAP158201-viresent-1}"
 DEFAULT_RESOURCE_GROUP="${AZURE_RESOURCE_GROUP:-POC-Test-12-45-8-Oct}"
 LOCATION="${AZURE_LOCATION:-southafricanorth}"
 ADMIN_USERNAME="${ADMIN_USERNAME:-adminazure}"
-AUTO_APPROVE="${AUTO_APPROVE:-false}"
 
 MODE="full"
 case "${1:-}" in
@@ -69,18 +68,10 @@ if [[ "$MODE" == "log-analytics-only" ]]; then
     --output none
 
   DEPLOYMENT_NAME="mea-tech-log-analytics-$(date -u +%Y%m%d%H%M%S)"
-  if [[ "$AUTO_APPROVE" == "true" ]]; then
-    az deployment group create \
-      --name "$DEPLOYMENT_NAME" \
-      "${LOG_ANALYTICS_ARGS[@]}" \
-      --output table
-  else
-    az deployment group create \
-      --name "$DEPLOYMENT_NAME" \
-      "${LOG_ANALYTICS_ARGS[@]}" \
-      --confirm-with-what-if \
-      --output table
-  fi
+  az deployment group create \
+    --name "$DEPLOYMENT_NAME" \
+    "${LOG_ANALYTICS_ARGS[@]}" \
+    --output table
 
   echo
   echo "Log Analytics deployment complete. Outputs:"
@@ -161,11 +152,7 @@ DEPLOYMENT_ARGS=(
   --parameters "@$PARAMETERS_FILE"
 )
 
-if [[ "$AUTO_APPROVE" == "true" ]]; then
-  az deployment group create "${DEPLOYMENT_ARGS[@]}" --output table
-else
-  az deployment group create "${DEPLOYMENT_ARGS[@]}" --confirm-with-what-if --output table
-fi
+az deployment group create "${DEPLOYMENT_ARGS[@]}" --output table
 
 echo
 echo "Deployment complete. Resource inventory:"
