@@ -308,6 +308,11 @@ resource azureGatewaySubnet 'Microsoft.Network/virtualNetworks/subnets@2024-05-0
 resource onpremGatewayPublicIp 'Microsoft.Network/publicIPAddresses@2024-05-01' = {
   name: 'onprem-gateway-pip'
   location: location
+  zones: [
+    '1'
+    '2'
+    '3'
+  ]
   tags: tags
   sku: {
     name: 'Standard'
@@ -321,6 +326,11 @@ resource onpremGatewayPublicIp 'Microsoft.Network/publicIPAddresses@2024-05-01' 
 resource azureGatewayPublicIp 'Microsoft.Network/publicIPAddresses@2024-05-01' = {
   name: 'azure-gateway-pip'
   location: location
+  zones: [
+    '1'
+    '2'
+    '3'
+  ]
   tags: tags
   sku: {
     name: 'Standard'
@@ -340,8 +350,8 @@ resource onpremGateway 'Microsoft.Network/virtualNetworkGateways@2024-05-01' = {
     enableBgp: false
     gatewayType: 'Vpn'
     sku: {
-      name: 'VpnGw1'
-      tier: 'VpnGw1'
+      name: 'VpnGw1AZ'
+      tier: 'VpnGw1AZ'
     }
     vpnGatewayGeneration: 'Generation1'
     vpnType: 'RouteBased'
@@ -371,8 +381,8 @@ resource azureGateway 'Microsoft.Network/virtualNetworkGateways@2024-05-01' = {
     enableBgp: false
     gatewayType: 'Vpn'
     sku: {
-      name: 'VpnGw1'
-      tier: 'VpnGw1'
+      name: 'VpnGw1AZ'
+      tier: 'VpnGw1AZ'
     }
     vpnGatewayGeneration: 'Generation1'
     vpnType: 'RouteBased'
@@ -406,6 +416,7 @@ resource azureLocalGateway 'Microsoft.Network/localNetworkGateways@2024-05-01' =
     }
   }
   dependsOn: [
+    onpremGateway
     azureGateway
   ]
 }
@@ -424,6 +435,7 @@ resource onpremLocalGateway 'Microsoft.Network/localNetworkGateways@2024-05-01' 
   }
   dependsOn: [
     onpremGateway
+    azureGateway
   ]
 }
 
@@ -443,6 +455,9 @@ resource onpremToAzureConnection 'Microsoft.Network/connections@2024-05-01' = {
       properties: {}
     }
   }
+  dependsOn: [
+    onpremLocalGateway
+  ]
 }
 
 resource azureToOnpremConnection 'Microsoft.Network/connections@2024-05-01' = {
@@ -461,6 +476,9 @@ resource azureToOnpremConnection 'Microsoft.Network/connections@2024-05-01' = {
       properties: {}
     }
   }
+  dependsOn: [
+    azureLocalGateway
+  ]
 }
 
 resource onpremVm1Nic 'Microsoft.Network/networkInterfaces@2024-05-01' = {

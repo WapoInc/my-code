@@ -8,7 +8,24 @@ TEMPLATE_FILE="${TEMPLATE_FILE:-$SCRIPT_DIR/main.bicep}"
 DEFAULT_RESOURCE_GROUP="${AZURE_RESOURCE_GROUP:-POC-MEA-Comm-Day-Student}"
 LOCATION="${AZURE_LOCATION:-southafricanorth}"
 ADMIN_USERNAME="${ADMIN_USERNAME:-adminazure}"
-AUTO_APPROVE="${AUTO_APPROVE:-false}"
+ONPREM_TO_AZURE_SHARED_KEY='S2SPSK123!'
+AZURE_TO_ONPREM_SHARED_KEY='azurepsk123!'
+
+subscription_labels=(
+  "MngEnv461963 (5cba78fe tenant)"
+  "MngEnvMCAP056429 (b91a5236 tenant)"
+  "MngEnvMCAP158201 (2b8e427b tenant)"
+)
+subscription_ids=(
+  "0cfd0d2a-2b38-4c93-ba14-cf79185bc683"
+  "29df7078-c53c-4638-81c1-e4bc8566d423"
+  "2ac21ef0-69db-49ec-a554-2cac36ec75f4"
+)
+subscription_tenants=(
+  "5cba78fe-cc40-479a-9ee1-255423641bc9"
+  "b91a5236-cd06-4bc7-889b-db71c19230ae"
+  "2b8e427b-9e78-4589-9338-f870c84292ca"
+)
 
 MODE="deploy"
 case "${1:-}" in
@@ -30,48 +47,40 @@ if [[ ! -f "$TEMPLATE_FILE" ]]; then
   exit 1
 fi
 
-CURRENT_TENANT=""
-CURRENT_SUBSCRIPTION=""
-if az account show >/dev/null 2>&1; then
-  CURRENT_TENANT="$(az account show --query tenantId --output tsv)"
-  CURRENT_SUBSCRIPTION="$(az account show --query id --output tsv)"
-fi
-
-DEFAULT_TENANT="${AZURE_TENANT_ID:-$CURRENT_TENANT}"
-read -r -p "Tenant ID${DEFAULT_TENANT:+ [$DEFAULT_TENANT]}: " TENANT_INPUT
-TENANT_ID="${TENANT_INPUT:-$DEFAULT_TENANT}"
-
-if [[ -z "$CURRENT_TENANT" || ( -n "$TENANT_ID" && "$TENANT_ID" != "$CURRENT_TENANT" ) ]]; then
-  if [[ -n "$TENANT_ID" ]]; then
-    az login --tenant "$TENANT_ID" --output none
-  else
-    az login --output none
-  fi
-fi
-
-TENANT_ID="${TENANT_ID:-$(az account show --query tenantId --output tsv)}"
-
 echo
-echo "Subscriptions available in tenant $TENANT_ID:"
-az account list \
-  --query "[?tenantId=='$TENANT_ID'].{Name:name, Subscription:id, Default:isDefault}" \
-  --output table
+echo "Select the Azure subscription for this deployment:"
+PS3="Enter selection (1-${#subscription_ids[@]}): "
 
-CURRENT_SUBSCRIPTION="$(az account show --query id --output tsv)"
-DEFAULT_SUBSCRIPTION="${AZURE_SUBSCRIPTION_ID:-${AZURE_SUBSCRIPTION:-$CURRENT_SUBSCRIPTION}}"
-read -r -p "Subscription name or ID [$DEFAULT_SUBSCRIPTION]: " SUBSCRIPTION_INPUT
-SUBSCRIPTION="${SUBSCRIPTION_INPUT:-$DEFAULT_SUBSCRIPTION}"
+selected_index=""
+select selected_label in "${subscription_labels[@]}" "Cancel"; do
+  if [[ "$selected_label" == "Cancel" ]]; then
+    echo "Deployment cancelled."
+    exit 0
+  fi
 
-if [[ -z "$SUBSCRIPTION" ]]; then
-  echo "A subscription name or ID is required." >&2
-  exit 1
+  if [[ -n "$selected_label" && "$REPLY" =~ ^[0-9]+$ ]] &&
+    (( REPLY >= 1 && REPLY <= ${#subscription_ids[@]} )); then
+    selected_index=$((REPLY - 1))
+    break
+  fi
+
+  echo "Invalid selection. Choose a number from 1 to $((${#subscription_ids[@]} + 1))."
+done
+
+selected_subscription_id="${subscription_ids[$selected_index]}"
+selected_tenant_id="${subscription_tenants[$selected_index]}"
+
+if ! az account show --subscription "$selected_subscription_id" >/dev/null 2>&1; then
+  echo "Signing in to tenant $selected_tenant_id..."
+  az login --tenant "$selected_tenant_id" --output none
 fi
 
-az account set --subscription "$SUBSCRIPTION"
+az account set --subscription "$selected_subscription_id"
 
-SELECTED_TENANT="$(az account show --query tenantId --output tsv)"
-if [[ "$SELECTED_TENANT" != "$TENANT_ID" ]]; then
-  echo "The selected subscription is not in tenant $TENANT_ID." >&2
+TENANT_ID="$(az account show --query tenantId --output tsv)"
+SUBSCRIPTION_ID="$(az account show --query id --output tsv)"
+if [[ "$TENANT_ID" != "$selected_tenant_id" || "$SUBSCRIPTION_ID" != "$selected_subscription_id" ]]; then
+  echo "Azure CLI did not switch to the selected tenant and subscription." >&2
   exit 1
 fi
 
@@ -83,23 +92,8 @@ if [[ -z "${ADMIN_PASSWORD:-}" ]]; then
   echo
 fi
 
-if [[ -z "${ONPREM_TO_AZURE_SHARED_KEY:-}" ]]; then
-  read -r -s -p "On-premises-to-Azure VPN shared key: " ONPREM_TO_AZURE_SHARED_KEY
-  echo
-fi
-
-if [[ -z "${AZURE_TO_ONPREM_SHARED_KEY:-}" ]]; then
-  read -r -s -p "Azure-to-on-premises VPN shared key: " AZURE_TO_ONPREM_SHARED_KEY
-  echo
-fi
-
 if [[ ${#ADMIN_PASSWORD} -lt 12 ]]; then
   echo "ADMIN_PASSWORD must be at least 12 characters." >&2
-  exit 1
-fi
-
-if [[ -z "$ONPREM_TO_AZURE_SHARED_KEY" || -z "$AZURE_TO_ONPREM_SHARED_KEY" ]]; then
-  echo "Both VPN shared keys are required." >&2
   exit 1
 fi
 
@@ -170,11 +164,7 @@ DEPLOYMENT_ARGS=(
   "${COMMON_ARGS[@]}"
 )
 
-if [[ "$AUTO_APPROVE" == "true" ]]; then
-  az deployment group create "${DEPLOYMENT_ARGS[@]}" --output table
-else
-  az deployment group create "${DEPLOYMENT_ARGS[@]}" --confirm-with-what-if --output table
-fi
+az deployment group create "${DEPLOYMENT_ARGS[@]}" --output table
 
 echo
 echo "Deployment complete. Outputs:"
