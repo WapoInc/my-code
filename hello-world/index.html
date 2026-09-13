@@ -3,9 +3,18 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Hello World</title>
+  <title>Happy Sunday</title>
   <style>
-    :root { color-scheme: light dark; }
+    :root {
+      color-scheme: light;
+      --ink: #3b2417;
+      --sun: #ffd166;
+      --sun-deep: #f78c3d;
+      --sky-top: #5f8fc4;
+      --sky-middle: #f3a978;
+      --sky-low: #ffe4a8;
+    }
+    * { box-sizing: border-box; }
     body {
       margin: 0;
       min-height: 100vh;
@@ -13,85 +22,92 @@
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-      background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);
-      color: #fff;
+      padding: 2rem 1rem;
+      overflow: hidden;
+      font-family: Georgia, "Times New Roman", serif;
+      background: linear-gradient(180deg, var(--sky-top) 0%, var(--sky-middle) 48%, var(--sky-low) 100%);
+      color: var(--ink);
     }
     h1 {
       font-size: clamp(2.5rem, 8vw, 5rem);
-      margin: 0;
-      color: orange;
-      text-decoration: underline;
+      margin: 0 0 0.35rem;
+      color: #fff8e8;
+      letter-spacing: 0;
+      text-shadow: 0 3px 18px rgba(86, 42, 22, 0.28);
     }
     p {
-      font-size: 1.1rem;
-      opacity: 0.85;
+      margin: 0;
+      font-family: "Trebuchet MS", sans-serif;
+      font-size: clamp(1rem, 2.5vw, 1.25rem);
+      color: #56351f;
     }
-    .datacenter {
-      width: clamp(180px, 40vw, 320px);
+    .sunrise {
+      width: min(680px, 92vw);
       height: auto;
-      margin-top: 2rem;
+      margin-top: 1.75rem;
+      filter: drop-shadow(0 16px 24px rgba(91, 51, 29, 0.18));
     }
     .box {
-      border: 3px solid red;
-      border-radius: 8px;
-      padding: 2rem;
+      width: min(760px, 100%);
       display: flex;
       flex-direction: column;
       align-items: center;
+      text-align: center;
+      animation: arrive 900ms ease-out both;
+    }
+    .sun-disc {
+      transform-origin: 320px 220px;
+      animation: glow 4s ease-in-out infinite alternate;
+    }
+    @keyframes arrive {
+      from { opacity: 0; transform: translateY(18px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes glow {
+      to { transform: scale(1.035); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .box, .sun-disc { animation: none; }
     }
   </style>
 </head>
 <body>
   <div class="box">
-  <h1>Hello, World!</h1>
-  <p>Shemo-Welcome to my simple website.</p>
+    <h1>Happy Sunday</h1>
+    <p>A fresh morning, a quiet sky, and a beautiful day ahead.</p>
 
-  <svg class="datacenter" viewBox="0 0 240 160" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Data center with server racks">
-    <!-- floor -->
-    <line x1="10" y1="150" x2="230" y2="150" stroke="rgba(255,255,255,0.5)" stroke-width="2"/>
-
-    <!-- three server racks -->
-    <g fill="#1f2937" stroke="orange" stroke-width="2">
-      <rect x="30"  y="40" width="45" height="110" rx="4"/>
-      <rect x="98"  y="40" width="45" height="110" rx="4"/>
-      <rect x="166" y="40" width="45" height="110" rx="4"/>
-    </g>
-
-    <!-- rack units + status lights -->
-    <g>
-      <g fill="#374151">
-        <rect x="36"  y="48" width="33" height="10" rx="2"/>
-        <rect x="36"  y="64" width="33" height="10" rx="2"/>
-        <rect x="36"  y="80" width="33" height="10" rx="2"/>
-        <rect x="36"  y="96" width="33" height="10" rx="2"/>
-        <rect x="36"  y="112" width="33" height="10" rx="2"/>
-        <rect x="36"  y="128" width="33" height="10" rx="2"/>
-
-        <rect x="104" y="48" width="33" height="10" rx="2"/>
-        <rect x="104" y="64" width="33" height="10" rx="2"/>
-        <rect x="104" y="80" width="33" height="10" rx="2"/>
-        <rect x="104" y="96" width="33" height="10" rx="2"/>
-        <rect x="104" y="112" width="33" height="10" rx="2"/>
-        <rect x="104" y="128" width="33" height="10" rx="2"/>
-
-        <rect x="172" y="48" width="33" height="10" rx="2"/>
-        <rect x="172" y="64" width="33" height="10" rx="2"/>
-        <rect x="172" y="80" width="33" height="10" rx="2"/>
-        <rect x="172" y="96" width="33" height="10" rx="2"/>
-        <rect x="172" y="112" width="33" height="10" rx="2"/>
-        <rect x="172" y="128" width="33" height="10" rx="2"/>
+    <svg class="sunrise" viewBox="0 0 640 360" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Sun rising over layered hills and a calm lake">
+      <defs>
+        <linearGradient id="lake" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#f6bc83"/>
+          <stop offset="1" stop-color="#4e91a6"/>
+        </linearGradient>
+        <radialGradient id="sunGlow">
+          <stop offset="0.45" stop-color="#fff7bd"/>
+          <stop offset="1" stop-color="#ffd166" stop-opacity="0"/>
+        </radialGradient>
+        <clipPath id="scene">
+          <rect width="640" height="360" rx="8"/>
+        </clipPath>
+      </defs>
+      <g clip-path="url(#scene)">
+        <rect width="640" height="360" fill="#efb184"/>
+        <circle class="sun-disc" cx="320" cy="220" r="92" fill="url(#sunGlow)"/>
+        <circle cx="320" cy="220" r="48" fill="#fff1a8"/>
+        <path d="M0 228 C82 178 148 207 210 181 C270 156 326 203 386 174 C464 137 529 197 640 161 V280 H0Z" fill="#687d70"/>
+        <path d="M0 247 C90 198 160 253 251 210 C337 170 401 246 484 202 C544 170 588 194 640 181 V286 H0Z" fill="#3f665d"/>
+        <path d="M0 266 C92 232 167 279 254 242 C348 202 435 281 519 231 C562 205 601 214 640 222 V300 H0Z" fill="#244f4b"/>
+        <rect y="270" width="640" height="90" fill="url(#lake)"/>
+        <path d="M246 282 Q320 271 394 282 Q320 291 246 282Z" fill="#ffe9a4" opacity="0.8"/>
+        <path d="M204 304 Q320 291 436 304 Q320 316 204 304Z" fill="#ffd58b" opacity="0.55"/>
+        <path d="M150 332 Q320 316 490 332 Q320 346 150 332Z" fill="#f4c486" opacity="0.3"/>
+        <g fill="none" stroke="#594231" stroke-width="3" stroke-linecap="round">
+          <path d="M88 104 q10 -10 20 0 q10 -10 20 0"/>
+          <path d="M500 85 q9 -9 18 0 q9 -9 18 0"/>
+          <path d="M548 126 q7 -7 14 0 q7 -7 14 0"/>
+        </g>
       </g>
-      <g fill="#4ade80">
-        <circle cx="41" cy="53" r="2"/><circle cx="41" cy="69" r="2"/><circle cx="41" cy="85" r="2"/>
-        <circle cx="41" cy="101" r="2"/><circle cx="41" cy="117" r="2"/><circle cx="41" cy="133" r="2"/>
-        <circle cx="109" cy="53" r="2"/><circle cx="109" cy="69" r="2"/><circle cx="109" cy="85" r="2"/>
-        <circle cx="109" cy="101" r="2"/><circle cx="109" cy="117" r="2"/><circle cx="109" cy="133" r="2"/>
-        <circle cx="177" cy="53" r="2"/><circle cx="177" cy="69" r="2"/><circle cx="177" cy="85" r="2"/>
-        <circle cx="177" cy="101" r="2"/><circle cx="177" cy="117" r="2"/><circle cx="177" cy="133" r="2"/>
-      </g>
-    </g>
-  </svg>
+    </svg>
   </div>
 </body>
 </html>
