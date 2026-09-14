@@ -26,6 +26,18 @@ param tags object = {
 
 var bootDiagnosticsStorageName = 'bootdiag${uniqueString(subscription().id, resourceGroup().id)}'
 
+resource logAnalyticsWorkspace 'Microsoft.OperationalInsights/workspaces@2023-09-01' = {
+  name: 'law-mea-tech-student'
+  location: location
+  tags: tags
+  properties: {
+    sku: {
+      name: 'PerGB2018'
+    }
+    retentionInDays: 30
+  }
+}
+
 resource bootDiagnosticsStorage 'Microsoft.Storage/storageAccounts@2023-05-01' = {
   name: bootDiagnosticsStorageName
   location: location
@@ -83,6 +95,55 @@ resource onpremGatewaySubnet 'Microsoft.Network/virtualNetworks/subnets@2024-05-
   dependsOn: [
     onpremSubnet4
   ]
+}
+
+resource onpremBastionSubnet 'Microsoft.Network/virtualNetworks/subnets@2024-05-01' = {
+  parent: onpremVnet
+  name: 'AzureBastionSubnet'
+  properties: {
+    addressPrefix: '192.168.3.0/26'
+  }
+  dependsOn: [
+    onpremGatewaySubnet
+  ]
+}
+
+resource onpremBastionPublicIp 'Microsoft.Network/publicIPAddresses@2024-05-01' = {
+  name: 'onprem-bastion-pip'
+  location: location
+  tags: tags
+  sku: {
+    name: 'Standard'
+  }
+  properties: {
+    publicIPAllocationMethod: 'Static'
+    publicIPAddressVersion: 'IPv4'
+  }
+}
+
+resource onpremBastionHost 'Microsoft.Network/bastionHosts@2024-05-01' = {
+  name: 'onprem-bastion'
+  location: location
+  tags: tags
+  sku: {
+    name: 'Standard'
+  }
+  properties: {
+    enableShareableLink: true
+    ipConfigurations: [
+      {
+        name: 'bastionIpConfig'
+        properties: {
+          subnet: {
+            id: onpremBastionSubnet.id
+          }
+          publicIPAddress: {
+            id: onpremBastionPublicIp.id
+          }
+        }
+      }
+    ]
+  }
 }
 
 resource azureVnet 'Microsoft.Network/virtualNetworks@2024-05-01' = {
@@ -231,6 +292,70 @@ resource firewall 'Microsoft.Network/azureFirewalls@2024-05-01' = {
       tier: 'Standard'
     }
     threatIntelMode: 'Alert'
+  }
+}
+
+resource firewallDiagnosticSettings 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = {
+  scope: firewall
+  name: 'AzFW-diagnostics'
+  properties: {
+    workspaceId: logAnalyticsWorkspace.id
+    logs: [
+      {
+        category: 'AZFWNetworkRule'
+        enabled: true
+      }
+      {
+        category: 'AZFWApplicationRule'
+        enabled: true
+      }
+      {
+        category: 'AZFWNatRule'
+        enabled: true
+      }
+      {
+        category: 'AZFWThreatIntel'
+        enabled: true
+      }
+      {
+        category: 'AZFWIdpsSignature'
+        enabled: true
+      }
+      {
+        category: 'AZFWDnsQuery'
+        enabled: true
+      }
+      {
+        category: 'AZFWFqdnResolveFailure'
+        enabled: true
+      }
+      {
+        category: 'AZFWFatFlow'
+        enabled: true
+      }
+      {
+        category: 'AZFWFlowTrace'
+        enabled: true
+      }
+      {
+        category: 'AZFWApplicationRuleAggregation'
+        enabled: true
+      }
+      {
+        category: 'AZFWNetworkRuleAggregation'
+        enabled: true
+      }
+      {
+        category: 'AZFWNatRuleAggregation'
+        enabled: true
+      }
+    ]
+    metrics: [
+      {
+        category: 'AllMetrics'
+        enabled: true
+      }
+    ]
   }
 }
 
@@ -688,5 +813,7 @@ resource azureVm1 'Microsoft.Compute/virtualMachines@2024-03-01' = {
 output bootDiagnosticsStorageAccountName string = bootDiagnosticsStorage.name
 output firewallPrivateIpAddress string = firewall.properties.ipConfigurations[0].properties.privateIPAddress
 output firewallPublicIpAddress string = firewallPublicIp.properties.ipAddress
+output logAnalyticsWorkspaceName string = logAnalyticsWorkspace.name
 output onpremGatewayPublicIpAddress string = onpremGatewayPublicIp.properties.ipAddress
 output azureGatewayPublicIpAddress string = azureGatewayPublicIp.properties.ipAddress
+output onpremBastionHostName string = onpremBastionHost.name
