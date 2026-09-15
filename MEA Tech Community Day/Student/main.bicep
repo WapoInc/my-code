@@ -300,6 +300,7 @@ resource firewallDiagnosticSettings 'Microsoft.Insights/diagnosticSettings@2021-
   name: 'AzFW-diagnostics'
   properties: {
     workspaceId: logAnalyticsWorkspace.id
+    logAnalyticsDestinationType: 'Dedicated'
     logs: [
       {
         category: 'AZFWNetworkRule'
@@ -392,16 +393,6 @@ resource azureGatewayRouteTable 'Microsoft.Network/routeTables@2024-05-01' = {
   tags: tags
   properties: {
     disableBgpRoutePropagation: true
-    routes: [
-      {
-        name: 'route-to-hub-subnet'
-        properties: {
-          addressPrefix: '10.70.2.0/24'
-          nextHopType: 'VirtualAppliance'
-          nextHopIpAddress: firewall.properties.ipConfigurations[0].properties.privateIPAddress
-        }
-      }
-    ]
   }
 }
 
@@ -416,6 +407,17 @@ resource azureHubSubnet 'Microsoft.Network/virtualNetworks/subnets@2024-05-01' =
   }
 }
 
+resource azureVm2Subnet 'Microsoft.Network/virtualNetworks/subnets@2024-05-01' = {
+  parent: azureVnet
+  name: 'azure-vm2-subnet'
+  properties: {
+    addressPrefix: '10.70.2.0/24'
+  }
+  dependsOn: [
+    azureHubSubnet
+  ]
+}
+
 resource azureGatewaySubnet 'Microsoft.Network/virtualNetworks/subnets@2024-05-01' = {
   parent: azureVnet
   name: 'GatewaySubnet'
@@ -426,7 +428,7 @@ resource azureGatewaySubnet 'Microsoft.Network/virtualNetworks/subnets@2024-05-0
     }
   }
   dependsOn: [
-    azureHubSubnet
+    azureVm2Subnet
   ]
 }
 
@@ -663,6 +665,25 @@ resource azureVm1Nic 'Microsoft.Network/networkInterfaces@2024-05-01' = {
   }
 }
 
+resource azureVm2Nic 'Microsoft.Network/networkInterfaces@2024-05-01' = {
+  name: 'azure-vm2-nic'
+  location: location
+  tags: tags
+  properties: {
+    ipConfigurations: [
+      {
+        name: 'ipconfig1'
+        properties: {
+          privateIPAllocationMethod: 'Dynamic'
+          subnet: {
+            id: azureVm2Subnet.id
+          }
+        }
+      }
+    ]
+  }
+}
+
 resource onpremVm1 'Microsoft.Compute/virtualMachines@2024-03-01' = {
   name: 'onprem-vm1'
   location: location
@@ -789,6 +810,55 @@ resource azureVm1 'Microsoft.Compute/virtualMachines@2024-03-01' = {
       adminPassword: adminPassword
       adminUsername: adminUsername
       computerName: 'azure-vm1'
+      linuxConfiguration: {
+        disablePasswordAuthentication: false
+      }
+    }
+    storageProfile: {
+      imageReference: {
+        offer: '0001-com-ubuntu-server-jammy'
+        publisher: 'Canonical'
+        sku: '22_04-lts-gen2'
+        version: 'latest'
+      }
+      osDisk: {
+        createOption: 'FromImage'
+        managedDisk: {
+          storageAccountType: 'Standard_LRS'
+        }
+      }
+    }
+  }
+}
+
+resource azureVm2 'Microsoft.Compute/virtualMachines@2024-03-01' = {
+  name: 'azure-vm2'
+  location: location
+  tags: tags
+  properties: {
+    diagnosticsProfile: {
+      bootDiagnostics: {
+        enabled: true
+        storageUri: bootDiagnosticsStorage.properties.primaryEndpoints.blob
+      }
+    }
+    hardwareProfile: {
+      vmSize: 'Standard_B2s'
+    }
+    networkProfile: {
+      networkInterfaces: [
+        {
+          id: azureVm2Nic.id
+          properties: {
+            primary: true
+          }
+        }
+      ]
+    }
+    osProfile: {
+      adminPassword: adminPassword
+      adminUsername: adminUsername
+      computerName: 'azure-vm2'
       linuxConfiguration: {
         disablePasswordAuthentication: false
       }
