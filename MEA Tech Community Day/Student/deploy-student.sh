@@ -87,6 +87,16 @@ fi
 read -r -p "Resource group [$DEFAULT_RESOURCE_GROUP]: " RESOURCE_GROUP_INPUT
 RESOURCE_GROUP="${RESOURCE_GROUP_INPUT:-$DEFAULT_RESOURCE_GROUP}"
 
+if [[ "$(az group exists --name "$RESOURCE_GROUP" --output tsv)" == "true" ]]; then
+  echo "Using existing resource group: $RESOURCE_GROUP"
+else
+  echo "Creating resource group: $RESOURCE_GROUP ($LOCATION)"
+  az group create \
+    --name "$RESOURCE_GROUP" \
+    --location "$LOCATION" \
+    --output none
+fi
+
 if [[ -z "${ADMIN_PASSWORD:-}" ]]; then
   read -r -s -p "VM administrator password: " ADMIN_PASSWORD
   echo
@@ -133,11 +143,6 @@ echo "Tenant:         $TENANT_ID"
 echo "Subscription:   $SUBSCRIPTION_NAME ($SUBSCRIPTION_ID)"
 echo "Resource group: $RESOURCE_GROUP"
 echo "Location:       $LOCATION"
-
-az group create \
-  --name "$RESOURCE_GROUP" \
-  --location "$LOCATION" \
-  --output none
 
 COMMON_ARGS=(
   --resource-group "$RESOURCE_GROUP"

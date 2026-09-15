@@ -393,6 +393,23 @@ resource azureGatewayRouteTable 'Microsoft.Network/routeTables@2024-05-01' = {
   tags: tags
   properties: {
     disableBgpRoutePropagation: true
+    routes: [
+      {
+        name: 'route-to-hub-subnet'
+        properties: {
+          addressPrefix: '10.70.5.0/24'
+          nextHopType: 'VirtualAppliance'
+          nextHopIpAddress: firewall.properties.ipConfigurations[0].properties.privateIPAddress
+        }
+      }
+      {
+        name: 'route-to-vm2'
+        properties: {
+          addressPrefix: '10.70.2.0/24'
+          nextHopType: 'VnetLocal'
+        }
+      }
+    ]
   }
 }
 
