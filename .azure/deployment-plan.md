@@ -1,37 +1,49 @@
-# Deployment Plan: ZA-East Azure Firewall and UDRs
+# Deployment Plan: MetroBus Gateway Transit Peering
 
-Status: Approved for Implementation
+Status: Validated
 
 ## Scope
 
-Implement the approved `ZA-East Firewall Policy and UDRs` design in the existing ZA-East Bicep deployment.
+Deploy the validated MetroBus Bicep template update to add bidirectional peering between `azure-vnet` and `avs-vnet`, allowing `avs-vnet` to use the VPN gateway in `azure-vnet` and learn on-premises routes.
 
 ## Target
 
-- Resource group: `za-east-southafricanorth`
+- Subscription: `2ac21ef0-69db-49ec-a554-2cac36ec75f4`
+- Resource group: `metro-bus-rg`
 - Location: `southafricanorth`
-- Azure Firewall: `AzFW-ZA-East-vDC`, Basic SKU
-- Firewall Policy: `AzFW-ZA-East-vDC-Policy-1`, Basic SKU
-- Hub VNet: `za-east-southafricanorth-vnet`
-- Spokes: `10.21.0.0/24`, `10.22.0.0/24`, `10.23.0.0/24`
-- On-premises prefixes: supplied explicitly after live BGP route discovery and approval
+- Template: `Bicep/MetroBus/main.bicep`
+- Recipe type: Azure CLI with Bicep
 
-## Implementation
+## Changes
 
-1. Extend the ZA-East resource-group module with the firewall public IP, Basic policy, firewall, private network rule collection group, UDRs, and subnet associations.
-2. Extend the subscription orchestrator to pass firewall, routing, diagnostics, and approved on-premises parameters and expose deployment outputs.
-3. Extend the shell deployment workflow to collect the approved prefixes and options, compile the templates, run validation and what-if, and require confirmation before deployment.
-4. Keep BGP propagation enabled on `GatewaySubnet`, disable it on spoke route tables, omit a default route from `GatewaySubnet`, and leave infrastructure subnets unassociated.
-5. Deploy firewall resources before route associations by exposing an association toggle for staged rollout.
+1. Create `azure-vnet/azure-to-avs` with virtual network access, forwarded traffic, and gateway transit enabled.
+2. Create `avs-vnet/avs-to-azure` with virtual network access, forwarded traffic, and remote gateway use enabled.
+3. Preserve the existing Azure VPN gateway, Route Server, firewall, VMs, and connections.
+4. Verify both peerings are connected and inspect `avs-vm-nic` effective routes for on-premises prefixes using `VirtualNetworkGateway`.
+5. Add `172.16.1.0/24` to `azure-local-gateway` so the simulated on-premises VPN has a return route to the AVS spoke.
 
 ## Validation
 
-- Run Bicep formatting/build and inspect diagnostics.
-- Run `bash -n` and ShellCheck when available.
-- Do not execute an Azure deployment without a separate explicit deployment request.
+- [x] All validation checks pass
+	- [x] Core validation: Azure CLI, authentication, Bicep build, ARM validation, and what-if
+	- [x] Bicep lint and editor diagnostics
+	- [x] Azure Policy assignments reviewed
+	- [x] `deploy-MetroBus.sh` Bash syntax
 
 ## Boundaries
 
-- No forced tunneling, DNAT, TLS inspection, IDPS, or automatic changes to on-premises FortiGate advertisements.
-- Internet traffic is routed to the firewall only when selected, and remains denied without explicit firewall allow rules.
-- The deployment script must not contain credentials or hardcoded secrets.
+- Do not delete or replace existing resources.
+- Do not create a VPN gateway in `avs-vnet`.
+- Do not change VNet address spaces or subnet prefixes.
+- Deploy only after explicit user approval.
+
+## Validation Proof
+
+Validated at `2026-09-16T07:42:38Z`.
+
+- Shared Azure CLI validator: CLI and authentication passed; Bicep build passed; ARM resource-group validation passed.
+- `az deployment group what-if`: 2 creates (`azure-to-avs`, `avs-to-azure`), 46 idempotent deploys, 14 ignored unmanaged resources, 0 deletes, and 0 replacements.
+- `az bicep lint --file Bicep/MetroBus/main.bicep`: passed with no diagnostics.
+- `bash -n Bicep/MetroBus/deploy-MetroBus.sh`: passed.
+- `az policy assignment list`: no applicable assignments returned for the target scope.
+- Static RBAC review: no role assignments are declared or required by this peering change.
