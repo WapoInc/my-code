@@ -28,7 +28,7 @@
         <mxCell id="onprem-vm2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontSize=13;fillColor=#fff2cc;strokeColor=#d6b656;align=center;verticalAlign=middle;arcSize=50;fontFamily=Helvetica;fontColor=default;" value="onprem-vm2&lt;br&gt;Ubuntu 22.04&lt;br&gt;&lt;b&gt;192.168.4.4&lt;/b&gt;" vertex="1">
           <mxGeometry height="50" width="110" x="310" y="640" as="geometry" />
         </mxCell>
-        <mxCell id="azure-zone" parent="1" style="swimlane;html=1;rounded=0;startSize=55;horizontal=1;fontSize=16;fontStyle=1;fillColor=#fa6800;strokeColor=#C73500;swimlaneFillColor=#dbeafe;movable=0;resizable=0;rotatable=0;deletable=0;editable=0;locked=1;connectable=0;fontColor=#000000;" value="AZURE HUB&lt;br&gt;azure-vnet: 10.70.0.0/22" vertex="1">
+        <mxCell id="azure-zone" parent="1" style="swimlane;html=1;rounded=0;startSize=55;horizontal=1;fontSize=16;fontStyle=1;fillColor=#fa6800;strokeColor=#C73500;swimlaneFillColor=#dbeafe;movable=1;resizable=1;rotatable=1;deletable=1;editable=1;locked=0;connectable=1;fontColor=#000000;" value="AZURE HUB&lt;br&gt;azure-vnet: 10.70.0.0/22" vertex="1">
           <mxGeometry height="650" width="620" x="540" y="120" as="geometry" />
         </mxCell>
         <mxCell id="Ltd3YHxpBMS0DZFXjFDK-17" edge="1" parent="1" source="azure-gw" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" target="route-server" value="">
