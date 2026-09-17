@@ -275,6 +275,22 @@ resource firewallRuleCollectionGroup 'Microsoft.Network/firewallPolicies/ruleCol
               '443'
             ]
           }
+          {
+            name: 'onprem-to-avs-vnet'
+            ruleType: 'NetworkRule'
+            ipProtocols: [
+              'Any'
+            ]
+            sourceAddresses: [
+              '192.168.1.0/24'
+            ]
+            destinationAddresses: [
+              '172.16.1.0/24'
+            ]
+            destinationPorts: [
+              '*'
+            ]
+          }
         ]
       }
     ]
@@ -348,6 +364,14 @@ resource azureHubRouteTable 'Microsoft.Network/routeTables@2024-05-01' = {
           nextHopIpAddress: firewall.properties.ipConfigurations[0].properties.privateIPAddress
         }
       }
+      {
+        name: 'to-avs-vnet'
+        properties: {
+          addressPrefix: '172.16.1.0/24'
+          nextHopType: 'VirtualAppliance'
+          nextHopIpAddress: '10.70.3.4'
+        }
+      }
     ]
   }
 }
@@ -365,6 +389,14 @@ resource azureGatewayRouteTable 'Microsoft.Network/routeTables@2024-05-01' = {
           addressPrefix: '10.70.1.0/24'
           nextHopType: 'VirtualAppliance'
           nextHopIpAddress: firewall.properties.ipConfigurations[0].properties.privateIPAddress
+        }
+      }
+      {
+        name: 'route-to-avs'
+        properties: {
+          addressPrefix: '172.16.1.0/24'
+          nextHopType: 'VirtualAppliance'
+          nextHopIpAddress: '10.70.3.4'
         }
       }
     ]
