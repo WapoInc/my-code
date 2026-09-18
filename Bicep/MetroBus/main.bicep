@@ -288,6 +288,23 @@ resource firewallRuleCollectionGroup 'Microsoft.Network/firewallPolicies/ruleCol
               '*'
             ]
           }
+          {
+            name: 'avs-to-onprem-vnet'
+            ruleType: 'NetworkRule'
+            ipProtocols: [
+              'Any'
+            ]
+            sourceAddresses: [
+              '172.16.1.0/24'
+            ]
+            destinationAddresses: [
+              '192.168.0.0/22'
+              '192.168.4.0/22'
+            ]
+            destinationPorts: [
+              '*'
+            ]
+          }
         ]
       }
     ]
@@ -324,19 +341,17 @@ resource firewall 'Microsoft.Network/azureFirewalls@2024-05-01' = {
 }
 
 resource firewallDiagnostics 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = {
-  name: 'send-all-logs-and-metrics-to-log-analytics'
+  name: 'AzFW-diags'
   scope: firewall
   properties: {
     logAnalyticsDestinationType: 'Dedicated'
     logs: [
       {
-        categoryGroup: 'allLogs'
+        category: 'AZFWNetworkRule'
         enabled: true
       }
-    ]
-    metrics: [
       {
-        category: 'AllMetrics'
+        category: 'AZFWNetworkRuleAggregation'
         enabled: true
       }
     ]

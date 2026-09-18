@@ -74,7 +74,7 @@ echo "Location: $LOCATION"
 echo "Azure VPN gateway: VpnGw1AZ, active-active, ASN 65515"
 echo "AVS gateway transit: azure-vnet -> avs-vnet"
 echo "AVS return prefix: 172.16.1.0/24"
-echo "Log Analytics: all Azure Firewall logs and metrics enabled in resource-specific tables"
+echo "Log Analytics: network-rule and Policy Analytics aggregation logs enabled in resource-specific tables"
 
 az group create \
   --name "$RESOURCE_GROUP" \
