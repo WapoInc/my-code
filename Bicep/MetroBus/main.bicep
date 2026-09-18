@@ -10,10 +10,6 @@ param adminUsername string = 'adminazure'
 @description('Administrator password for the Linux virtual machines.')
 param adminPassword string
 
-@secure()
-@description('Pre-shared key used by both VPN connections.')
-param vpnSharedKey string
-
 @description('Smallest Azure VPN Gateway SKU that supports availability zones.')
 @allowed([
   'VpnGw1AZ'
@@ -42,6 +38,7 @@ var firewallPublicIpName = 'AzFW-Pub-IP'
 var bootDiagnosticsStorageName = 'bootdiag${uniqueString(subscription().id, resourceGroup().id)}'
 var hubVmPrivateIp = '10.70.2.68'
 var hubVmBgpAsn = 65001
+var vpnSharedKey = 'S2SPSK123!'
 
 resource bootDiagnosticsStorage 'Microsoft.Storage/storageAccounts@2023-05-01' = {
   name: bootDiagnosticsStorageName
@@ -742,16 +739,58 @@ resource azureToOnpremConnection 'Microsoft.Network/connections@2024-05-01' = {
   }
 }
 
+resource onpremVm1PublicIp 'Microsoft.Network/publicIPAddresses@2024-05-01' = {
+  name: 'onprem-vm1-pip'
+  location: location
+  tags: tags
+  sku: {
+    name: 'Standard'
+  }
+  properties: {
+    publicIPAllocationMethod: 'Static'
+    publicIPAddressVersion: 'IPv4'
+  }
+}
+
+resource onpremVm1Nsg 'Microsoft.Network/networkSecurityGroups@2024-05-01' = {
+  name: 'onprem-vm1-nsg'
+  location: location
+  tags: tags
+  properties: {
+    securityRules: [
+      {
+        name: 'Allow-SSH'
+        properties: {
+          access: 'Allow'
+          destinationAddressPrefix: '*'
+          destinationPortRange: '22'
+          direction: 'Inbound'
+          priority: 1000
+          protocol: 'Tcp'
+          sourceAddressPrefix: '*'
+          sourcePortRange: '*'
+        }
+      }
+    ]
+  }
+}
+
 resource onpremVm1Nic 'Microsoft.Network/networkInterfaces@2024-05-01' = {
   name: 'onprem-vm1-nic'
   location: location
   tags: tags
   properties: {
+    networkSecurityGroup: {
+      id: onpremVm1Nsg.id
+    }
     ipConfigurations: [
       {
         name: 'ipconfig1'
         properties: {
           privateIPAllocationMethod: 'Dynamic'
+          publicIPAddress: {
+            id: onpremVm1PublicIp.id
+          }
           subnet: {
             id: onpremHubSubnet.id
           }
@@ -1174,6 +1213,7 @@ output azureGatewayPublicIpAddress2 string = azureGatewayPublicIp2.properties.ip
 output vpnGatewaySkuName string = vpnGatewaySku
 output routeServerName string = routeServer.name
 output routeServerPublicIpAddress string = routeServerPublicIp.properties.ipAddress
+output onpremVm1PublicIpAddress string = onpremVm1PublicIp.properties.ipAddress
 output hubVmPrivateIpAddress string = hubVmPrivateIp
 output hubVmBgpAsn int = hubVmBgpAsn
 output routeServerPeerIps array = routeServer.properties.virtualRouterIps

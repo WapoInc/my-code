@@ -40,24 +40,14 @@ if [[ -z "${ADMIN_PASSWORD:-}" ]]; then
   echo
 fi
 
-if [[ -z "${VPN_SHARED_KEY:-}" ]]; then
-  read -r -s -p "VPN pre-shared key: " VPN_SHARED_KEY
-  echo
-fi
-
 if [[ ${#ADMIN_PASSWORD} -lt 12 ]]; then
   echo "ADMIN_PASSWORD must be at least 12 characters." >&2
   exit 1
 fi
 
-if [[ -z "$VPN_SHARED_KEY" ]]; then
-  echo "VPN_SHARED_KEY cannot be empty." >&2
-  exit 1
-fi
-
-export ADMIN_PASSWORD VPN_SHARED_KEY ADMIN_USERNAME
+export ADMIN_PASSWORD ADMIN_USERNAME
 PARAMETERS_FILE="$(mktemp)"
-trap 'rm -f "$PARAMETERS_FILE"; unset ADMIN_PASSWORD VPN_SHARED_KEY' EXIT
+trap 'rm -f "$PARAMETERS_FILE"; unset ADMIN_PASSWORD' EXIT
 chmod 600 "$PARAMETERS_FILE"
 
 python3 - "$PARAMETERS_FILE" <<'PY'
@@ -71,7 +61,6 @@ parameters = {
     "parameters": {
         "adminUsername": {"value": os.environ["ADMIN_USERNAME"]},
         "adminPassword": {"value": os.environ["ADMIN_PASSWORD"]},
-        "vpnSharedKey": {"value": os.environ["VPN_SHARED_KEY"]},
     },
 }
 
@@ -180,10 +169,11 @@ TOTAL_REMAINING_SECONDS=$((TOTAL_SECONDS % 60))
 DEPLOYMENT_OUTPUTS="$(az deployment group show \
   --resource-group "$RESOURCE_GROUP" \
   --name "$DEPLOYMENT_NAME" \
-  --query "[properties.outputs.bootDiagnosticsStorageAccountName.value, properties.outputs.logAnalyticsWorkspaceName.value]" \
+  --query "[properties.outputs.bootDiagnosticsStorageAccountName.value, properties.outputs.logAnalyticsWorkspaceName.value, properties.outputs.onpremVm1PublicIpAddress.value]" \
   --output tsv)"
 BOOT_DIAGNOSTICS_STORAGE_ACCOUNT="$(cut -f1 <<<"$DEPLOYMENT_OUTPUTS")"
 LOG_ANALYTICS_WORKSPACE="$(cut -f2 <<<"$DEPLOYMENT_OUTPUTS")"
+ONPREM_VM1_PUBLIC_IP="$(cut -f3 <<<"$DEPLOYMENT_OUTPUTS")"
 
 echo
 echo "Total Duration:  ${TOTAL_HOURS}h ${TOTAL_MINUTES}m ${TOTAL_REMAINING_SECONDS}s"
@@ -221,3 +211,6 @@ echo "  - Sample query:"
 echo "      AZFWNetworkRule | where TimeGenerated > ago(1h) | order by TimeGenerated desc"
 echo "  - Allow up to 10 minutes after first traffic for logs to appear."
 echo "=========================================="
+echo
+echo "onprem-vm1 public IP: $ONPREM_VM1_PUBLIC_IP"
+echo "ssh $ADMIN_USERNAME@$ONPREM_VM1_PUBLIC_IP"
