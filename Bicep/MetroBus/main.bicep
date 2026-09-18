@@ -324,13 +324,19 @@ resource firewall 'Microsoft.Network/azureFirewalls@2024-05-01' = {
 }
 
 resource firewallDiagnostics 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = {
-  name: 'send-network-rule-logs-to-log-analytics'
+  name: 'send-all-logs-and-metrics-to-log-analytics'
   scope: firewall
   properties: {
     logAnalyticsDestinationType: 'Dedicated'
     logs: [
       {
-        category: 'AzureFirewallNetworkRule'
+        categoryGroup: 'allLogs'
+        enabled: true
+      }
+    ]
+    metrics: [
+      {
+        category: 'AllMetrics'
         enabled: true
       }
     ]

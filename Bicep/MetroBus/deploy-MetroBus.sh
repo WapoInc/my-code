@@ -74,7 +74,7 @@ echo "Location: $LOCATION"
 echo "Azure VPN gateway: VpnGw1AZ, active-active, ASN 65515"
 echo "AVS gateway transit: azure-vnet -> avs-vnet"
 echo "AVS return prefix: 172.16.1.0/24"
-echo "Log Analytics: workspace and AzureFirewallNetworkRule diagnostics included"
+echo "Log Analytics: all Azure Firewall logs and metrics enabled in resource-specific tables"
 
 az group create \
   --name "$RESOURCE_GROUP" \
@@ -108,7 +108,7 @@ az resource list \
   --query "sort_by([].{Name:name, Type:type, Location:location}, &Type)" \
   --output table
 
-echo
+printf '\n'
 echo "Azure Route Server peer:"
 az network routeserver peering show \
   --resource-group "$RESOURCE_GROUP" \
