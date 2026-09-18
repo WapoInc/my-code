@@ -452,7 +452,7 @@ resource azureGatewaySubnet 'Microsoft.Network/virtualNetworks/subnets@2024-05-0
 
 resource avsSubnet 'Microsoft.Network/virtualNetworks/subnets@2024-05-01' = {
   parent: avsVnet
-  name: 'AVS0subnet'
+  name: 'avs-subnet'
   properties: {
     addressPrefix: '172.16.1.0/25'
   }
