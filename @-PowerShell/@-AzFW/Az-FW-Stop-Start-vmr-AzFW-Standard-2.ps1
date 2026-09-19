@@ -8,26 +8,20 @@ Get-AzContext
 Connect-AzAccount -DeviceCode
 
 Connect-AzAccount -Tenant MngEnv461963.onmicrosoft.com -SubscriptionName "viresent-New-AIRS"
-
 Connect-AzAccount -Tenant MngEnvMCAP056429.onmicrosoft.com -SubscriptionName "ME-MngEnvMCAP056429-Connectivity"
 
-
-Get-AzSubscription
 
 Select-AzSubscription -SubscriptionName "viresent-New-AIRS" -Tenant MngEnv461963.onmicrosoft.com
 
 #----------------------------------------------------------------------------------------
 # If you have more than one subscription, get a list of your Azure subscriptions.
 Get-AzSubscription
-
 #----------------------------------------------------------------------------------------
 # Specify the subscription that you want to use.
 Select-AzSubscription -SubscriptionName "viresent-New-AIRS"
-
-
-########################################################################################
 ########################################################################################
 # Stop the Azure Firewall.
+########################################################################################
 $SubscriptionId = '0cfd0d2a-2b38-4c93-ba14-cf79185bc683'
 $ResourceGroupName = 'za-east-southafricanorth'
 $FirewallName = 'AzFW-ZA-East-southafricanorth'
@@ -48,13 +42,13 @@ $firewall = Get-AzFirewall `
 	-ErrorAction Stop
 
 Write-Host "Firewall IP configuration count: $($firewall.IpConfigurations.Count)"
-########################################################################################
-########################################################################################
 
-
-########################################################################################
 ########################################################################################
 # Start the Azure Firewall.
+########################################################################################
+$SubscriptionId = '0cfd0d2a-2b38-4c93-ba14-cf79185bc683'
+$ResourceGroupName = 'za-east-southafricanorth'
+$FirewallName = 'AzFW-ZA-East-southafricanorth'
 $VirtualNetworkName = 'za-east-southafricanorth-vnet'
 $PublicIpName = 'AzFW-ZA-East-southafricanorth-pip'
 
