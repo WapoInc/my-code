@@ -6,7 +6,6 @@ SCRIPT_START_EPOCH="$(date +%s)"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TEMPLATE_FILE="$SCRIPT_DIR/main.bicep"
-AVS_NETWORK_UPDATE_SCRIPT="$SCRIPT_DIR/temp-add-avs-routes-and-firewall-rule.sh"
 
 SUBSCRIPTION="${AZURE_SUBSCRIPTION:-ME-MngEnvMCAP158201-viresent-1}"
 DEFAULT_RESOURCE_GROUP="${AZURE_RESOURCE_GROUP:-metro-bus-rg}"
@@ -97,9 +96,6 @@ DEPLOYMENT_ARGS=(
 )
 
 az deployment group create "${DEPLOYMENT_ARGS[@]}" --output table
-
-AZURE_SUBSCRIPTION="$SUBSCRIPTION" \
-  bash "$AVS_NETWORK_UPDATE_SCRIPT" "$RESOURCE_GROUP"
 
 echo
 echo "Deployment complete. Resource inventory:"
