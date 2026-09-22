@@ -18,7 +18,7 @@ $ER_Circuit_Name = "ER-LIT-ZAN"
 Get-AzVirtualNetworkGatewayLearnedRoute -ResourceGroupName $GatewayResourceGroup -VirtualNetworkGatewayname $GateWayName
 Get-AzExpressRouteCircuit -ResourceGroupName $CircuitResourceGroup -Name $ER_Circuit_Name
 
-#- Get Effective Routes -------------------------------------------------------------------------------------
+#- Get Effective Routes -xx--------------------------------------------------------------------------------------
 
 az network nic show-effective-route-table --resource-group AVS-ZA-North --name vm-1-west-us-2765 -o table
 #- Example

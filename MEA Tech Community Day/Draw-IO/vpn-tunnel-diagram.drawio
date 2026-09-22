@@ -1,6 +1,6 @@
 <mxfile host="65bd71144e">
     <diagram name="IKE VPN Tunnel" id="vpn-tunnel">
-        <mxGraphModel dx="1045" dy="1135" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1100" pageHeight="850" math="0" shadow="0">
+        <mxGraphModel dx="358" dy="930" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1100" pageHeight="850" math="0" shadow="0">
             <root>
                 <mxCell id="0"/>
                 <mxCell id="1" parent="0"/>
@@ -53,7 +53,7 @@
                     </mxGeometry>
                 </mxCell>
                 <mxCell id="diagram-title" value="&lt;b style=&quot;font-size: 20px;&quot;&gt;IKE VPN Tunnel Architecture&lt;/b&gt;&lt;br&gt;Tunnel ID: 0x1 | Status: Active" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=14;" parent="1" vertex="1">
-                    <mxGeometry x="320" y="40" width="460" height="40" as="geometry"/>
+                    <mxGeometry x="320" y="30" width="460" height="40" as="geometry"/>
                 </mxCell>
                 <mxCell id="issue-note" value="&lt;b&gt;Issue Resolved:&lt;/b&gt; Policy mismatch corrected&lt;br&gt;Local adjusted to match remote requirements&lt;br&gt;(AES-CBC-128, SHA384, DhGroup24)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;align=left;" parent="1" vertex="1">
                     <mxGeometry x="80" y="540" width="940" height="50" as="geometry"/>
@@ -61,22 +61,22 @@
                 <mxCell id="port-info" value="&lt;b&gt;All Protocols/Ports Allowed:&lt;/b&gt;&lt;br&gt;Protocol: 0 (All) | Ports: 0-65535" style="text;html=1;strokeColor=#6c8ebf;fillColor=#dae8fc;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=1;" parent="1" vertex="1">
                     <mxGeometry x="390" y="540" width="220" height="50" as="geometry"/>
                 </mxCell>
-                <mxCell id="3" value="" style="endArrow=none;html=1;strokeWidth=2;strokeColor=#666666;dashed=1;" edge="1" parent="1" source="local-gateway" target="2">
+                <mxCell id="3" value="" style="endArrow=none;html=1;strokeWidth=2;strokeColor=#666666;dashed=1;" parent="1" source="local-gateway" target="2" edge="1">
                     <mxGeometry width="50" height="50" relative="1" as="geometry">
                         <mxPoint x="274" y="360" as="sourcePoint"/>
                         <mxPoint x="458" y="173" as="targetPoint"/>
                     </mxGeometry>
                 </mxCell>
-                <mxCell id="2" value="" style="image;aspect=fixed;html=1;points=[];align=center;fontSize=12;image=img/lib/azure2/networking/Connections.svg;" vertex="1" parent="1">
+                <mxCell id="2" value="" style="image;aspect=fixed;html=1;points=[];align=center;fontSize=12;image=img/lib/azure2/networking/Connections.svg;" parent="1" vertex="1">
                     <mxGeometry x="400" y="200" width="38" height="38" as="geometry"/>
                 </mxCell>
-                <mxCell id="5" value="" style="endArrow=none;html=1;strokeWidth=2;strokeColor=#666666;dashed=1;" edge="1" parent="1" source="remote-gateway" target="4">
+                <mxCell id="5" value="" style="endArrow=none;html=1;strokeWidth=2;strokeColor=#666666;dashed=1;" parent="1" source="remote-gateway" target="4" edge="1">
                     <mxGeometry width="50" height="50" relative="1" as="geometry">
                         <mxPoint x="807" y="360" as="sourcePoint"/>
                         <mxPoint x="551" y="168" as="targetPoint"/>
                     </mxGeometry>
                 </mxCell>
-                <mxCell id="4" value="" style="image;aspect=fixed;html=1;points=[];align=center;fontSize=12;image=img/lib/azure2/networking/Connections.svg;" vertex="1" parent="1">
+                <mxCell id="4" value="" style="image;aspect=fixed;html=1;points=[];align=center;fontSize=12;image=img/lib/azure2/networking/Connections.svg;" parent="1" vertex="1">
                     <mxGeometry x="590" y="200" width="38" height="38" as="geometry"/>
                 </mxCell>
             </root>

@@ -2,6 +2,8 @@
 
 set -euo pipefail
 
+SCRIPT_START_EPOCH="$(date +%s)"
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TEMPLATE_FILE="$SCRIPT_DIR/main.bicep"
 
@@ -9,7 +11,11 @@ SUBSCRIPTION="${AZURE_SUBSCRIPTION:-ME-MngEnvMCAP158201-viresent-1}"
 DEFAULT_RESOURCE_GROUP="${AZURE_RESOURCE_GROUP:-POC-Test-12-45-8-Oct}"
 LOCATION="${AZURE_LOCATION:-southafricanorth}"
 ADMIN_USERNAME="${ADMIN_USERNAME:-adminazure}"
-AUTO_APPROVE="${AUTO_APPROVE:-false}"
+
+if [[ -n "${1:-}" ]]; then
+  echo "Unknown argument: $1" >&2
+  exit 1
+fi
 
 for command_name in az python3; do
   if ! command -v "$command_name" >/dev/null 2>&1; then
@@ -76,6 +82,7 @@ echo "Subscription: $SUBSCRIPTION"
 echo "Resource group: $RESOURCE_GROUP"
 echo "Location: $LOCATION"
 echo "VPN gateway SKU: VpnGw1AZ"
+echo "Log Analytics: workspace and AzureFirewallNetworkRule diagnostics included"
 
 az group create \
   --name "$RESOURCE_GROUP" \
@@ -97,11 +104,7 @@ DEPLOYMENT_ARGS=(
   --parameters "@$PARAMETERS_FILE"
 )
 
-if [[ "$AUTO_APPROVE" == "true" ]]; then
-  az deployment group create "${DEPLOYMENT_ARGS[@]}" --output table
-else
-  az deployment group create "${DEPLOYMENT_ARGS[@]}" --confirm-with-what-if --output table
-fi
+az deployment group create "${DEPLOYMENT_ARGS[@]}" --output table
 
 echo
 echo "Deployment complete. Resource inventory:"
@@ -109,3 +112,51 @@ az resource list \
   --resource-group "$RESOURCE_GROUP" \
   --query "sort_by([].{Name:name, Type:type, Location:location}, &Type)" \
   --output table
+
+SCRIPT_END_EPOCH="$(date +%s)"
+TOTAL_SECONDS=$((SCRIPT_END_EPOCH - SCRIPT_START_EPOCH))
+TOTAL_HOURS=$((TOTAL_SECONDS / 3600))
+TOTAL_MINUTES=$(((TOTAL_SECONDS % 3600) / 60))
+TOTAL_REMAINING_SECONDS=$((TOTAL_SECONDS % 60))
+DEPLOYMENT_OUTPUTS="$(az deployment group show \
+  --resource-group "$RESOURCE_GROUP" \
+  --name "$DEPLOYMENT_NAME" \
+  --query "[properties.outputs.bootDiagnosticsStorageAccountName.value, properties.outputs.logAnalyticsWorkspaceName.value]" \
+  --output tsv)"
+BOOT_DIAGNOSTICS_STORAGE_ACCOUNT="$(cut -f1 <<<"$DEPLOYMENT_OUTPUTS")"
+LOG_ANALYTICS_WORKSPACE="$(cut -f2 <<<"$DEPLOYMENT_OUTPUTS")"
+
+echo
+echo "Total Duration:  ${TOTAL_HOURS}h ${TOTAL_MINUTES}m ${TOTAL_REMAINING_SECONDS}s"
+echo "                 (${TOTAL_SECONDS} seconds)"
+echo
+echo "Gateway Deployment: Parallel (included in total duration)"
+echo "=========================================="
+echo
+echo "Next Steps:"
+echo "  1. Test connectivity from 192.168.1.0/24 to 10.70.1.0/24"
+echo "  2. Test connectivity from 192.168.4.0/24 to 10.70.1.0/24"
+echo "  3. Test VPN connectivity between sites"
+echo "  4. Verify VM connectivity across VNets"
+echo "  5. Monitor Azure Firewall metrics via Azure Portal"
+echo "  6. View VM boot diagnostics in Azure Portal"
+echo "     - Navigate to VM -> Boot diagnostics -> Screenshot/Serial log"
+echo "  7. Monitor VM performance and health"
+echo "  8. Verify UDR BGP propagation settings (should be 'No')"
+echo "  9. Query Azure Firewall network-rule logs in Log Analytics"
+echo "=========================================="
+echo
+echo "VM Boot Diagnostics Access:"
+echo "  - Azure Portal -> Virtual Machines -> [VM Name] -> Boot diagnostics"
+echo "  - View screenshot of VM console"
+echo "  - Download serial log for troubleshooting"
+echo "  - Storage Account: $BOOT_DIAGNOSTICS_STORAGE_ACCOUNT"
+echo "=========================================="
+echo
+echo "Azure Firewall Log Analytics:"
+echo "  - Workspace: $LOG_ANALYTICS_WORKSPACE"
+echo "  - Azure Portal -> Log Analytics workspaces -> $LOG_ANALYTICS_WORKSPACE -> Logs"
+echo "  - Sample query:"
+echo "      AZFWNetworkRule | where TimeGenerated > ago(1h) | order by TimeGenerated desc"
+echo "  - Allow up to 10 minutes after first traffic for logs to appear."
+echo "=========================================="
