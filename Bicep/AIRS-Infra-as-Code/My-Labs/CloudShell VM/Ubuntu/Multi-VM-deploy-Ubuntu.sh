@@ -43,8 +43,8 @@ LOCATION="${LOCATION:-southafricanorth}"
 RESOURCE_GROUP_NAME="$(read_required 'Resource group name')"
 VNET_NAME="$(read_required 'VNet name')"
 SUBNET_NAME="$(read_required 'Subnet name')"
-read -r -p 'VM name [SA-North-JB2]: ' VM_NAME
-VM_NAME="${VM_NAME:-SA-North-JB2}"
+read -r -p 'VM name [ubuntu-vm]: ' VM_NAME
+VM_NAME="${VM_NAME:-ubuntu-vm}"
 
 while true; do
   read -r -p 'Number of Ubuntu VMs to deploy [1]: ' VM_COUNT
