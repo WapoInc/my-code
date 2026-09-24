@@ -440,6 +440,33 @@ resource hubVmRouteTable 'Microsoft.Network/routeTables@2024-05-01' = {
   }
 }
 
+resource avsRouteTable 'Microsoft.Network/routeTables@2024-05-01' = {
+  name: 'avs-to-on-prem'
+  location: location
+  tags: tags
+  properties: {
+    disableBgpRoutePropagation: false
+    routes: [
+      {
+        name: 'avs-to-on-prem'
+        properties: {
+          addressPrefix: '192.168.0.0/22'
+          nextHopType: 'VirtualAppliance'
+          nextHopIpAddress: firewall.properties.ipConfigurations[0].properties.privateIPAddress
+        }
+      }
+      {
+        name: 'avs-to-on-prem-4'
+        properties: {
+          addressPrefix: '192.168.4.0/22'
+          nextHopType: 'VirtualAppliance'
+          nextHopIpAddress: firewall.properties.ipConfigurations[0].properties.privateIPAddress
+        }
+      }
+    ]
+  }
+}
+
 resource azureHubSubnet 'Microsoft.Network/virtualNetworks/subnets@2024-05-01' = {
   parent: azureVnet
   name: 'azure-hub'
@@ -470,6 +497,9 @@ resource avsSubnet 'Microsoft.Network/virtualNetworks/subnets@2024-05-01' = {
   name: 'avs-subnet'
   properties: {
     addressPrefix: '172.16.1.0/25'
+    routeTable: {
+      id: avsRouteTable.id
+    }
   }
 }
 

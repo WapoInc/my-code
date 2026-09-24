@@ -73,6 +73,7 @@ echo "Location: $LOCATION"
 echo "Azure VPN gateway: VpnGw1AZ, active-active, ASN 65515"
 echo "AVS gateway transit: azure-vnet -> avs-vnet"
 echo "AVS return prefix: 172.16.1.0/24"
+echo "AVS return route: 192.168.0.0/22, 192.168.4.0/22 via Azure Firewall (avs-to-on-prem)"
 echo "Log Analytics: network-rule and Policy Analytics aggregation logs enabled in resource-specific tables"
 
 az group create \
@@ -140,11 +141,11 @@ az network local-gateway show \
   --output table
 
 echo
-echo "avs-vm effective routes (confirm on-premises prefixes use VirtualNetworkGateway):"
+echo "avs-vm effective routes (confirm on-premises prefixes use User -> Azure Firewall):"
 az network nic show-effective-route-table \
   --resource-group "$RESOURCE_GROUP" \
   --name "avs-vm-nic" \
-  --query "value[?source=='VirtualNetworkGateway'].{Source:source, State:state, AddressPrefixes:join(', ', addressPrefix), NextHopType:nextHopType}" \
+  --query "value[?starts_with(addressPrefix[0], '192.168.')].{Source:source, State:state, AddressPrefixes:join(', ', addressPrefix), NextHopType:nextHopType, NextHop:join(', ', nextHopIpAddress)}" \
   --output table
 
 echo
@@ -189,7 +190,7 @@ echo "     - Navigate to VM -> Boot diagnostics -> Screenshot/Serial log"
 echo "  7. Monitor VM performance and health"
 echo "  8. Verify UDR BGP propagation settings (should be 'No')"
 echo "  9. Query Azure Firewall network-rule logs in Log Analytics"
-echo " 10. Verify avs-vm routes to 192.168.0.0/22 and 192.168.4.0/22 use VirtualNetworkGateway"
+echo " 10. Verify avs-vm routes to 192.168.0.0/22 and 192.168.4.0/22 use User -> Azure Firewall (symmetric path)"
 echo " 11. Test connectivity between avs-vm and both on-premises VMs"
 echo "=========================================="
 echo
