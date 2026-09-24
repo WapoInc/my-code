@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
+#!!!#########ddddd##################################################
 set -euo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-TEMPLATE_FILE="$SCRIPT_DIR/Multi-VM-CS-Ubuntu-VM.vm.bicep"
+TEMPLATE_FILE="$SCRIPT_DIR/Multi-VM-CS-Ubuntu-VM-for-ASR.bicep"
 OS_VERSION='Ubuntu 24.04 LTS'
 KERNEL_VERSION='6.8.0-1042-azure'
 
@@ -43,8 +44,8 @@ LOCATION="${LOCATION:-southafricanorth}"
 RESOURCE_GROUP_NAME="$(read_required 'Resource group name')"
 VNET_NAME="$(read_required 'VNet name')"
 SUBNET_NAME="$(read_required 'Subnet name')"
-read -r -p 'VM name [SA-North-JB2]: ' VM_NAME
-VM_NAME="${VM_NAME:-SA-North-JB2}"
+read -r -p 'VM name [ubuntu-vm]: ' VM_NAME
+VM_NAME="${VM_NAME:-ubuntu-vm}"
 
 while true; do
   read -r -p 'Number of Ubuntu VMs to deploy [1]: ' VM_COUNT
@@ -226,18 +227,35 @@ elif [[ "$SUBNET_EXISTS" != 'true' ]]; then
     --output none
 fi
 
+format_hms() {
+  local elapsed="$1"
+  printf '%02d:%02d:%02d' $(( elapsed / 3600 )) $(( (elapsed % 3600) / 60 )) $(( elapsed % 60 ))
+}
+
+print_timing() {
+  local start_epoch="$1"
+  local end_epoch="$2"
+  local elapsed=$(( end_epoch - start_epoch ))
+
+  echo "  Start    : $(date -r "$start_epoch" '+%Y-%m-%d %H:%M:%S')"
+  echo "  Stop     : $(date -r "$end_epoch" '+%Y-%m-%d %H:%M:%S')"
+  echo "  Duration : $(format_hms "$elapsed") (hh:mm:ss)"
+}
+
 LOG_DIR="$(mktemp -d)"
 PIDS=()
 PID_NAMES=()
+PID_START_TIMES=()
 
 START_TIME=$(date +%s)
 echo
-echo "Start time: $(date '+%Y-%m-%d %H:%M:%S')"
+echo "Start time: $(date -r "$START_TIME" '+%Y-%m-%d %H:%M:%S')"
 echo "Starting ${#VM_NAMES[@]} VM deployment(s) in parallel..."
 
 for CURRENT_VM_NAME in "${VM_NAMES[@]}"; do
   DEPLOYMENT_NAME="ubuntu-vm-$CURRENT_VM_NAME-$(date +%Y%m%d-%H%M%S)"
   LOG_FILE="$LOG_DIR/$CURRENT_VM_NAME.log"
+  VM_START_TIME=$(date +%s)
 
   az deployment group create \
     --resource-group "$RESOURCE_GROUP_NAME" \
@@ -257,26 +275,33 @@ for CURRENT_VM_NAME in "${VM_NAMES[@]}"; do
 
   PIDS+=("$!")
   PID_NAMES+=("$CURRENT_VM_NAME")
-  echo "  Launched '$CURRENT_VM_NAME' (deployment: $DEPLOYMENT_NAME)"
+  PID_START_TIMES+=("$VM_START_TIME")
+  echo "  Launched '$CURRENT_VM_NAME' at $(date -r "$VM_START_TIME" '+%Y-%m-%d %H:%M:%S') (deployment: $DEPLOYMENT_NAME)"
 done
 
 FAILED=0
 for idx in "${!PIDS[@]}"; do
   if wait "${PIDS[$idx]}"; then
+    VM_STOP_TIME=$(date +%s)
     echo
     echo "Deployment for '${PID_NAMES[$idx]}' completed successfully:"
   else
+    VM_STOP_TIME=$(date +%s)
     echo
     echo "Deployment for '${PID_NAMES[$idx]}' FAILED:" >&2
     FAILED=1
   fi
+  print_timing "${PID_START_TIMES[$idx]}" "$VM_STOP_TIME"
   cat "$LOG_DIR/${PID_NAMES[$idx]}.log"
 done
 
 rm -rf "$LOG_DIR"
 
 if (( FAILED )); then
+  END_TIME=$(date +%s)
+  echo
   echo 'One or more VM deployments failed.' >&2
+  print_timing "$START_TIME" "$END_TIME"
   exit 1
 fi
 
@@ -308,12 +333,10 @@ for CURRENT_VM_NAME in "${VM_NAMES[@]}"; do
 done
 
 END_TIME=$(date +%s)
-ELAPSED=$(( END_TIME - START_TIME ))
-ELAPSED_HMS=$(printf '%02d:%02d:%02d' $(( ELAPSED / 3600 )) $(( (ELAPSED % 3600) / 60 )) $(( ELAPSED % 60 )))
 
 echo
-echo "Start time : $(date -r "$START_TIME" '+%Y-%m-%d %H:%M:%S')"
-echo "End time   : $(date -r "$END_TIME" '+%Y-%m-%d %H:%M:%S')"
+echo 'Overall timing:'
+print_timing "$START_TIME" "$END_TIME"
 
 echo
 if (( FAILED )); then
@@ -321,4 +344,4 @@ if (( FAILED )); then
   exit 1
 fi
 
-echo "All ${#VM_NAMES[@]} VM deployment(s) completed successfully in- $ELAPSED_HMS (hh:mm:ss)"
+echo "All ${#VM_NAMES[@]} VM deployment(s) completed successfully."
