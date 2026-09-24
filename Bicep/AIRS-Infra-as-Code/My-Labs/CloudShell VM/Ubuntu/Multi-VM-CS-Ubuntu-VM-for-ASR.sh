@@ -3,7 +3,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-TEMPLATE_FILE="$SCRIPT_DIR/Multi-VM-CS-Ubuntu-VM.vm.bicep"
+TEMPLATE_FILE="$SCRIPT_DIR/Multi-VM-CS-Ubuntu-VM-for-ASR.bicep"
 OS_VERSION='Ubuntu 24.04 LTS'
 KERNEL_VERSION='6.8.0-1042-azure'
 
