@@ -8,7 +8,7 @@
         <mxCell id="title" value="MetroBus deployment: main.bicep" style="text;html=1;align=center;verticalAlign=middle;fontSize=28;fontStyle=1;fontColor=#172033;" vertex="1" parent="1">
           <mxGeometry x="40" y="20" width="1560" height="40" as="geometry" />
         </mxCell>
-        <mxCell id="subtitle" value="Resource group: metro-bus-rg&amp;nbsp; |&amp;nbsp; South Africa North&amp;nbsp; |&amp;nbsp; Solid orange = IPsec VPN&amp;nbsp; |&amp;nbsp; Solid purple = VNet peering&amp;nbsp; |&amp;nbsp; Dashed red = BGP&amp;nbsp; |&amp;nbsp; Dashed grey = telemetry" style="text;html=1;align=center;verticalAlign=middle;fontSize=13;fontColor=#475569;" vertex="1" parent="1">
+        <mxCell id="subtitle" value="Resource group: metro-bus-rg&amp;nbsp; |&amp;nbsp; South Africa North&amp;nbsp; |&amp;nbsp; Orange = IPsec VPN path&amp;nbsp; |&amp;nbsp; Purple = VNet peering&amp;nbsp; |&amp;nbsp; Dashed red = BGP&amp;nbsp; |&amp;nbsp; Dashed grey = telemetry" style="text;html=1;align=center;verticalAlign=middle;fontSize=13;fontColor=#475569;" vertex="1" parent="1">
           <mxGeometry x="40" y="62" width="1560" height="26" as="geometry" />
         </mxCell>
 
@@ -22,19 +22,19 @@
           <mxGeometry x="20" y="42" width="280" height="66" as="geometry" />
         </mxCell>
         <mxCell id="op-s-hub" value="onprem-hub&lt;br&gt;192.168.1.0/24" style="rounded=0;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacingLeft=8;spacingTop=4;fontSize=12;fontStyle=1;fillColor=#e0f2fe;strokeColor=#0284c7;fontColor=#0c4a6e;" vertex="1" parent="onprem-zone">
-          <mxGeometry x="30" y="220" width="320" height="130" as="geometry" />
+          <mxGeometry x="30" y="225" width="320" height="130" as="geometry" />
         </mxCell>
         <mxCell id="op-vm1" value="onprem-vm1&lt;br&gt;Ubuntu 22.04 · Standard_B2s&lt;br&gt;onprem-vm1-pip (SSH entry point)&lt;br&gt;NSG: allow TCP 22 inbound" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;fillColor=#fff2cc;strokeColor=#d6b656;fontColor=#172033;" vertex="1" parent="op-s-hub">
           <mxGeometry x="20" y="42" width="280" height="76" as="geometry" />
         </mxCell>
         <mxCell id="op-s-4" value="Subnet-4&lt;br&gt;192.168.4.0/24" style="rounded=0;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacingLeft=8;spacingTop=4;fontSize=12;fontStyle=1;fillColor=#e0f2fe;strokeColor=#0284c7;fontColor=#0c4a6e;" vertex="1" parent="onprem-zone">
-          <mxGeometry x="30" y="370" width="320" height="120" as="geometry" />
+          <mxGeometry x="30" y="380" width="320" height="120" as="geometry" />
         </mxCell>
         <mxCell id="op-vm2" value="onprem-vm2&lt;br&gt;Ubuntu 22.04 · Standard_B2s&lt;br&gt;Private IP only" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;fillColor=#fff2cc;strokeColor=#d6b656;fontColor=#172033;" vertex="1" parent="op-s-4">
           <mxGeometry x="20" y="42" width="280" height="62" as="geometry" />
         </mxCell>
-        <mxCell id="op-note" value="No route tables and no NSG on Subnet-4" style="text;html=1;align=center;verticalAlign=middle;fontSize=11;fontColor=#475569;" vertex="1" parent="onprem-zone">
-          <mxGeometry x="30" y="505" width="320" height="30" as="geometry" />
+        <mxCell id="op-note" value="No route tables here; Subnet-4 has no NSG" style="text;html=1;align=center;verticalAlign=middle;fontSize=11;fontColor=#475569;" vertex="1" parent="onprem-zone">
+          <mxGeometry x="30" y="515" width="320" height="30" as="geometry" />
         </mxCell>
 
         <mxCell id="azure-zone" value="AZURE HUB&lt;br&gt;azure-vnet: 10.70.0.0/22" style="swimlane;html=1;rounded=0;startSize=60;horizontal=1;fontSize=15;fontStyle=1;fillColor=#1f6fb5;strokeColor=#12507f;swimlaneFillColor=#f2f7fc;fontColor=#ffffff;" vertex="1" parent="1">
@@ -53,113 +53,123 @@
           <mxGeometry x="20" y="42" width="290" height="72" as="geometry" />
         </mxCell>
         <mxCell id="az-s-hub" value="azure-hub&lt;br&gt;10.70.1.0/24" style="rounded=0;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacingLeft=8;spacingTop=4;fontSize=12;fontStyle=1;fillColor=#e0f2fe;strokeColor=#0284c7;fontColor=#0c4a6e;" vertex="1" parent="azure-zone">
-          <mxGeometry x="25" y="225" width="330" height="120" as="geometry" />
+          <mxGeometry x="25" y="230" width="330" height="120" as="geometry" />
         </mxCell>
         <mxCell id="az-vm1" value="azure-vm1&lt;br&gt;Ubuntu 22.04 · Standard_B2s&lt;br&gt;azure-subnet-rt attached" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;fillColor=#fff2cc;strokeColor=#d6b656;fontColor=#172033;" vertex="1" parent="az-s-hub">
           <mxGeometry x="20" y="42" width="290" height="62" as="geometry" />
         </mxCell>
         <mxCell id="az-s-rs" value="RouteServerSubnet&lt;br&gt;10.70.2.0/26" style="rounded=0;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacingLeft=8;spacingTop=4;fontSize=12;fontStyle=1;fillColor=#e0f2fe;strokeColor=#0284c7;fontColor=#0c4a6e;" vertex="1" parent="azure-zone">
-          <mxGeometry x="385" y="225" width="330" height="120" as="geometry" />
+          <mxGeometry x="385" y="230" width="330" height="115" as="geometry" />
         </mxCell>
         <mxCell id="az-rs" value="azure-route-server&lt;br&gt;Standard · ASN 65515&lt;br&gt;azure-route-server-pip" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;fillColor=#fdecec;strokeColor=#c24141;fontColor=#172033;" vertex="1" parent="az-s-rs">
-          <mxGeometry x="20" y="42" width="290" height="62" as="geometry" />
+          <mxGeometry x="20" y="40" width="290" height="60" as="geometry" />
         </mxCell>
         <mxCell id="az-s-hubvm" value="hub-vm-subnet&lt;br&gt;10.70.2.64/29" style="rounded=0;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacingLeft=8;spacingTop=4;fontSize=12;fontStyle=1;fillColor=#e0f2fe;strokeColor=#0284c7;fontColor=#0c4a6e;" vertex="1" parent="azure-zone">
-          <mxGeometry x="385" y="365" width="330" height="140" as="geometry" />
+          <mxGeometry x="385" y="405" width="330" height="140" as="geometry" />
         </mxCell>
         <mxCell id="az-hubvm" value="hub-vm&lt;br&gt;Ubuntu 22.04 + FRRouting · ASN 65001&lt;br&gt;Static 10.70.2.68 · IP forwarding on&lt;br&gt;Extension: configure-routing-and-frr&lt;br&gt;hub-vm-subnet-rt: 0.0.0.0/0 via AzFW" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;fillColor=#fff2cc;strokeColor=#d6b656;fontColor=#172033;" vertex="1" parent="az-s-hubvm">
           <mxGeometry x="20" y="42" width="290" height="86" as="geometry" />
         </mxCell>
-        <mxCell id="az-rt" value="Route tables (3)&lt;br&gt;&lt;br&gt;azure-subnet-rt: 192.168.1.0/24 and 192.168.4.0/24 via AzFW, 172.16.1.0/24 via 10.70.3.4&lt;br&gt;azure-gateway-subnet-rt: 10.70.1.0/24 via AzFW, 172.16.1.0/24 via 10.70.3.4&lt;br&gt;hub-vm-subnet-rt: default via AzFW" style="rounded=0;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacingLeft=8;spacingTop=4;fontSize=11;fontStyle=0;fillColor=#f1f5f9;strokeColor=#94a3b8;fontColor=#334155;" vertex="1" parent="azure-zone">
-          <mxGeometry x="25" y="365" width="330" height="140" as="geometry" />
+        <mxCell id="az-rt" value="Route tables (3)&lt;br&gt;&lt;br&gt;azure-subnet-rt&lt;br&gt;192.168.1.0/24 and 192.168.4.0/24 via AzFW&lt;br&gt;172.16.1.0/24 via 10.70.3.4&lt;br&gt;&lt;br&gt;azure-gateway-subnet-rt&lt;br&gt;10.70.1.0/24 via AzFW · 172.16.1.0/24 via 10.70.3.4&lt;br&gt;&lt;br&gt;hub-vm-subnet-rt&lt;br&gt;0.0.0.0/0 via AzFW" style="rounded=0;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacingLeft=8;spacingTop=4;fontSize=11;fontStyle=0;fillColor=#f1f5f9;strokeColor=#94a3b8;fontColor=#334155;" vertex="1" parent="azure-zone">
+          <mxGeometry x="25" y="375" width="330" height="170" as="geometry" />
         </mxCell>
         <mxCell id="az-note" value="BGP route propagation left enabled on all three route tables" style="text;html=1;align=center;verticalAlign=middle;fontSize=11;fontColor=#475569;" vertex="1" parent="azure-zone">
-          <mxGeometry x="25" y="520" width="690" height="30" as="geometry" />
+          <mxGeometry x="25" y="555" width="690" height="26" as="geometry" />
         </mxCell>
 
         <mxCell id="avs-zone" value="AVS SPOKE&lt;br&gt;avs-vnet: 172.16.1.0/24" style="swimlane;html=1;rounded=0;startSize=60;horizontal=1;fontSize=15;fontStyle=1;fillColor=#6b4fa8;strokeColor=#4a3577;swimlaneFillColor=#f6f3fb;fontColor=#ffffff;" vertex="1" parent="1">
-          <mxGeometry x="1240" y="110" width="360" height="280" as="geometry" />
+          <mxGeometry x="1250" y="110" width="350" height="300" as="geometry" />
         </mxCell>
         <mxCell id="avs-s" value="avs-subnet&lt;br&gt;172.16.1.0/25" style="rounded=0;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacingLeft=8;spacingTop=4;fontSize=12;fontStyle=1;fillColor=#e0f2fe;strokeColor=#0284c7;fontColor=#0c4a6e;" vertex="1" parent="avs-zone">
-          <mxGeometry x="25" y="80" width="310" height="120" as="geometry" />
+          <mxGeometry x="25" y="80" width="300" height="120" as="geometry" />
         </mxCell>
         <mxCell id="avs-vm" value="avs-vm&lt;br&gt;Ubuntu 22.04 · Standard_B2s&lt;br&gt;No gateway in this VNet" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;fillColor=#fff2cc;strokeColor=#d6b656;fontColor=#172033;" vertex="1" parent="avs-s">
-          <mxGeometry x="20" y="42" width="270" height="62" as="geometry" />
+          <mxGeometry x="20" y="42" width="260" height="62" as="geometry" />
         </mxCell>
-        <mxCell id="avs-note" value="Reaches on-premises through the hub VPN gateway" style="text;html=1;align=center;verticalAlign=middle;fontSize=11;fontColor=#475569;" vertex="1" parent="avs-zone">
-          <mxGeometry x="25" y="215" width="310" height="30" as="geometry" />
+        <mxCell id="avs-note" value="Peering pair: azure-to-avs sets allowGatewayTransit,&lt;br&gt;avs-to-azure sets useRemoteGateways, so this VNet&lt;br&gt;reaches on-premises through the hub VPN gateway" style="text;html=1;align=center;verticalAlign=middle;fontSize=11;fontColor=#475569;" vertex="1" parent="avs-zone">
+          <mxGeometry x="15" y="215" width="320" height="60" as="geometry" />
         </mxCell>
 
         <mxCell id="shared-zone" value="SHARED OPERATIONS" style="swimlane;html=1;rounded=0;startSize=45;horizontal=1;fontSize=15;fontStyle=1;fillColor=#4a5568;strokeColor=#2d3748;swimlaneFillColor=#f8fafc;fontColor=#ffffff;" vertex="1" parent="1">
-          <mxGeometry x="1240" y="420" width="360" height="310" as="geometry" />
+          <mxGeometry x="1250" y="440" width="350" height="290" as="geometry" />
         </mxCell>
         <mxCell id="law" value="Log Analytics workspace&lt;br&gt;law-mea-tech-community-day&lt;br&gt;PerGB2018 · 30-day retention&lt;br&gt;AZFWNetworkRule + aggregation&lt;br&gt;Resource-specific tables" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;fillColor=#e2e8f0;strokeColor=#64748b;fontColor=#172033;" vertex="1" parent="shared-zone">
-          <mxGeometry x="25" y="60" width="310" height="86" as="geometry" />
+          <mxGeometry x="25" y="60" width="300" height="86" as="geometry" />
         </mxCell>
         <mxCell id="storage" value="Boot diagnostics storage&lt;br&gt;bootdiag&amp;lt;uniqueString&amp;gt;&lt;br&gt;StorageV2 · Standard_LRS&lt;br&gt;TLS 1.2 · no public blob access" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;fillColor=#e2e8f0;strokeColor=#64748b;fontColor=#172033;" vertex="1" parent="shared-zone">
-          <mxGeometry x="25" y="160" width="310" height="76" as="geometry" />
+          <mxGeometry x="25" y="160" width="300" height="76" as="geometry" />
         </mxCell>
-        <mxCell id="vm-note" value="5 VMs total · Ubuntu 22.04 LTS gen2 · password auth" style="text;html=1;align=center;verticalAlign=middle;fontSize=11;fontColor=#475569;" vertex="1" parent="shared-zone">
-          <mxGeometry x="25" y="248" width="310" height="30" as="geometry" />
+        <mxCell id="vm-note" value="Boot diagnostics enabled on all 5 VMs" style="text;html=1;align=center;verticalAlign=middle;fontSize=11;fontColor=#475569;" vertex="1" parent="shared-zone">
+          <mxGeometry x="25" y="246" width="300" height="26" as="geometry" />
         </mxCell>
 
-        <mxCell id="vpn-zone" value="SITE-TO-SITE VPN (two connection resources, shared key in template)" style="swimlane;html=1;rounded=0;startSize=40;horizontal=1;fontSize=14;fontStyle=1;fillColor=#b25900;strokeColor=#8a4400;swimlaneFillColor=#fff7ed;fontColor=#ffffff;" vertex="1" parent="1">
-          <mxGeometry x="40" y="770" width="1160" height="180" as="geometry" />
+        <mxCell id="vpn-zone" value="SITE-TO-SITE VPN&amp;nbsp; |&amp;nbsp; two connection resources, shared key hardcoded in the template" style="swimlane;html=1;rounded=0;startSize=40;horizontal=1;fontSize=14;fontStyle=1;fillColor=#b25900;strokeColor=#8a4400;swimlaneFillColor=#fff7ed;fontColor=#ffffff;" vertex="1" parent="1">
+          <mxGeometry x="40" y="790" width="1160" height="180" as="geometry" />
         </mxCell>
-        <mxCell id="op-lng" value="onprem-local-gateway&lt;br&gt;Describes on-premises&lt;br&gt;192.168.0.0/22 · 192.168.4.0/22&lt;br&gt;Peer IP: onprem gateway PIP" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;fillColor=#ffe6cc;strokeColor=#d79b00;fontColor=#172033;" vertex="1" parent="vpn-zone">
-          <mxGeometry x="40" y="60" width="250" height="86" as="geometry" />
+        <mxCell id="conn1" value="onprem-to-azure&lt;br&gt;IPsec connection&lt;br&gt;from onprem-gateway" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;fillColor=#ffe6cc;strokeColor=#d79b00;fontColor=#172033;" vertex="1" parent="vpn-zone">
+          <mxGeometry x="30" y="70" width="250" height="80" as="geometry" />
         </mxCell>
-        <mxCell id="conn2" value="azure-to-onprem&lt;br&gt;IPsec connection&lt;br&gt;azure-gateway → onprem-local-gateway" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;fillColor=#ffe6cc;strokeColor=#d79b00;fontColor=#172033;" vertex="1" parent="vpn-zone">
-          <mxGeometry x="330" y="60" width="250" height="86" as="geometry" />
+        <mxCell id="az-lng" value="azure-local-gateway&lt;br&gt;Describes the Azure side&lt;br&gt;10.70.0.0/22 · 172.16.1.0/24&lt;br&gt;AVS return prefix included" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;fillColor=#ffe6cc;strokeColor=#d79b00;fontColor=#172033;" vertex="1" parent="vpn-zone">
+          <mxGeometry x="350" y="70" width="240" height="80" as="geometry" />
         </mxCell>
-        <mxCell id="conn1" value="onprem-to-azure&lt;br&gt;IPsec connection&lt;br&gt;onprem-gateway → azure-local-gateway" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;fillColor=#ffe6cc;strokeColor=#d79b00;fontColor=#172033;" vertex="1" parent="vpn-zone">
-          <mxGeometry x="620" y="60" width="250" height="86" as="geometry" />
+        <mxCell id="conn2" value="azure-to-onprem&lt;br&gt;IPsec connection&lt;br&gt;from azure-gateway" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;fillColor=#ffe6cc;strokeColor=#d79b00;fontColor=#172033;" vertex="1" parent="vpn-zone">
+          <mxGeometry x="620" y="70" width="250" height="80" as="geometry" />
         </mxCell>
-        <mxCell id="az-lng" value="azure-local-gateway&lt;br&gt;Describes Azure side&lt;br&gt;10.70.0.0/22 · 172.16.1.0/24&lt;br&gt;AVS return prefix included" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;fillColor=#ffe6cc;strokeColor=#d79b00;fontColor=#172033;" vertex="1" parent="vpn-zone">
-          <mxGeometry x="910" y="60" width="210" height="86" as="geometry" />
+        <mxCell id="op-lng" value="onprem-local-gateway&lt;br&gt;Describes on-premises&lt;br&gt;192.168.0.0/22 · 192.168.4.0/22" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;fillColor=#ffe6cc;strokeColor=#d79b00;fontColor=#172033;" vertex="1" parent="vpn-zone">
+          <mxGeometry x="890" y="70" width="240" height="80" as="geometry" />
         </mxCell>
 
         <mxCell id="legend" value="LEGEND" style="swimlane;html=1;rounded=0;startSize=40;horizontal=1;fontSize=14;fontStyle=1;fillColor=#4a5568;strokeColor=#2d3748;swimlaneFillColor=#f8fafc;fontColor=#ffffff;" vertex="1" parent="1">
-          <mxGeometry x="1240" y="770" width="360" height="180" as="geometry" />
+          <mxGeometry x="1250" y="790" width="350" height="180" as="geometry" />
         </mxCell>
         <mxCell id="legend-subnet" value="Subnet" style="rounded=0;whiteSpace=wrap;html=1;fontSize=11;fillColor=#e0f2fe;strokeColor=#0284c7;fontColor=#0c4a6e;" vertex="1" parent="legend">
-          <mxGeometry x="20" y="55" width="150" height="32" as="geometry" />
+          <mxGeometry x="20" y="55" width="145" height="32" as="geometry" />
         </mxCell>
         <mxCell id="legend-vm" value="Virtual machine" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;fillColor=#fff2cc;strokeColor=#d6b656;fontColor=#172033;" vertex="1" parent="legend">
-          <mxGeometry x="190" y="55" width="150" height="32" as="geometry" />
+          <mxGeometry x="185" y="55" width="145" height="32" as="geometry" />
         </mxCell>
-        <mxCell id="legend-net" value="Gateway / firewall / Route Server" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;fillColor=#fdecec;strokeColor=#c24141;fontColor=#172033;" vertex="1" parent="legend">
-          <mxGeometry x="20" y="100" width="150" height="32" as="geometry" />
+        <mxCell id="legend-net" value="Gateway, firewall, Route Server" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;fillColor=#fdecec;strokeColor=#c24141;fontColor=#172033;" vertex="1" parent="legend">
+          <mxGeometry x="20" y="100" width="145" height="36" as="geometry" />
         </mxCell>
-        <mxCell id="legend-ops" value="Operations / VPN objects" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;fillColor=#ffe6cc;strokeColor=#d79b00;fontColor=#172033;" vertex="1" parent="legend">
-          <mxGeometry x="190" y="100" width="150" height="32" as="geometry" />
+        <mxCell id="legend-ops" value="VPN and operations objects" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;fillColor=#ffe6cc;strokeColor=#d79b00;fontColor=#172033;" vertex="1" parent="legend">
+          <mxGeometry x="185" y="100" width="145" height="36" as="geometry" />
         </mxCell>
-        <mxCell id="legend-note" value="Route tables shown as grey panels" style="text;html=1;align=center;verticalAlign=middle;fontSize=11;fontColor=#475569;" vertex="1" parent="legend">
-          <mxGeometry x="20" y="142" width="320" height="26" as="geometry" />
+        <mxCell id="legend-note" value="Route tables appear as grey panels" style="text;html=1;align=center;verticalAlign=middle;fontSize=11;fontColor=#475569;" vertex="1" parent="legend">
+          <mxGeometry x="20" y="144" width="310" height="26" as="geometry" />
         </mxCell>
 
-        <mxCell id="e-vpn" value="IPsec site-to-site VPN" style="endArrow=classic;startArrow=classic;html=1;rounded=0;strokeWidth=3;strokeColor=#b25900;fontSize=12;fontStyle=1;fontColor=#8a4400;labelBackgroundColor=#ffffff;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="op-gw" target="az-gw">
+        <mxCell id="e-peering" value="VNet peering" style="endArrow=classic;startArrow=classic;html=1;rounded=0;strokeWidth=3;strokeColor=#6b4fa8;fontSize=12;fontStyle=1;fontColor=#4a3577;labelBackgroundColor=#ffffff;exitX=1;exitY=0.3;exitDx=0;exitDy=0;entryX=0;entryY=0.62;entryDx=0;entryDy=0;" edge="1" parent="1" source="azure-zone" target="avs-zone">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e-peering" value="VNet peering&lt;br&gt;azure-to-avs: allowGatewayTransit&lt;br&gt;avs-to-azure: useRemoteGateways" style="endArrow=classic;startArrow=classic;html=1;rounded=0;strokeWidth=3;strokeColor=#6b4fa8;fontSize=12;fontStyle=1;fontColor=#4a3577;labelBackgroundColor=#ffffff;exitX=1;exitY=0.25;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="azure-zone" target="avs-zone">
+        <mxCell id="e-bgp" value="eBGP · 2 multihop sessions · 65001 ↔ 65515" style="endArrow=classic;startArrow=classic;html=1;rounded=0;dashed=1;strokeWidth=2;strokeColor=#c24141;fontSize=11;fontColor=#c24141;labelBackgroundColor=#ffffff;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" edge="1" parent="1" source="az-s-hubvm" target="az-s-rs">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e-bgp" value="Two eBGP multihop sessions&lt;br&gt;65001 ↔ 65515" style="endArrow=classic;startArrow=classic;html=1;rounded=0;dashed=1;strokeWidth=2;strokeColor=#c24141;fontSize=11;fontColor=#c24141;labelBackgroundColor=#ffffff;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" edge="1" parent="1" source="az-hubvm" target="az-rs">
+        <mxCell id="e-fw-law" value="AzFW-diags" style="endArrow=classic;html=1;rounded=0;dashed=1;strokeWidth=2;strokeColor=#64748b;fontSize=11;fontColor=#475569;labelBackgroundColor=#ffffff;exitX=1;exitY=0.8;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="az-s-fw" target="law">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e-rt-fw" value="Next hop:&lt;br&gt;firewall private IP" style="endArrow=classic;html=1;rounded=0;dashed=1;strokeWidth=2;strokeColor=#64748b;fontSize=11;fontColor=#475569;labelBackgroundColor=#ffffff;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0;entryY=1;entryDx=0;entryDy=0;" edge="1" parent="1" source="az-rt" target="az-fw">
+        <mxCell id="e-storage-vm" value="Boot diagnostics" style="endArrow=classic;html=1;rounded=0;dashed=1;strokeWidth=2;strokeColor=#64748b;fontSize=11;fontColor=#475569;labelBackgroundColor=#ffffff;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="storage" target="az-s-hubvm">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e-fw-law" value="AzFW-diags" style="endArrow=classic;html=1;rounded=0;dashed=1;strokeWidth=2;strokeColor=#64748b;fontSize=11;fontColor=#475569;labelBackgroundColor=#ffffff;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="az-fw" target="law">
+        <mxCell id="e-opgw-conn" value="IPsec" style="edgeStyle=orthogonalEdgeStyle;endArrow=classic;html=1;rounded=0;strokeWidth=3;strokeColor=#b25900;fontSize=11;fontStyle=1;fontColor=#8a4400;labelBackgroundColor=#ffffff;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="op-s-gw" target="conn1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="57" y="250" />
+              <mxPoint x="57" y="850" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e-conn1-lng" value="targets" style="endArrow=classic;html=1;rounded=0;strokeWidth=2;strokeColor=#b25900;fontSize=11;fontColor=#8a4400;labelBackgroundColor=#ffffff;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="conn1" target="az-lng">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e-storage-vm" value="Boot diagnostics&lt;br&gt;for all 5 VMs" style="endArrow=classic;html=1;rounded=0;dashed=1;strokeWidth=2;strokeColor=#64748b;fontSize=11;fontColor=#475569;labelBackgroundColor=#ffffff;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="storage" target="az-hubvm">
-          <mxGeometry relative="1" as="geometry" />
+        <mxCell id="e-azgw-conn" value="IPsec" style="edgeStyle=orthogonalEdgeStyle;endArrow=classic;html=1;rounded=0;strokeWidth=3;strokeColor=#b25900;fontSize=11;fontStyle=1;fontColor=#8a4400;labelBackgroundColor=#ffffff;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="az-s-gw" target="conn2">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="472" y="252" />
+              <mxPoint x="472" y="835" />
+            </Array>
+          </mxGeometry>
         </mxCell>
-        <mxCell id="e-gw-conn" value="" style="endArrow=classic;html=1;rounded=0;strokeWidth=2;strokeColor=#b25900;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="az-gw" target="conn2">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-        <mxCell id="e-opgw-conn" value="" style="endArrow=classic;html=1;rounded=0;strokeWidth=2;strokeColor=#b25900;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="op-gw" target="op-lng">
+        <mxCell id="e-conn2-lng" value="targets" style="endArrow=classic;html=1;rounded=0;strokeWidth=2;strokeColor=#b25900;fontSize=11;fontColor=#8a4400;labelBackgroundColor=#ffffff;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="conn2" target="op-lng">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
       </root>
