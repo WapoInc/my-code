@@ -3,6 +3,8 @@
 set -euo pipefail
 
 SCRIPT_START_EPOCH="$(date +%s)"
+SCRIPT_START_TIME="$(date '+%Y-%m-%d %H:%M:%S %Z')"
+echo "Start time: $SCRIPT_START_TIME"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TEMPLATE_FILE="$SCRIPT_DIR/main.bicep"
@@ -66,15 +68,6 @@ parameters = {
 with open(sys.argv[1], "w", encoding="utf-8") as parameters_file:
     json.dump(parameters, parameters_file)
 PY
-
-echo "Subscription: $SUBSCRIPTION"
-echo "Resource group: $RESOURCE_GROUP"
-echo "Location: $LOCATION"
-echo "Azure VPN gateway: VpnGw1AZ, active-active, ASN 65515"
-echo "AVS gateway transit: azure-vnet -> avs-vnet"
-echo "AVS return prefix: 172.16.1.0/24"
-echo "AVS return route: 192.168.0.0/22, 192.168.4.0/22 via Azure Firewall (avs-to-on-prem)"
-echo "Log Analytics: network-rule and Policy Analytics aggregation logs enabled in resource-specific tables"
 
 az group create \
   --name "$RESOURCE_GROUP" \
@@ -159,6 +152,7 @@ az vm run-command invoke \
   --output tsv
 
 SCRIPT_END_EPOCH="$(date +%s)"
+SCRIPT_END_TIME="$(date '+%Y-%m-%d %H:%M:%S %Z')"
 TOTAL_SECONDS=$((SCRIPT_END_EPOCH - SCRIPT_START_EPOCH))
 TOTAL_HOURS=$((TOTAL_SECONDS / 3600))
 TOTAL_MINUTES=$(((TOTAL_SECONDS % 3600) / 60))
@@ -173,8 +167,9 @@ LOG_ANALYTICS_WORKSPACE="$(cut -f2 <<<"$DEPLOYMENT_OUTPUTS")"
 ONPREM_VM1_PUBLIC_IP="$(cut -f3 <<<"$DEPLOYMENT_OUTPUTS")"
 
 echo
-echo "Total Duration:  ${TOTAL_HOURS}h ${TOTAL_MINUTES}m ${TOTAL_REMAINING_SECONDS}s"
-echo "                 (${TOTAL_SECONDS} seconds)"
+echo "Start time:    $SCRIPT_START_TIME"
+echo "End time:      $SCRIPT_END_TIME"
+echo "Running time:  ${TOTAL_HOURS}h ${TOTAL_MINUTES}m ${TOTAL_REMAINING_SECONDS}s (${TOTAL_SECONDS} seconds)"
 echo
 echo "Gateway Deployment: Parallel (included in total duration)"
 echo "=========================================="
