@@ -36,6 +36,8 @@ var firewallName = 'AzFW'
 var firewallPolicyName = 'AzFW-Policy-01'
 var firewallPublicIpName = 'AzFW-Pub-IP'
 var bootDiagnosticsStorageName = 'bootdiag${uniqueString(subscription().id, resourceGroup().id)}'
+// Azure Firewall always takes the first usable IP of AzureFirewallSubnet; static so UDRs/VMs don't wait on the firewall.
+var firewallPrivateIp = '10.70.3.4'
 var hubVmPrivateIp = '10.70.2.68'
 var hubVmBgpAsn = 65001
 var vpnSharedKey = 'S2SPSK123!'
@@ -371,7 +373,7 @@ resource azureHubRouteTable 'Microsoft.Network/routeTables@2024-05-01' = {
         properties: {
           addressPrefix: '192.168.1.0/24'
           nextHopType: 'VirtualAppliance'
-          nextHopIpAddress: firewall.properties.ipConfigurations[0].properties.privateIPAddress
+          nextHopIpAddress: firewallPrivateIp
         }
       }
       {
@@ -379,7 +381,7 @@ resource azureHubRouteTable 'Microsoft.Network/routeTables@2024-05-01' = {
         properties: {
           addressPrefix: '192.168.4.0/24'
           nextHopType: 'VirtualAppliance'
-          nextHopIpAddress: firewall.properties.ipConfigurations[0].properties.privateIPAddress
+          nextHopIpAddress: firewallPrivateIp
         }
       }
       {
@@ -387,7 +389,7 @@ resource azureHubRouteTable 'Microsoft.Network/routeTables@2024-05-01' = {
         properties: {
           addressPrefix: '172.16.1.0/24'
           nextHopType: 'VirtualAppliance'
-          nextHopIpAddress: '10.70.3.4'
+          nextHopIpAddress: firewallPrivateIp
         }
       }
     ]
@@ -406,7 +408,7 @@ resource azureGatewayRouteTable 'Microsoft.Network/routeTables@2024-05-01' = {
         properties: {
           addressPrefix: '10.70.1.0/24'
           nextHopType: 'VirtualAppliance'
-          nextHopIpAddress: firewall.properties.ipConfigurations[0].properties.privateIPAddress
+          nextHopIpAddress: firewallPrivateIp
         }
       }
       {
@@ -414,7 +416,7 @@ resource azureGatewayRouteTable 'Microsoft.Network/routeTables@2024-05-01' = {
         properties: {
           addressPrefix: '172.16.1.0/24'
           nextHopType: 'VirtualAppliance'
-          nextHopIpAddress: '10.70.3.4'
+          nextHopIpAddress: firewallPrivateIp
         }
       }
     ]
@@ -433,7 +435,7 @@ resource hubVmRouteTable 'Microsoft.Network/routeTables@2024-05-01' = {
         properties: {
           addressPrefix: '0.0.0.0/0'
           nextHopType: 'VirtualAppliance'
-          nextHopIpAddress: firewall.properties.ipConfigurations[0].properties.privateIPAddress
+          nextHopIpAddress: firewallPrivateIp
         }
       }
     ]
@@ -452,7 +454,7 @@ resource avsRouteTable 'Microsoft.Network/routeTables@2024-05-01' = {
         properties: {
           addressPrefix: '192.168.0.0/22'
           nextHopType: 'VirtualAppliance'
-          nextHopIpAddress: firewall.properties.ipConfigurations[0].properties.privateIPAddress
+          nextHopIpAddress: firewallPrivateIp
         }
       }
       {
@@ -460,7 +462,7 @@ resource avsRouteTable 'Microsoft.Network/routeTables@2024-05-01' = {
         properties: {
           addressPrefix: '192.168.4.0/22'
           nextHopType: 'VirtualAppliance'
-          nextHopIpAddress: firewall.properties.ipConfigurations[0].properties.privateIPAddress
+          nextHopIpAddress: firewallPrivateIp
         }
       }
     ]
@@ -1174,7 +1176,8 @@ resource hubVm 'Microsoft.Compute/virtualMachines@2024-03-01' = {
   }
 }
 
-var hubVmBgpConfigScript = '''
+// Bicep ''' strings don't interpolate ${...}; placeholders are substituted with replace() below.
+var hubVmBgpConfigScriptTemplate = '''
 #!/bin/bash
 set -euo pipefail
 
@@ -1196,17 +1199,17 @@ frr defaults traditional
 hostname hub-vm
 service integrated-vtysh-config
 !
-router bgp ${hubVmBgpAsn}
- bgp router-id ${hubVmPrivateIp}
+router bgp __HUB_ASN__
+ bgp router-id __HUB_IP__
  no bgp ebgp-requires-policy
- neighbor ${routeServer.properties.virtualRouterIps[0]} remote-as 65515
- neighbor ${routeServer.properties.virtualRouterIps[0]} ebgp-multihop 2
- neighbor ${routeServer.properties.virtualRouterIps[1]} remote-as 65515
- neighbor ${routeServer.properties.virtualRouterIps[1]} ebgp-multihop 2
+ neighbor __RS_IP_0__ remote-as 65515
+ neighbor __RS_IP_0__ ebgp-multihop 2
+ neighbor __RS_IP_1__ remote-as 65515
+ neighbor __RS_IP_1__ ebgp-multihop 2
  !
  address-family ipv4 unicast
-  neighbor ${routeServer.properties.virtualRouterIps[0]} activate
-  neighbor ${routeServer.properties.virtualRouterIps[1]} activate
+  neighbor __RS_IP_0__ activate
+  neighbor __RS_IP_1__ activate
  exit-address-family
 !
 EOF
@@ -1216,6 +1219,20 @@ chmod 640 /etc/frr/frr.conf
 systemctl enable --now frr
 systemctl restart frr
 '''
+
+var hubVmBgpConfigScript = replace(
+  replace(
+    replace(
+      replace(hubVmBgpConfigScriptTemplate, '__HUB_ASN__', string(hubVmBgpAsn)),
+      '__HUB_IP__',
+      hubVmPrivateIp
+    ),
+    '__RS_IP_0__',
+    routeServer.properties.virtualRouterIps[0]
+  ),
+  '__RS_IP_1__',
+  routeServer.properties.virtualRouterIps[1]
+)
 
 resource hubVmBgpExtension 'Microsoft.Compute/virtualMachines/extensions@2024-03-01' = {
   parent: hubVm
@@ -1234,6 +1251,8 @@ resource hubVmBgpExtension 'Microsoft.Compute/virtualMachines/extensions@2024-03
   }
   dependsOn: [
     routeServerIpConfig
+    firewall
+    firewallRuleCollectionGroup
   ]
 }
 

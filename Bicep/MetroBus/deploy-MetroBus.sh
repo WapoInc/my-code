@@ -172,6 +172,7 @@ echo "End time:      $SCRIPT_END_TIME"
 echo "Running time:  ${TOTAL_HOURS}h ${TOTAL_MINUTES}m ${TOTAL_REMAINING_SECONDS}s (${TOTAL_SECONDS} seconds)"
 echo
 echo "Gateway Deployment: Parallel (included in total duration)"
+echo "VM Deployment:      Parallel (all 5 VMs created together)"
 echo "=========================================="
 echo
 echo "Next Steps:"
