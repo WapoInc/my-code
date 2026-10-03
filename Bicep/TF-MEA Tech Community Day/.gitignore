@@ -1,0 +1,9 @@
+.DS_Store
+
+# Terraform local state and generated plans
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log
+terraform.tfvars
