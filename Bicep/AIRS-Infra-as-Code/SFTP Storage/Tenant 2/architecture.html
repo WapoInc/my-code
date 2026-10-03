@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Cross-tenant SFTP to Azure Storage</title>
+<style>
+  html, body { margin: 0; padding: 0; background: #ffffff; }
+  #diagram { width: 1400px; height: 820px; }
+  text { font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+</style>
+</head>
+<body>
+<svg id="diagram" viewBox="0 0 1400 820" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#0b3d5c"/>
+    </marker>
+    <marker id="arrowG" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#2e7d32"/>
+    </marker>
+    <marker id="arrowO" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#e65100"/>
+    </marker>
+  </defs>
+  <rect width="1400" height="820" fill="#ffffff"/>
+
+  <text x="40" y="46" font-size="28" font-weight="700" fill="#0b3d5c">Cross-tenant SFTP: WinSCP (Tenant 1) to Azure Storage (Tenant 2)</text>
+  <text x="40" y="74" font-size="15" fill="#555">Private-only access over TCP/22 via Private Link. No public endpoint, no passwords, no shared keys.</text>
+
+  <!-- ================= TENANT 1 ================= -->
+  <rect x="30" y="100" width="560" height="560" rx="14" fill="#f3f8fc" stroke="#0078d4" stroke-width="2.5"/>
+  <text x="50" y="132" font-size="20" font-weight="700" fill="#0078d4">Tenant 1 (consumer) - existing, unchanged</text>
+
+  <rect x="55" y="160" width="510" height="470" rx="10" fill="#ffffff" stroke="#6aa9d8" stroke-width="1.5" stroke-dasharray="6 4"/>
+  <text x="70" y="186" font-size="15" font-weight="600" fill="#0b3d5c">VNet (from Multi-VM-deploy-Windows.sh)</text>
+
+  <!-- VM subnet -->
+  <rect x="80" y="205" width="460" height="170" rx="8" fill="#eaf4fb" stroke="#0078d4"/>
+  <text x="95" y="230" font-size="14" font-weight="600" fill="#0b3d5c">VM subnet</text>
+  <rect x="110" y="248" width="170" height="105" rx="8" fill="#ffffff" stroke="#0078d4" stroke-width="2"/>
+  <text x="195" y="278" font-size="15" font-weight="700" text-anchor="middle" fill="#0b3d5c">Windows VM</text>
+  <text x="195" y="300" font-size="13" text-anchor="middle" fill="#444">Server 2022</text>
+  <text x="195" y="322" font-size="13" text-anchor="middle" fill="#444">WinSCP client</text>
+  <text x="195" y="342" font-size="12" text-anchor="middle" fill="#888">+ NIC / NSG</text>
+  <rect x="320" y="262" width="190" height="78" rx="8" fill="#fff8e1" stroke="#f9a825"/>
+  <text x="415" y="290" font-size="14" font-weight="700" text-anchor="middle" fill="#7a5600">Private DNS zone</text>
+  <text x="415" y="312" font-size="12" text-anchor="middle" fill="#7a5600">privatelink.blob.core</text>
+  <text x="415" y="328" font-size="12" text-anchor="middle" fill="#7a5600">.windows.net (linked)</text>
+
+  <!-- PE subnet -->
+  <rect x="80" y="420" width="460" height="185" rx="8" fill="#eaf4fb" stroke="#0078d4"/>
+  <text x="95" y="445" font-size="14" font-weight="600" fill="#0b3d5c">Private endpoint subnet</text>
+  <rect x="200" y="470" width="220" height="110" rx="8" fill="#fff3e0" stroke="#e65100" stroke-width="2.5" stroke-dasharray="7 4"/>
+  <text x="310" y="502" font-size="16" font-weight="700" text-anchor="middle" fill="#bf360c">Private Endpoint</text>
+  <text x="310" y="524" font-size="13" text-anchor="middle" fill="#444">sub-resource: blob</text>
+  <text x="310" y="544" font-size="13" text-anchor="middle" fill="#444">manual approval request</text>
+  <text x="310" y="566" font-size="12" text-anchor="middle" fill="#888">(later Tenant 1 deployment)</text>
+
+  <!-- VM -> PE -->
+  <line x1="195" y1="353" x2="260" y2="470" stroke="#0b3d5c" stroke-width="2.5" marker-end="url(#arrow)"/>
+  <text x="128" y="415" font-size="14" font-weight="700" fill="#0b3d5c">TCP/22</text>
+  <!-- DNS -->
+  <path d="M 415 340 L 415 400 L 380 470" fill="none" stroke="#f9a825" stroke-width="2" stroke-dasharray="4 3" marker-end="url(#arrow)"/>
+  <text x="425" y="400" font-size="12" fill="#7a5600">A record to PE IP</text>
+
+  <!-- ================= TENANT 2 ================= -->
+  <rect x="810" y="100" width="560" height="660" rx="14" fill="#f4faf4" stroke="#2e7d32" stroke-width="2.5"/>
+  <text x="830" y="132" font-size="20" font-weight="700" fill="#2e7d32">Tenant 2 (producer) - built by this solution</text>
+
+  <rect x="835" y="160" width="510" height="570" rx="10" fill="#ffffff" stroke="#81c784" stroke-width="1.5" stroke-dasharray="6 4"/>
+  <text x="850" y="186" font-size="15" font-weight="600" fill="#1b5e20">Resource group</text>
+
+  <!-- Storage account -->
+  <rect x="860" y="205" width="460" height="330" rx="10" fill="#e8f5e9" stroke="#2e7d32" stroke-width="2.5"/>
+  <text x="880" y="235" font-size="17" font-weight="700" fill="#1b5e20">Storage account (StorageV2, Standard_LRS)</text>
+  <text x="880" y="257" font-size="12.5" fill="#33691e">HNS on | SFTP on | public network access: Disabled</text>
+  <text x="880" y="275" font-size="12.5" fill="#33691e">shared key off | anonymous blob off | TLS 1.2 | HTTPS only</text>
+
+  <rect x="885" y="295" width="410" height="220" rx="8" fill="#ffffff" stroke="#66bb6a"/>
+  <text x="900" y="320" font-size="14" font-weight="700" fill="#1b5e20">Blob service (default)</text>
+  <rect x="905" y="335" width="370" height="60" rx="8" fill="#f1f8e9" stroke="#66bb6a"/>
+  <text x="920" y="360" font-size="14" font-weight="700" fill="#1b5e20">Container: sftp-data</text>
+  <text x="920" y="381" font-size="12.5" fill="#444">private (publicAccess: None) | SFTP home directory</text>
+  <rect x="905" y="410" width="370" height="85" rx="8" fill="#f1f8e9" stroke="#66bb6a"/>
+  <text x="920" y="435" font-size="14" font-weight="700" fill="#1b5e20">Local user: sftp-user</text>
+  <text x="920" y="456" font-size="12.5" fill="#444">SSH public key only | no SSH password | no shared key</text>
+  <text x="920" y="476" font-size="12.5" fill="#444">scope: blob/sftp-data, permissions rwlcd</text>
+
+  <!-- Tenant 2 networking -->
+  <rect x="860" y="565" width="460" height="145" rx="10" fill="#f1f8e9" stroke="#2e7d32" stroke-dasharray="6 4"/>
+  <text x="880" y="590" font-size="14" font-weight="700" fill="#1b5e20">Tenant 2 private networking (recommended default)</text>
+  <rect x="880" y="605" width="200" height="85" rx="8" fill="#ffffff" stroke="#2e7d32"/>
+  <text x="980" y="632" font-size="13" font-weight="700" text-anchor="middle" fill="#1b5e20">VNet + PE subnet</text>
+  <text x="980" y="652" font-size="12" text-anchor="middle" fill="#444">Private Endpoint (blob)</text>
+  <text x="980" y="670" font-size="12" text-anchor="middle" fill="#444">auto-approved</text>
+  <rect x="1100" y="605" width="200" height="85" rx="8" fill="#fff8e1" stroke="#f9a825"/>
+  <text x="1200" y="632" font-size="13" font-weight="700" text-anchor="middle" fill="#7a5600">Private DNS zone</text>
+  <text x="1200" y="652" font-size="12" text-anchor="middle" fill="#7a5600">privatelink.blob.core</text>
+  <text x="1200" y="670" font-size="12" text-anchor="middle" fill="#7a5600">.windows.net</text>
+  <line x1="1080" y1="647" x2="1100" y2="647" stroke="#2e7d32" stroke-width="2" marker-end="url(#arrowG)"/>
+  <line x1="980" y1="605" x2="980" y2="535" stroke="#2e7d32" stroke-width="2.5" marker-end="url(#arrowG)"/>
+
+  <!-- ================= cross-tenant link ================= -->
+  <path d="M 420 525 L 700 525 L 700 420 L 860 420" fill="none" stroke="#e65100" stroke-width="3.5" stroke-dasharray="10 6" marker-end="url(#arrowO)"/>
+  <rect x="610" y="548" width="190" height="64" rx="8" fill="#fff3e0" stroke="#e65100"/>
+  <text x="705" y="571" font-size="13" font-weight="700" text-anchor="middle" fill="#bf360c">Private Link (cross-tenant)</text>
+  <text x="705" y="590" font-size="12" text-anchor="middle" fill="#444">Tenant 2 approves the</text>
+  <text x="705" y="605" font-size="12" text-anchor="middle" fill="#444">pending connection</text>
+
+  <!-- ================= legend ================= -->
+  <rect x="30" y="690" width="560" height="100" rx="10" fill="#fafafa" stroke="#ccc"/>
+  <text x="48" y="716" font-size="14" font-weight="700" fill="#333">Flow</text>
+  <text x="48" y="738" font-size="12.5" fill="#444">1. WinSCP on the Tenant 1 VM resolves the account blob FQDN via the private DNS zone.</text>
+  <text x="48" y="757" font-size="12.5" fill="#444">2. SFTP (TCP/22) goes to the Tenant 1 private endpoint, then over Private Link to Tenant 2.</text>
+  <text x="48" y="776" font-size="12.5" fill="#444">3. Login: &lt;account&gt;.sftp-data.sftp-user@&lt;account&gt;.blob.core.windows.net (SSH key).</text>
+
+  <rect x="810" y="772" width="14" height="14" fill="#e8f5e9" stroke="#2e7d32"/>
+  <text x="832" y="784" font-size="12.5" fill="#444">New (this solution)</text>
+  <rect x="975" y="772" width="14" height="14" fill="#eaf4fb" stroke="#0078d4"/>
+  <text x="997" y="784" font-size="12.5" fill="#444">Existing (retained)</text>
+  <rect x="1140" y="772" width="14" height="14" fill="#fff3e0" stroke="#e65100" stroke-dasharray="3 2"/>
+  <text x="1162" y="784" font-size="12.5" fill="#444">Later / cross-tenant step</text>
+</svg>
+</body>
+</html>
