@@ -32,6 +32,16 @@ variable "admin_password" {
     condition     = length(var.admin_password) >= 12
     error_message = "admin_password must be at least 12 characters."
   }
+
+  validation {
+    condition = length(compact([
+      length(regexall("[a-z]", var.admin_password)) > 0 ? "lowercase" : "",
+      length(regexall("[A-Z]", var.admin_password)) > 0 ? "uppercase" : "",
+      length(regexall("[0-9]", var.admin_password)) > 0 ? "digit" : "",
+      length(regexall("[^0-9A-Za-z_]", var.admin_password)) > 0 ? "special" : "",
+    ])) >= 3
+    error_message = "admin_password must contain at least three of: lowercase letters, uppercase letters, digits, and special characters other than underscore."
+  }
 }
 
 variable "vpn_shared_key" {

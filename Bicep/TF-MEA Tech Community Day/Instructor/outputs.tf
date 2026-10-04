@@ -3,9 +3,9 @@ output "resource_group_name" {
   value       = azurerm_resource_group.this.name
 }
 
-output "boot_diagnostics_storage_account_name" {
-  description = "Storage account used for VM boot diagnostics."
-  value       = azurerm_storage_account.boot_diagnostics.name
+output "boot_diagnostics_mode" {
+  description = "Boot diagnostics storage mode used by the virtual machines."
+  value       = "Azure-managed"
 }
 
 output "log_analytics_workspace_name" {

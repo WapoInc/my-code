@@ -13,10 +13,14 @@
 ```bash
 az account set --subscription "ME-MngEnvMCAP158201-viresent-1"
 export ARM_SUBSCRIPTION_ID="$(az account show --query id --output tsv)"
-export TF_VAR_admin_password='replace-with-a-complex-password'
+export TF_VAR_admin_password="Aa1$(openssl rand -hex 16)"
 export TF_VAR_vpn_shared_key='replace-with-a-shared-key'
 cp terraform.tfvars.example terraform.tfvars
 ```
+
+The VM administrator password must be at least 12 characters and contain at
+least three of these character classes: lowercase, uppercase, digits, and
+special characters other than underscore.
 
 Do not commit `terraform.tfvars` if it contains secrets. Sensitive Terraform
 variables are redacted from CLI output, but their values remain in Terraform
@@ -37,6 +41,21 @@ values after the apply completes:
 
 ```bash
 terraform output
+```
+
+The VMs use Azure-managed boot diagnostics storage. This is compatible with
+subscriptions that prohibit storage-account shared-key authentication.
+
+If an earlier deployment failed while creating the old custom boot diagnostics
+storage account, remove that resource from Terraform state and delete the
+orphaned account before running `terraform plan` again:
+
+```bash
+terraform state rm azurerm_storage_account.boot_diagnostics
+az storage account delete \
+  --name "<boot-diagnostics-storage-account>" \
+  --resource-group "<resource-group-name>" \
+  --yes
 ```
 
 Destroy the lab when it is no longer needed:

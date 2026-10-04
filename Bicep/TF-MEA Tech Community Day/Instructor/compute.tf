@@ -62,9 +62,7 @@ resource "azurerm_linux_virtual_machine" "onprem_vm1" {
     version   = "latest"
   }
 
-  boot_diagnostics {
-    storage_account_uri = azurerm_storage_account.boot_diagnostics.primary_blob_endpoint
-  }
+  boot_diagnostics {}
 }
 
 resource "azurerm_linux_virtual_machine" "onprem_vm2" {
@@ -90,9 +88,7 @@ resource "azurerm_linux_virtual_machine" "onprem_vm2" {
     version   = "latest"
   }
 
-  boot_diagnostics {
-    storage_account_uri = azurerm_storage_account.boot_diagnostics.primary_blob_endpoint
-  }
+  boot_diagnostics {}
 }
 
 resource "azurerm_linux_virtual_machine" "azure_vm1" {
@@ -118,7 +114,5 @@ resource "azurerm_linux_virtual_machine" "azure_vm1" {
     version   = "latest"
   }
 
-  boot_diagnostics {
-    storage_account_uri = azurerm_storage_account.boot_diagnostics.primary_blob_endpoint
-  }
+  boot_diagnostics {}
 }
