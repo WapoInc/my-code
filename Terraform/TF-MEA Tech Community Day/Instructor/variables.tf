@@ -8,7 +8,7 @@ variable "subscription_id" {
 variable "resource_group_name" {
   type        = string
   description = "Name of the resource group that contains the lab resources."
-  default     = "MEA-Instructor"
+  default     = "MEA-Instructor-2"
 }
 
 variable "location" {

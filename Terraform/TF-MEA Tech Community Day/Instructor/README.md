@@ -67,6 +67,10 @@ Destroy the lab when it is no longer needed:
 terraform destroy
 ```
 
+## Monitoring Deployment Progress
+
+Terraform doesn't create entries in the resource group's **Deployments** blade. [deployments.tf](deployments.tf) adds empty ARM deployments (`tf-01-foundation` ... `tf-06-vpn-connections`) that are created as each stage finishes, so you can follow progress under Resource group > Settings > Deployments. For per-resource detail, use the resource group's **Activity log**.
+
 ## To Fix in Student Lab
 
 - Change the PSK on both VPN Connections to a new known PSK.
