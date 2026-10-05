@@ -8,7 +8,7 @@ variable "subscription_id" {
 variable "resource_group_name" {
   type        = string
   description = "Name of the resource group that contains the lab resources."
-  default     = "POC-Test-12-45-8-Oct"
+  default     = "MEA-Instructor"
 }
 
 variable "location" {
@@ -48,6 +48,7 @@ variable "vpn_shared_key" {
   type        = string
   description = "Pre-shared key used by both VPN connections."
   sensitive   = true
+  default     = "S2SPSK123!"
 
   validation {
     condition     = length(var.vpn_shared_key) > 0

@@ -15,7 +15,11 @@ Write-Host ""
 
 # Set variables
 $Location                  = "southafricanorth"
-$ResourceGroup = "POC-Test-12-45-8-Oct"
+$DefaultResourceGroup = "MEA-Instructor"
+$ResourceGroup = Read-Host "Resource group name [$DefaultResourceGroup]"
+if ([string]::IsNullOrWhiteSpace($ResourceGroup)) {
+  $ResourceGroup = $DefaultResourceGroup
+}
 $OnpremVnet = "onprem-vnet"
 $AzureVnet = "azure-vnet"
 1
@@ -36,7 +40,7 @@ $AzureVm = "azure-vm1"
 
 $Username                  = "adminazure"
 $Password = "P@ssw0rd123!"
-$SharedKey = "AzureSharedKey123"
+$SharedKey = "S2SPSK123!"
 $FirewallName = "AzFW"
 $FirewallPipName = "AzFW-Pub-IP"
 $FirewallPolicyName = "AzFW-Policy-01"

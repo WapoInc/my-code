@@ -1,6 +1,0 @@
-resource_group_name = "POC-Test-12-45-8-Oct"
-location            = "southafricanorth"
-admin_username      = "adminazure"
-
-# Supply these through TF_VAR_admin_password and TF_VAR_vpn_shared_key instead
-# of storing secrets in this file.

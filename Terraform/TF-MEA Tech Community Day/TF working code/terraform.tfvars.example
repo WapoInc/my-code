@@ -1,0 +1,6 @@
+resource_group_name = "MEA-Instructor"
+location            = "southafricanorth"
+admin_username      = "adminazure"
+
+# Supply admin_password through TF_VAR_admin_password instead of storing it in
+# this file. The lab IPsec PSK is configured by the vpn_shared_key default.

@@ -14,9 +14,12 @@
 az account set --subscription "ME-MngEnvMCAP158201-viresent-1"
 export ARM_SUBSCRIPTION_ID="$(az account show --query id --output tsv)"
 export TF_VAR_admin_password="Aa1$(openssl rand -hex 16)"
-export TF_VAR_vpn_shared_key='replace-with-a-shared-key'
 cp terraform.tfvars.example terraform.tfvars
 ```
+
+On PowerShell, run `./deploy.ps1` to enter a resource group name or press
+Enter to use `MEA-Instructor`. The lab IPsec PSK is set to `S2SPSK123!` and
+is not prompted for.
 
 The VM administrator password must be at least 12 characters and contain at
 least three of these character classes: lowercase, uppercase, digits, and
