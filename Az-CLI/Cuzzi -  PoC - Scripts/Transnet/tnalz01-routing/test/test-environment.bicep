@@ -3,7 +3,7 @@
 //
 // Deploys into ONE subscription, using the same resource names as
 // production (from ../networks.json), so ../main.bicep can be tested
-// against it with testSubscriptionId.
+// against it in the active subscription.
 //
 // Deploys:
 //   - Hub VNet 10.116.0.0/22 with AzureFirewallSubnet 10.116.0.64/26

@@ -27,14 +27,10 @@ param firewallIp string = '10.116.0.68'
 @description('Identity VNet address prefix.')
 param identityPrefix string = '10.116.4.0/24'
 
-@description('Optional. When set, every network is targeted in this one subscription instead of the IDs in networks.json (for the test environment).')
-param testSubscriptionId string = ''
-
 var networks = loadJsonContent('networks.json')
 
-var identity = union(networks.identity, empty(testSubscriptionId) ? {} : { subscriptionId: testSubscriptionId })
-
-var sapNetworks = map(networks.sapNetworks, sap => union(sap, empty(testSubscriptionId) ? {} : { subscriptionId: testSubscriptionId }))
+var identity = networks.identity
+var sapNetworks = networks.sapNetworks
 
 // =====================================================================
 // Routes
@@ -79,7 +75,7 @@ var identityToSapRoutes = map(sapNetworks, sap => {
 
 module sapRouting 'modules/route-table-association.bicep' = [for sap in sapNetworks: {
   name: 'tnalz01-rt-${toLower(sap.name)}'
-  scope: resourceGroup(sap.subscriptionId, sap.resourceGroup)
+  scope: resourceGroup(sap.resourceGroup)
   params: {
     routeTableName: sap.routeTableName
     vnetName: sap.vnetName
@@ -96,7 +92,7 @@ module sapRouting 'modules/route-table-association.bicep' = [for sap in sapNetwo
 
 module identityRouting 'modules/route-table-association.bicep' = {
   name: 'tnalz01-rt-identity'
-  scope: resourceGroup(identity.subscriptionId, identity.resourceGroup)
+  scope: resourceGroup(identity.resourceGroup)
   params: {
     routeTableName: identity.routeTableName
     vnetName: identity.vnetName
