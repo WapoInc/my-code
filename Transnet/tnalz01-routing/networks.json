@@ -1,0 +1,102 @@
+{
+  "identity": {
+    "subscriptionId": "029eef3a-41d6-4c4a-bf56-d2103462001c",
+    "resourceGroup": "rg-vnet-identity-prod-southafricanorth",
+    "vnetName": "vnet-identity-prod-southafricanorth",
+    "subnetName": "snet-tnalz01-identity",
+    "routeTableName": "rt-identity-prod-southafricanorth",
+    "addressPrefix": "10.116.4.0/24"
+  },
+  "sapNetworks": [
+    {
+      "name": "TFR-PRD",
+      "subscriptionId": "87c63417-f672-453e-abcb-c85b863a687d",
+      "resourceGroup": "rg-tnalz01-tfr-sap-prd-1",
+      "vnetName": "vnet-tnalz01-tfr-sap-prd-1",
+      "subnetName": "snet-tnalz01-tfr-sap-prd-1",
+      "routeTableName": "rt-tnalz01-tfr-sap-prd-1",
+      "addressPrefix": "10.116.6.0/24",
+      "routeName": "to-tfr-sap-prd-1"
+    },
+    {
+      "name": "TFR-DEV",
+      "subscriptionId": "182f2e85-4cc8-45fe-ad4e-a0c68d25db57",
+      "resourceGroup": "rg-tnalz01-tfr-sap-dev-1",
+      "vnetName": "vnet-tnalz01-tfr-sap-dev-1",
+      "subnetName": "snet-tnalz01-tfr-sap-dev-1",
+      "routeTableName": "rt-tnalz01-tfr-sap-dev-1",
+      "addressPrefix": "10.116.7.0/24",
+      "routeName": "to-tfr-sap-dev-1"
+    },
+    {
+      "name": "TFR-QA",
+      "subscriptionId": "182f2e85-4cc8-45fe-ad4e-a0c68d25db57",
+      "resourceGroup": "rg-tnalz01-tfr-sap-qa-1",
+      "vnetName": "vnet-tnalz01-tfr-sap-qa-1",
+      "subnetName": "snet-tnalz01-tfr-sap-qa-1",
+      "routeTableName": "rt-tnalz01-tfr-sap-qa-1",
+      "addressPrefix": "10.116.8.0/24",
+      "routeName": "to-tfr-sap-qa-1"
+    },
+    {
+      "name": "TE-PRD",
+      "subscriptionId": "46c8b8dd-406e-4720-93cb-3965e4def39b",
+      "resourceGroup": "rg-tnalz01-te-sap-prd-1",
+      "vnetName": "vnet-tnalz01-te-sap-prd-1",
+      "subnetName": "snet-tnalz01-te-sap-prd-1",
+      "routeTableName": "rt-tnalz01-te-sap-prd-1",
+      "addressPrefix": "10.116.9.0/24",
+      "routeName": "to-te-sap-prd-1"
+    },
+    {
+      "name": "TE-DEV",
+      "subscriptionId": "2e815c23-e91d-4975-8869-4eb89a6c8ac9",
+      "resourceGroup": "rg-tnalz01-te-sap-dev-1",
+      "vnetName": "vnet-tnalz01-te-sap-dev-1",
+      "subnetName": "snet-tnalz01-te-sap-dev-1",
+      "routeTableName": "rt-tnalz01-te-sap-dev-1",
+      "addressPrefix": "10.116.10.0/24",
+      "routeName": "to-te-sap-dev-1"
+    },
+    {
+      "name": "TE-QA",
+      "subscriptionId": "2e815c23-e91d-4975-8869-4eb89a6c8ac9",
+      "resourceGroup": "rg-tnalz01-te-sap-qa-1",
+      "vnetName": "vnet-tnalz01-te-sap-qa-1",
+      "subnetName": "snet-tnalz01-te-sap-qa-1",
+      "routeTableName": "rt-tnalz01-te-sap-qa-1",
+      "addressPrefix": "10.116.11.0/24",
+      "routeName": "to-te-sap-qa-1"
+    },
+    {
+      "name": "TCC-PRD",
+      "subscriptionId": "b8b47035-5d55-447e-952b-3da73dd94a88",
+      "resourceGroup": "rg-tnalz01-tcc-sap-prd-1",
+      "vnetName": "vnet-tnalz01-tcc-sap-prd-1",
+      "subnetName": "snet-tnalz01-tcc-sap-prd-1",
+      "routeTableName": "rt-tnalz01-tcc-sap-prd-1",
+      "addressPrefix": "10.116.12.0/24",
+      "routeName": "to-tcc-sap-prd-1"
+    },
+    {
+      "name": "TCC-DEV",
+      "subscriptionId": "e8458e65-6372-413d-870b-e883e13c2e3a",
+      "resourceGroup": "rg-tnalz01-tcc-sap-dev-1",
+      "vnetName": "vnet-tnalz01-tcc-sap-dev-1",
+      "subnetName": "snet-tnalz01-tcc-sap-dev-1",
+      "routeTableName": "rt-tnalz01-tcc-sap-dev-1",
+      "addressPrefix": "10.116.13.0/24",
+      "routeName": "to-tcc-sap-dev-1"
+    },
+    {
+      "name": "TCC-QA",
+      "subscriptionId": "e8458e65-6372-413d-870b-e883e13c2e3a",
+      "resourceGroup": "rg-tnalz01-tcc-sap-qa-1",
+      "vnetName": "vnet-tnalz01-tcc-sap-qa-1",
+      "subnetName": "snet-tnalz01-tcc-sap-qa-1",
+      "routeTableName": "rt-tnalz01-tcc-sap-qa-1",
+      "addressPrefix": "10.116.14.0/24",
+      "routeName": "to-tcc-sap-qa-1"
+    }
+  ]
+}
