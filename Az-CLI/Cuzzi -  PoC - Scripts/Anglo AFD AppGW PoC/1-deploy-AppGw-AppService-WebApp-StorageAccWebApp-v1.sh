@@ -2,21 +2,17 @@
 ###############################################################################
 # South Africa North HLD deployment
 #
-#   [ Front Door Premium ] --> [ App Gateway public listener (WAF restricted to Front Door) ]
-#                                  |
-#   [ active VM ] --> [ App Gateway private listener ] --> [ API App ] --> [ Storage static website ]
+#   [ Azure Front Door Premium ] --Private Link--> [ App Gateway private listener (WAF) ]
+#                                                        |
+#   [ active VM (private) ] ------------------------------+--> [ API App ] --> [ Storage static website ]
 ##
-# IDEMPOTENT: every resource is checked first. If it already exists the script
-# prints [FOUND] and skips creation. Dependency-sensitive resources are followed
-# by an explicit wait so dependents are never built against a half-ready parent.
-#
-# NOTE on re-runs: if a previous run failed *midway* through the storage block
-# (account created but static site / firewall not finished), the account will be
-# treated as [FOUND] and that block skipped -- delete the account and re-run, or
-# finish it by hand. This is the usual trade-off of coarse per-resource skipping.
+# Each execution generates a new five-character suffix and deploys an independent
+# environment. Dependency-sensitive resources are followed by an explicit wait
+# so dependents are never built against a half-ready parent.
 # #########@@@@@@Copilot
 # Run:   chmod +x deploy-san-hld.sh && ./deploy-san-hld.sh
-# Needs: az CLI >= 2.55, logged in (az login), correct subscription selected.
+# Needs: az CLI >= 2.55 with the `az afd` commands available, logged in
+#        (az login), correct subscription selected.
 ###############################################################################
 set -euo pipefail
 
@@ -25,54 +21,65 @@ set -euo pipefail
 ###############################################################################
 LOCATION="southafricanorth"
 SUBSCRIPTION=""                       # optional; leave "" to use current default
-RG="1-deploy-AppGw-AppService-WebApp-StorageAccWebApp-v1"             # RG
+DEFAULT_RG="xxx-deploy-AppGw-AppService-WebApp-StorageAccWebApp-v1"
+SUFFIX_HEX=$(od -An -N3 -tx1 /dev/urandom | tr -d ' \n')
+UNIQUE_SUFFIX=${SUFFIX_HEX%?}
+if [ "${#UNIQUE_SUFFIX}" -ne 5 ]; then
+  printf 'ERROR: Unable to generate a five-character resource suffix.\n' >&2
+  exit 1
+fi
 
 ###############################################################################
 # 1. RESOURCE NAMES (exactly as per the HLD)
-#    NOTE: API_APP must be GLOBALLY unique (*.azurewebsites.net) and STORAGE_ACCT
-#          must be globally unique, 3-24 chars, lowercase letters/numbers only
-#          (no hyphens) -- so the 'mkt' SQL name is folded into 'mneustprodmkt001'.
-#          Add a suffix to either if the name is already taken.
+#    The per-run suffix prevents collisions between independent deployments.
 ###############################################################################
-AGW_NAME="mneu-agw-prod-mrk-001-v1"
-AGW_PUBLIC_IP="mneu-pip-agw-prod-mrk-001-v1"
-AGW_NSG="mneu-nsg-agw-prod-mrk-001-v1"
+AGW_NAME="mneu-agw-prod-mrk-001-v1-${UNIQUE_SUFFIX}"
+AGW_PUBLIC_IP="mneu-pip-agw-prod-mrk-001-v1-${UNIQUE_SUFFIX}"
+AGW_NSG="mneu-nsg-agw-prod-mrk-001-v1-${UNIQUE_SUFFIX}"
 AGW_PUBLIC_LISTENER="afdPublicHttpListener"
 AGW_PUBLIC_RULE="afdPublicRoutingRule"
-AFD_PROFILE="mneu-afd-prod-mrk-001-v1"
-AFD_ENDPOINT="mneu-afde-prod-mrk-001-v1-sre3"
-AFD_ORIGIN_GROUP="appgw-origin-group"
-AFD_ORIGIN="appgw-public-origin"
-AFD_ROUTE="appgw-route"
-API_APP="mneu-api-prod-mrk-001-v1-SRE"
-STORAGE_ACCT="mneustprodmkt001v1sre"  # backend static website (was the SQL server)
-VM_NAME="mneu-vm-prod-mrk-001-v1"
+AFD_PROFILE="mneu-afd-prod-mrk-001-v1-${UNIQUE_SUFFIX}"
+AFD_ENDPOINT="mneu-afd-endpoint-prod-mrk-001-v1-${UNIQUE_SUFFIX}"
+AFD_ORIGIN_GROUP="appgw-origin-group-${UNIQUE_SUFFIX}"
+AFD_ORIGIN="appgw-origin-${UNIQUE_SUFFIX}"
+AFD_ROUTE="appgw-route-${UNIQUE_SUFFIX}"
+API_APP="mneu-api-prod-mrk-001-v1-${UNIQUE_SUFFIX}"
+STORAGE_ACCT="mneustprodmkt001v1${UNIQUE_SUFFIX}"  # backend static website (was the SQL server)
+VM_NAME="mneu-vm-prod-mrk-001-v1-${UNIQUE_SUFFIX}"
 
 ###############################################################################
 # 2. NETWORKING
 ###############################################################################
-VNET="mneu-vnet-prod-mrk-001-v1"
+VNET="mneu-vnet-prod-mrk-001-v1-${UNIQUE_SUFFIX}"
 VNET_CIDR="10.20.0.0/16"
-SUBNET_AGW="snet-agw-v1";       SUBNET_AGW_CIDR="10.20.1.0/24"   # App Gateway (dedicated)
-SUBNET_APP="snet-appsvc-v1";    SUBNET_APP_CIDR="10.20.3.0/24"   # App Service VNet integration
-SUBNET_WORKLOAD="snet-workload-v1"; SUBNET_WORKLOAD_CIDR="10.20.4.0/24"  # extra subnet, same VNet as AGW (holds the VM)
+SUBNET_AGW="snet-agw-v1-${UNIQUE_SUFFIX}";       SUBNET_AGW_CIDR="10.20.1.0/24"   # App Gateway (dedicated)
+SUBNET_APP="snet-appsvc-v1-${UNIQUE_SUFFIX}";    SUBNET_APP_CIDR="10.20.3.0/24"   # App Service VNet integration
+SUBNET_WORKLOAD="snet-workload-v1-${UNIQUE_SUFFIX}"; SUBNET_WORKLOAD_CIDR="10.20.4.0/24"  # extra subnet, same VNet as AGW (holds the VM)
+SUBNET_AGW_PL="snet-agw-private-link-v1-${UNIQUE_SUFFIX}"; SUBNET_AGW_PL_CIDR="10.20.5.0/24"
 AGW_PRIVATE_IP="10.20.1.10"           # static private frontend IP; must be inside SUBNET_AGW_CIDR
-WAF_POLICY="mneu-wafpol-prod-mrk-001-v1"
+AGW_PUBLIC_IP="mneu-pip-agw-prod-mrk-001-v1-${UNIQUE_SUFFIX}"
+AGW_PRIVATE_LINK="agw-private-link-v1-${UNIQUE_SUFFIX}"
+AGW_PROBE="appgw-appsvc-probe-${UNIQUE_SUFFIX}"
+WAF_POLICY="mneu-wafpol-prod-mrk-001-v1-${UNIQUE_SUFFIX}"
 
 ###############################################################################
 # 3. SKUs / SIZES  -- reasonable prod defaults, tune as needed
 ###############################################################################
-APP_PLAN="mneu-asp-prod-mrk-001-v1"
+APP_PLAN="mneu-asp-prod-mrk-001-v1-${UNIQUE_SUFFIX}"
 APP_PLAN_SKU="P1v3"                   # Linux App Service plan
 APP_RUNTIME="DOTNETCORE:8.0"          # change to NODE:20-lts, PYTHON:3.12, etc.
 VM_SIZE="Standard_B2s"
 VM_IMAGE="Win2022Datacenter"          # Windows Server 2022 Datacenter
 VM_ADMIN="adminroot"
+VM_COMPUTER_NAME="mneu-vm-${UNIQUE_SUFFIX}"
 # !! Hard-coded plaintext password as requested. This is insecure (shell history,
 # !! source control) and Azure's banned-password check may reject a common value
 # !! like this at deploy time. Prefer a runtime prompt or Key Vault for anything real.
 VM_ADMIN_PASSWORD='P@ssw0rd123!'
-VM_NSG="mneu-nsg-vm-prod-mrk-001-v1"    # NSG protecting the VM
+VM_NSG="mneu-nsg-vm-prod-mrk-001-v1-${UNIQUE_SUFFIX}" # NSG protecting the VM
+NSG_WEB_RULE="Allow-Web-Outbound-${UNIQUE_SUFFIX}"
+APP_ACCESS_RULE="Allow-AGW-Subnet-${UNIQUE_SUFFIX}"
+SCM_ACCESS_RULE="Allow-AGW-Subnet-SCM-${UNIQUE_SUFFIX}"
 
 ###############################################################################
 # --- Helpers ---
@@ -146,13 +153,26 @@ SUBSCRIPTION_ID=$(az account show --query id -o tsv)
 # this name belongs to an app outside the selected resource group/subscription.
 validate_webapp_name
 
+printf 'Resource group base name [%s]: ' "$DEFAULT_RG"
+if ! IFS= read -r RG_INPUT; then
+  printf '\nERROR: Unable to read the resource group name.\n' >&2
+  exit 1
+fi
+RG="${RG_INPUT:-$DEFAULT_RG}-${UNIQUE_SUFFIX}"
+printf 'Using suffix %s; resource group will be %s.\n' "$UNIQUE_SUFFIX" "$RG"
+
+if ! az afd profile -h >/dev/null 2>&1; then
+  printf 'ERROR: Azure Front Door CLI commands are unavailable. Install/update the Azure CLI cdn extension.\n' >&2
+  exit 1
+fi
+
 say "Resource group: $RG"
 if exists az group show -n "$RG"; then
-  found "Resource group $RG"
-else
-  az group create -n "$RG" -l "$LOCATION" -o none
-  made "Resource group $RG created"
+  printf 'ERROR: Generated resource group %s already exists. Run the script again for a new suffix.\n' "$RG" >&2
+  exit 1
 fi
+az group create -n "$RG" -l "$LOCATION" -o none
+made "Resource group $RG created"
 
 say "Virtual network: $VNET"
 if exists az network vnet show -g "$RG" -n "$VNET"; then
@@ -170,20 +190,8 @@ if exists az network vnet subnet show -g "$RG" --vnet-name "$VNET" -n "$SUBNET_A
   found "Subnet $SUBNET_AGW"
 else
   az network vnet subnet create -g "$RG" --vnet-name "$VNET" \
-    -n "$SUBNET_AGW" --address-prefixes "$SUBNET_AGW_CIDR" \
-    --delegations Microsoft.Network/applicationGateways -o none
+    -n "$SUBNET_AGW" --address-prefixes "$SUBNET_AGW_CIDR" -o none
   made "Subnet $SUBNET_AGW created"
-fi
-# Ensure delegation is present regardless of whether subnet already existed
-DELEG=$(az network vnet subnet show -g "$RG" --vnet-name "$VNET" -n "$SUBNET_AGW" \
-  --query "delegations[?serviceName=='Microsoft.Network/applicationGateways'] | length(@)" \
-  -o tsv 2>/dev/null || echo 0)
-if [ "${DELEG:-0}" -eq 0 ]; then
-  az network vnet subnet update -g "$RG" --vnet-name "$VNET" \
-    -n "$SUBNET_AGW" --delegations Microsoft.Network/applicationGateways -o none
-  made "Delegation Microsoft.Network/applicationGateways added to $SUBNET_AGW"
-else
-  found "Delegation Microsoft.Network/applicationGateways on $SUBNET_AGW"
 fi
 
 say "Subnet: $SUBNET_APP (App Service delegated)"
@@ -205,13 +213,44 @@ else
   made "Subnet $SUBNET_WORKLOAD created"
 fi
 
-say "Application Gateway public IP: $AGW_PUBLIC_IP"
-if exists az network public-ip show -g "$RG" -n "$AGW_PUBLIC_IP"; then
-  found "Public IP $AGW_PUBLIC_IP"
+say "Subnet: $SUBNET_AGW_PL (Application Gateway Private Link)"
+if exists az network vnet subnet show -g "$RG" --vnet-name "$VNET" -n "$SUBNET_AGW_PL"; then
+  found "Subnet $SUBNET_AGW_PL"
 else
-  az network public-ip create -g "$RG" -n "$AGW_PUBLIC_IP" -l "$LOCATION" \
-    --sku Standard --allocation-method Static -o none
-  made "Public IP $AGW_PUBLIC_IP created"
+  az network vnet subnet create -g "$RG" --vnet-name "$VNET" \
+    -n "$SUBNET_AGW_PL" --address-prefixes "$SUBNET_AGW_PL_CIDR" \
+    --disable-private-link-service-network-policies true -o none
+  made "Subnet $SUBNET_AGW_PL created"
+fi
+# Application Gateway Private Link requires this policy to remain disabled.
+az network vnet subnet update -g "$RG" --vnet-name "$VNET" \
+  -n "$SUBNET_AGW_PL" --disable-private-link-service-network-policies true -o none
+
+say "Application Gateway feature compatibility (Private Link requires network isolation disabled)"
+FEATURE_STATE=$(az feature show --namespace Microsoft.Network \
+  --name EnableApplicationGatewayNetworkIsolation --query properties.state -o tsv)
+if [ "$FEATURE_STATE" = "Registered" ] || [ "$FEATURE_STATE" = "Registering" ]; then
+  az feature unregister --namespace Microsoft.Network \
+    --name EnableApplicationGatewayNetworkIsolation -o none
+  waitmsg "network isolation feature to unregister (required for Private Link)"
+  until [ "$(az feature show --namespace Microsoft.Network \
+    --name EnableApplicationGatewayNetworkIsolation \
+    --query properties.state -o tsv)" = "Unregistered" ]; do
+    sleep 30
+  done
+  az provider register --namespace Microsoft.Network -o none
+  made "Feature EnableApplicationGatewayNetworkIsolation unregistered"
+elif [ "$FEATURE_STATE" = "Unregistering" ]; then
+  waitmsg "network isolation feature to finish unregistering"
+  until [ "$(az feature show --namespace Microsoft.Network \
+    --name EnableApplicationGatewayNetworkIsolation \
+    --query properties.state -o tsv)" = "Unregistered" ]; do
+    sleep 30
+  done
+  az provider register --namespace Microsoft.Network -o none
+  made "Feature EnableApplicationGatewayNetworkIsolation unregistered"
+else
+  found "Feature EnableApplicationGatewayNetworkIsolation is not registered"
 fi
 
 say "NSG for Application Gateway public origin: $AGW_NSG"
@@ -291,14 +330,10 @@ else
   made "VNet integration added to $API_APP"
 fi
 
-say "Deploy storage-proxy Node.js app to $API_APP"
-# The App Service acts as a transparent proxy to the storage static website.
-# This keeps the content in storage while the AGW WAF protects the entry point.
+say "Deploy Hello page Node.js app to $API_APP"
 TMP_APP_DIR=$(mktemp -d)
 cat > "$TMP_APP_DIR/index.js" <<'APPEOF'
 const http = require('http');
-const https = require('https');
-const url = require('url');
 const port = process.env.PORT || 8080;
 http.createServer((_req, res) => {
   res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
@@ -319,7 +354,7 @@ http.createServer((_req, res) => {
 }).listen(port, () => console.log('Listening on port ' + port));
 APPEOF
 cat > "$TMP_APP_DIR/package.json" <<'PKGEOF'
-{"name":"storage-proxy","version":"1.0.0","main":"index.js","scripts":{"start":"node index.js"}}
+{"name":"hello-page","version":"1.0.0","main":"index.js","scripts":{"start":"node index.js"}}
 PKGEOF
 (cd "$TMP_APP_DIR" && zip -r app.zip . -x "*.zip" >/dev/null)
 az webapp config set -g "$RG" -n "$API_APP" \
@@ -345,10 +380,40 @@ cleanup_webapp_deployment
 trap - EXIT
 made "Storage-proxy app deployed to $API_APP"
 
-say "Application Gateway (WAF_v2, private application frontend): $AGW_NAME"
-if exists az network application-gateway show -g "$RG" -n "$AGW_NAME"; then
-  found "App Gateway $AGW_NAME"
+say "Application Gateway public IP: $AGW_PUBLIC_IP"
+if exists az network public-ip show -g "$RG" -n "$AGW_PUBLIC_IP"; then
+  found "Public IP $AGW_PUBLIC_IP"
 else
+  az network public-ip create -g "$RG" -n "$AGW_PUBLIC_IP" -l "$LOCATION" \
+    --sku Standard --allocation-method Static -o none
+  made "Public IP $AGW_PUBLIC_IP created"
+fi
+
+say "Application Gateway (WAF_v2, public + private frontends): $AGW_NAME"
+if exists az network application-gateway show -g "$RG" -n "$AGW_NAME"; then
+  AGW_PUBLIC_FRONTEND_COUNT=$(az network application-gateway show -g "$RG" -n "$AGW_NAME" \
+    --query "frontendIPConfigurations[?publicIPAddress != null] | length(@)" -o tsv)
+  if [ "${AGW_PUBLIC_FRONTEND_COUNT:-0}" -eq 0 ]; then
+    waitmsg "replacing network-isolated gateway, which is incompatible with Private Link"
+    az network application-gateway delete -g "$RG" -n "$AGW_NAME" -o none
+    az network application-gateway wait -g "$RG" -n "$AGW_NAME" --deleted -o none
+    made "Incompatible App Gateway $AGW_NAME removed"
+  else
+    found "App Gateway $AGW_NAME"
+  fi
+fi
+if ! exists az network application-gateway show -g "$RG" -n "$AGW_NAME"; then
+  AGW_DELEGATION_COUNT=$(az network vnet subnet show -g "$RG" --vnet-name "$VNET" \
+    -n "$SUBNET_AGW" \
+    --query "delegations[?serviceName=='Microsoft.Network/applicationGateways'] | length(@)" \
+    -o tsv)
+  if [ "${AGW_DELEGATION_COUNT:-0}" -gt 0 ]; then
+    az network vnet subnet update -g "$RG" --vnet-name "$VNET" \
+      -n "$SUBNET_AGW" --remove delegations -o none
+    made "Network-isolation delegation removed from $SUBNET_AGW"
+  fi
+  # Private Link is associated with the static private frontend; the public
+  # frontend keeps this gateway out of the incompatible network-isolation mode.
   az network application-gateway create -g "$RG" -n "$AGW_NAME" -l "$LOCATION" \
     --sku WAF_v2 --capacity 2 \
     --vnet-name "$VNET" --subnet "$SUBNET_AGW" \
@@ -379,134 +444,56 @@ made "HTTP listener attached only to private frontend $AGW_PRIVATE_IP"
 
 # Custom health probe: must send the correct Host header or App Service returns 400
 # and AGW marks the backend unhealthy (-> 502 to the client).
-if exists az network application-gateway probe show -g "$RG" --gateway-name "$AGW_NAME" -n appgw-appsvc-probe; then
-  found "Health probe appgw-appsvc-probe"
+if exists az network application-gateway probe show -g "$RG" --gateway-name "$AGW_NAME" -n "$AGW_PROBE"; then
+  found "Health probe $AGW_PROBE"
 else
   az network application-gateway probe create \
-    -g "$RG" --gateway-name "$AGW_NAME" -n appgw-appsvc-probe \
+    -g "$RG" --gateway-name "$AGW_NAME" -n "$AGW_PROBE" \
     --protocol Https --host "${API_APP}.azurewebsites.net" \
     --path "/" --interval 30 --timeout 30 --threshold 3 -o none
-  made "Health probe appgw-appsvc-probe created"
+  made "Health probe $AGW_PROBE created"
 fi
 
 # Backend HTTP settings: HTTPS:443, preserve App Service hostname, attach probe.
 az network application-gateway http-settings update \
   -g "$RG" --gateway-name "$AGW_NAME" -n appGatewayBackendHttpSettings \
   --protocol Https --port 443 --host-name-from-backend-pool true \
-  --probe appgw-appsvc-probe -o none
+  --probe "$AGW_PROBE" -o none
 made "Backend HTTP settings updated (HTTPS + probe)"
 
-say "Application Gateway public listener for Azure Front Door"
-AGW_PUBLIC_FRONTEND=$(az network application-gateway frontend-ip list \
+say "Application Gateway Private Link: $AGW_PRIVATE_LINK"
+AGW_FRONTEND_NAME=$(az network application-gateway frontend-ip list \
   -g "$RG" --gateway-name "$AGW_NAME" \
-  --query "[?publicIPAddress!=null].name | [0]" -o tsv)
-if [ -z "$AGW_PUBLIC_FRONTEND" ]; then
-  printf >&2 "ERROR: Application Gateway '%s' has no public frontend IP configuration.\n" "$AGW_NAME"
+  --query "[?privateIPAddress=='${AGW_PRIVATE_IP}'].name | [0]" -o tsv)
+if [ -z "$AGW_FRONTEND_NAME" ]; then
+  printf 'ERROR: No Application Gateway frontend uses private IP %s.\n' "$AGW_PRIVATE_IP" >&2
   exit 1
 fi
-if exists az network application-gateway http-listener show \
-    -g "$RG" --gateway-name "$AGW_NAME" -n "$AGW_PUBLIC_LISTENER"; then
-  found "Public listener $AGW_PUBLIC_LISTENER"
-else
-  az network application-gateway http-listener create \
-    -g "$RG" --gateway-name "$AGW_NAME" -n "$AGW_PUBLIC_LISTENER" \
-    --frontend-ip "$AGW_PUBLIC_FRONTEND" \
-    --frontend-port appGatewayFrontendPort -o none
-  made "Public listener $AGW_PUBLIC_LISTENER created"
+AGW_LISTENER_NAME=$(az network application-gateway http-listener list \
+  -g "$RG" --gateway-name "$AGW_NAME" --query "[0].name" -o tsv)
+if [ -z "$AGW_LISTENER_NAME" ]; then
+  printf 'ERROR: Application Gateway %s has no HTTP listener to bind to its private frontend.\n' "$AGW_NAME" >&2
+  exit 1
 fi
-if exists az network application-gateway rule show \
-    -g "$RG" --gateway-name "$AGW_NAME" -n "$AGW_PUBLIC_RULE"; then
-  found "Public routing rule $AGW_PUBLIC_RULE"
+az network application-gateway http-listener update \
+  -g "$RG" --gateway-name "$AGW_NAME" -n "$AGW_LISTENER_NAME" \
+  --frontend-ip "$AGW_FRONTEND_NAME" -o none
+made "Listener $AGW_LISTENER_NAME bound to private frontend $AGW_FRONTEND_NAME"
+if az network application-gateway private-link list \
+    -g "$RG" --gateway-name "$AGW_NAME" \
+    --query "[?name=='${AGW_PRIVATE_LINK}'] | length(@)" -o tsv | grep -q '^1$'; then
+  found "Application Gateway Private Link $AGW_PRIVATE_LINK"
 else
-  az network application-gateway rule create \
-    -g "$RG" --gateway-name "$AGW_NAME" -n "$AGW_PUBLIC_RULE" \
-    --priority 110 --rule-type Basic \
-    --http-listener "$AGW_PUBLIC_LISTENER" \
-    --address-pool appGatewayBackendPool \
-    --http-settings appGatewayBackendHttpSettings -o none
-  made "Public routing rule $AGW_PUBLIC_RULE created"
+  AGW_PL_SUBNET_ID=$(az network vnet subnet show -g "$RG" --vnet-name "$VNET" \
+    -n "$SUBNET_AGW_PL" --query id -o tsv)
+  az network application-gateway private-link add \
+    -g "$RG" --gateway-name "$AGW_NAME" \
+    -n "$AGW_PRIVATE_LINK" --frontend-ip "$AGW_FRONTEND_NAME" \
+    --subnet "$AGW_PL_SUBNET_ID" -o none
+  made "Application Gateway Private Link $AGW_PRIVATE_LINK created"
 fi
-
-say "Azure Front Door Premium profile: $AFD_PROFILE"
-if exists az afd profile show -g "$RG" --profile-name "$AFD_PROFILE"; then
-  found "Front Door profile $AFD_PROFILE"
-else
-  az afd profile create -g "$RG" --profile-name "$AFD_PROFILE" \
-    --sku Premium_AzureFrontDoor -o none
-  made "Front Door profile $AFD_PROFILE created"
-fi
-
-AFD_ID=$(az afd profile show -g "$RG" --profile-name "$AFD_PROFILE" \
-  --query frontDoorId -o tsv)
-say "Restrict Application Gateway WAF to Front Door profile: $AFD_ID"
-if exists az network application-gateway waf-policy custom-rule show \
-    -g "$RG" --policy-name "$WAF_POLICY" -n RequireFrontDoorID; then
-  found "WAF rule RequireFrontDoorID"
-else
-  az network application-gateway waf-policy custom-rule create \
-    -g "$RG" --policy-name "$WAF_POLICY" -n RequireFrontDoorID \
-    --priority 10 --rule-type MatchRule --action Block \
-    --match-conditions "[{variables:[{variable-name:RequestHeaders,selector:X-Azure-FDID}],operator:Equal,negate:true,values:['${AFD_ID}']}]" \
-    -o none
-  made "WAF blocks requests without the expected X-Azure-FDID header"
-fi
-
-say "Azure Front Door endpoint: $AFD_ENDPOINT"
-if exists az afd endpoint show -g "$RG" --profile-name "$AFD_PROFILE" \
-    --endpoint-name "$AFD_ENDPOINT"; then
-  found "Front Door endpoint $AFD_ENDPOINT"
-else
-  az afd endpoint create -g "$RG" --profile-name "$AFD_PROFILE" \
-    --endpoint-name "$AFD_ENDPOINT" --enabled-state Enabled -o none
-  made "Front Door endpoint $AFD_ENDPOINT created"
-fi
-
-say "Azure Front Door origin group: $AFD_ORIGIN_GROUP"
-if exists az afd origin-group show -g "$RG" --profile-name "$AFD_PROFILE" \
-    --origin-group-name "$AFD_ORIGIN_GROUP"; then
-  found "Front Door origin group $AFD_ORIGIN_GROUP"
-else
-  az afd origin-group create -g "$RG" --profile-name "$AFD_PROFILE" \
-    --origin-group-name "$AFD_ORIGIN_GROUP" \
-    --probe-request-type GET --probe-protocol Http \
-    --probe-interval-in-seconds 60 --probe-path / \
-    --sample-size 4 --successful-samples-required 3 \
-    --additional-latency-in-milliseconds 50 -o none
-  made "Front Door origin group $AFD_ORIGIN_GROUP created"
-fi
-
-AGW_PUBLIC_ADDRESS=$(az network public-ip show -g "$RG" -n "$AGW_PUBLIC_IP" \
-  --query ipAddress -o tsv)
-say "Azure Front Door public origin: $AGW_PUBLIC_ADDRESS"
-if exists az afd origin show -g "$RG" --profile-name "$AFD_PROFILE" \
-    --origin-group-name "$AFD_ORIGIN_GROUP" --origin-name "$AFD_ORIGIN"; then
-  az afd origin update -g "$RG" --profile-name "$AFD_PROFILE" \
-    --origin-group-name "$AFD_ORIGIN_GROUP" --origin-name "$AFD_ORIGIN" \
-    --enabled-state Enabled --host-name "$AGW_PUBLIC_ADDRESS" \
-    --origin-host-header "$AGW_PUBLIC_ADDRESS" --http-port 80 --https-port 443 \
-    --priority 1 --weight 500 -o none
-  made "Front Door public origin $AFD_ORIGIN updated"
-else
-  az afd origin create -g "$RG" --profile-name "$AFD_PROFILE" \
-    --origin-group-name "$AFD_ORIGIN_GROUP" --origin-name "$AFD_ORIGIN" \
-    --enabled-state Enabled --host-name "$AGW_PUBLIC_ADDRESS" \
-    --origin-host-header "$AGW_PUBLIC_ADDRESS" --http-port 80 --https-port 443 \
-    --priority 1 --weight 500 -o none
-  made "Front Door public origin $AFD_ORIGIN created"
-fi
-
-say "Azure Front Door route: $AFD_ROUTE"
-if exists az afd route show -g "$RG" --profile-name "$AFD_PROFILE" \
-    --endpoint-name "$AFD_ENDPOINT" --route-name "$AFD_ROUTE"; then
-  found "Front Door route $AFD_ROUTE"
-else
-  az afd route create -g "$RG" --profile-name "$AFD_PROFILE" \
-    --endpoint-name "$AFD_ENDPOINT" --route-name "$AFD_ROUTE" \
-    --origin-group "$AFD_ORIGIN_GROUP" --supported-protocols Http Https \
-    --patterns-to-match "/*" --forwarding-protocol HttpOnly \
-    --https-redirect Enabled --link-to-default-domain Enabled -o none
-  made "Front Door route $AFD_ROUTE created"
-fi
+waitmsg "App Gateway $AGW_NAME Private Link configuration to finish provisioning"
+az network application-gateway wait -g "$RG" -n "$AGW_NAME" --updated -o none
 
 # App Service access restriction: only accept inbound from the AGW subnet.
 # Requires Microsoft.Web service endpoint on snet-agw so the subnet-based rule
@@ -516,68 +503,103 @@ az network vnet subnet update -g "$RG" --vnet-name "$VNET" -n "$SUBNET_AGW" \
 made "Microsoft.Web service endpoint enabled on $SUBNET_AGW"
 
 if az webapp config access-restriction show -g "$RG" -n "$API_APP" \
-    --query "ipSecurityRestrictions[?name=='Allow-AGW-Subnet']" -o tsv 2>/dev/null | grep -q .; then
-  found "App Service access restriction Allow-AGW-Subnet"
+    --query "ipSecurityRestrictions[?name=='${APP_ACCESS_RULE}']" -o tsv 2>/dev/null | grep -q .; then
+  found "App Service access restriction $APP_ACCESS_RULE"
 else
   az webapp config access-restriction add -g "$RG" -n "$API_APP" \
-    --rule-name "Allow-AGW-Subnet" --action Allow --priority 100 \
+    --rule-name "$APP_ACCESS_RULE" --action Allow --priority 100 \
     --vnet-name "$VNET" --subnet "$SUBNET_AGW" -o none
   made "App Service access restriction: allow $SUBNET_AGW only"
 fi
 # Also lock the SCM (Kudu) endpoint — prevents direct public access to the deploy API.
 if az webapp config access-restriction show -g "$RG" -n "$API_APP" \
-    --query "scmIpSecurityRestrictions[?name=='Allow-AGW-Subnet-SCM']" \
+    --query "scmIpSecurityRestrictions[?name=='${SCM_ACCESS_RULE}']" \
     -o tsv 2>/dev/null | grep -q .; then
-  found "App Service SCM access restriction Allow-AGW-Subnet-SCM"
+  found "App Service SCM access restriction $SCM_ACCESS_RULE"
 else
   az webapp config access-restriction add -g "$RG" -n "$API_APP" --scm-site true \
-    --rule-name "Allow-AGW-Subnet-SCM" --action Allow --priority 100 \
+    --rule-name "$SCM_ACCESS_RULE" --action Allow --priority 100 \
     --vnet-name "$VNET" --subnet "$SUBNET_AGW" -o none
   made "App Service SCM access restriction: allow $SUBNET_AGW only"
 fi
 
-say "Storage account (backend static website): $STORAGE_ACCT"
-if exists az storage account show -g "$RG" -n "$STORAGE_ACCT"; then
-  found "Storage account $STORAGE_ACCT"
+say "Azure Front Door Premium profile: $AFD_PROFILE"
+if exists az afd profile show -g "$RG" -n "$AFD_PROFILE"; then
+  found "Front Door profile $AFD_PROFILE"
 else
-  az storage account create -g "$RG" -n "$STORAGE_ACCT" -l "$LOCATION" \
-    --sku Standard_LRS --kind StorageV2 --min-tls-version TLS1_2 \
-    --tags SecurityControl=Ignore -o none
-  waitmsg "storage account $STORAGE_ACCT to reach provisioningState=Succeeded"
-  until [ "$(az storage account show -g "$RG" -n "$STORAGE_ACCT" \
-    --query provisioningState -o tsv 2>/dev/null)" = "Succeeded" ]; do
-    sleep 5
-  done
-  made "Storage account $STORAGE_ACCT created"
+  az afd profile create -g "$RG" -n "$AFD_PROFILE" \
+    --sku Premium_AzureFrontDoor -o none
+  made "Front Door Premium profile $AFD_PROFILE created"
 fi
 
-say "Lock down storage networking (deny public, allow AGW + VM + App Service subnets)"
-# Enable the Microsoft.Storage service endpoint on all three subnets.
-# NOTE: --service-endpoints REPLACES the list, so existing endpoints (e.g. Microsoft.Web
-# on snet-agw) must be repeated here or they will be stripped and break other features.
-az network vnet subnet update -g "$RG" --vnet-name "$VNET" -n "$SUBNET_AGW" \
-  --service-endpoints Microsoft.Storage Microsoft.Web -o none
-az network vnet subnet update -g "$RG" --vnet-name "$VNET" -n "$SUBNET_WORKLOAD" \
-  --service-endpoints Microsoft.Storage -o none
-az network vnet subnet update -g "$RG" --vnet-name "$VNET" -n "$SUBNET_APP" \
-  --service-endpoints Microsoft.Storage Microsoft.Web -o none
-# Allow all three subnets (idempotent -- add is a no-op if rule already exists)
-az storage account network-rule add -g "$RG" --account-name "$STORAGE_ACCT" \
-  --vnet-name "$VNET" --subnet "$SUBNET_AGW" -o none
-az storage account network-rule add -g "$RG" --account-name "$STORAGE_ACCT" \
-  --vnet-name "$VNET" --subnet "$SUBNET_WORKLOAD" -o none
-az storage account network-rule add -g "$RG" --account-name "$STORAGE_ACCT" \
-  --vnet-name "$VNET" --subnet "$SUBNET_APP" -o none
+say "Azure Front Door endpoint: $AFD_ENDPOINT"
+if exists az afd endpoint show -g "$RG" --profile-name "$AFD_PROFILE" -n "$AFD_ENDPOINT"; then
+  found "Front Door endpoint $AFD_ENDPOINT"
+else
+  az afd endpoint create -g "$RG" --profile-name "$AFD_PROFILE" \
+    -n "$AFD_ENDPOINT" --enabled-state Enabled -o none
+  made "Front Door endpoint $AFD_ENDPOINT created"
+fi
 
-# Data-plane: get storage key, enable static website, upload content
-STORAGE_KEY=$(az storage account keys list -g "$RG" -n "$STORAGE_ACCT" \
-  --query "[0].value" -o tsv)
+say "Azure Front Door origin group: $AFD_ORIGIN_GROUP"
+if exists az afd origin-group show -g "$RG" --profile-name "$AFD_PROFILE" \
+    -n "$AFD_ORIGIN_GROUP"; then
+  found "Front Door origin group $AFD_ORIGIN_GROUP"
+else
+  az afd origin-group create -g "$RG" --profile-name "$AFD_PROFILE" \
+    -n "$AFD_ORIGIN_GROUP" \
+    --probe-request-type GET --probe-protocol Http \
+    --probe-path "/" --probe-interval-in-seconds 60 \
+    --sample-size 4 --successful-samples-required 3 \
+    --additional-latency-in-milliseconds 50 -o none
+  made "Front Door origin group $AFD_ORIGIN_GROUP created"
+fi
 
-say "Enable static website on $STORAGE_ACCT"
-az storage blob service-properties update \
-  --account-name "$STORAGE_ACCT" --account-key "$STORAGE_KEY" \
-  --static-website --index-document index.html --404-document index.html -o none
-made "Static website enabled"
+say "Azure Front Door private origin: $AGW_NAME"
+AGW_ID=$(az network application-gateway show -g "$RG" -n "$AGW_NAME" --query id -o tsv)
+if exists az afd origin show -g "$RG" --profile-name "$AFD_PROFILE" \
+    --origin-group-name "$AFD_ORIGIN_GROUP" -n "$AFD_ORIGIN"; then
+  found "Front Door origin $AFD_ORIGIN"
+else
+  az afd origin create -g "$RG" --profile-name "$AFD_PROFILE" \
+    --origin-group-name "$AFD_ORIGIN_GROUP" -n "$AFD_ORIGIN" \
+    --enabled-state Enabled \
+    --host-name "$AGW_PRIVATE_IP" \
+    --origin-host-header "${API_APP}.azurewebsites.net" \
+    --http-port 80 --https-port 443 --priority 1 --weight 500 \
+    --shared-private-link-resource \
+      group-id="$AGW_FRONTEND_NAME" \
+      private-link="{id:$AGW_ID}" \
+      private-link-location="$LOCATION" \
+      request-message="Azure Front Door private connectivity request." \
+      status=Pending -o none
+  made "Front Door private origin $AFD_ORIGIN created"
+fi
+
+say "Approve Azure Front Door private endpoint on $AGW_NAME"
+AFD_PRIVATE_ENDPOINT_ID=""
+for _ in {1..30}; do
+  AFD_PRIVATE_ENDPOINT_ID=$(az network private-endpoint-connection list \
+    --name "$AGW_NAME" -g "$RG" --type Microsoft.Network/applicationgateways \
+    --query "[?properties.privateLinkServiceConnectionState.status=='Pending'].id | [0]" -o tsv)
+  [ -n "$AFD_PRIVATE_ENDPOINT_ID" ] && break
+  AFD_PRIVATE_ENDPOINT_STATUS=$(az network private-endpoint-connection list \
+    --name "$AGW_NAME" -g "$RG" --type Microsoft.Network/applicationgateways \
+    --query "[0].properties.privateLinkServiceConnectionState.status" -o tsv)
+  [ "$AFD_PRIVATE_ENDPOINT_STATUS" = "Approved" ] && break
+  sleep 10
+ done
+if [ -n "$AFD_PRIVATE_ENDPOINT_ID" ]; then
+  az network private-endpoint-connection approve \
+    --id "$AFD_PRIVATE_ENDPOINT_ID" \
+    --description "Approved for Azure Front Door Premium." -o none
+  made "Azure Front Door private endpoint approved"
+elif [ "${AFD_PRIVATE_ENDPOINT_STATUS:-}" = "Approved" ]; then
+  found "Azure Front Door private endpoint already approved"
+else
+  printf 'ERROR: Front Door private endpoint request was not created within 5 minutes.\n' >&2
+  exit 1
+fi
 
 say "Upload index.html to \$web (Hello World Storage Account)"
 cat > /tmp/poc-index.html <<'HTML'
@@ -608,7 +630,7 @@ for _ in $(seq 1 12); do
     break
   fi
   sleep 10
-done
+ done
 if [ "$STORAGE_UPLOAD_SUCCEEDED" != true ]; then
   az storage account update -g "$RG" -n "$STORAGE_ACCT" \
     --default-action Deny --bypass AzureServices -o none
@@ -619,18 +641,19 @@ fi
 rm -f /tmp/poc-index.html
 made "index.html uploaded to \$web"
 
-# Re-lock firewall
-az storage account update -g "$RG" -n "$STORAGE_ACCT" \
-  --default-action Deny --bypass AzureServices -o none
-made "Storage firewall: allow $SUBNET_AGW + $SUBNET_WORKLOAD + $SUBNET_APP"
-
-# Get static website URL and point the App Service proxy at it
-STATIC_SITE_URL=$(az storage account show -g "$RG" -n "$STORAGE_ACCT" \
-  --query "primaryEndpoints.web" -o tsv)
-say "Point App Service proxy at storage static site: $STATIC_SITE_URL"
-az webapp config appsettings set -g "$RG" -n "$API_APP" \
-  --settings "BACKEND_URL=${STATIC_SITE_URL}" -o none
-made "BACKEND_URL set to $STATIC_SITE_URL"
+say "Azure Front Door route: $AFD_ROUTE"
+if exists az afd route show -g "$RG" --profile-name "$AFD_PROFILE" \
+    --endpoint-name "$AFD_ENDPOINT" -n "$AFD_ROUTE"; then
+  found "Front Door route $AFD_ROUTE"
+else
+  # Front Door terminates HTTPS and uses the gateway's existing HTTP listener.
+  az afd route create -g "$RG" --profile-name "$AFD_PROFILE" \
+    --endpoint-name "$AFD_ENDPOINT" -n "$AFD_ROUTE" \
+    --origin-group "$AFD_ORIGIN_GROUP" \
+    --supported-protocols Http Https --https-redirect Enabled \
+    --forwarding-protocol HttpOnly --link-to-default-domain Enabled -o none
+  made "Front Door route $AFD_ROUTE created"
+fi
 
 say "NSG for VM (VNet-internal protection): $VM_NSG"
 if exists az network nsg show -g "$RG" -n "$VM_NSG"; then
@@ -639,15 +662,15 @@ else
   az network nsg create -g "$RG" -n "$VM_NSG" -l "$LOCATION" -o none
   made "NSG $VM_NSG created"
 fi
-# Allow outbound HTTP + HTTPS so the VM can browse to the storage static site
-if exists az network nsg rule show -g "$RG" --nsg-name "$VM_NSG" -n "Allow-Web-Outbound"; then
-  found "NSG rule Allow-Web-Outbound"
+# Allow outbound HTTP + HTTPS for web access from the VM.
+if exists az network nsg rule show -g "$RG" --nsg-name "$VM_NSG" -n "$NSG_WEB_RULE"; then
+  found "NSG rule $NSG_WEB_RULE"
 else
   az network nsg rule create -g "$RG" --nsg-name "$VM_NSG" \
-    -n "Allow-Web-Outbound" --priority 200 \
+    -n "$NSG_WEB_RULE" --priority 200 \
     --destination-port-ranges 80 443 --protocol Tcp \
     --access Allow --direction Outbound -o none
-  made "NSG rule Allow-Web-Outbound created (TCP 80 + 443 outbound)"
+  made "NSG rule $NSG_WEB_RULE created (TCP 80 + 443 outbound)"
 fi
 
 say "Active VM -- Windows Server 2022, in $SUBNET_WORKLOAD: $VM_NAME"
@@ -655,7 +678,7 @@ if exists az vm show -g "$RG" -n "$VM_NAME"; then
   found "VM $VM_NAME"
 else
   az vm create -g "$RG" -n "$VM_NAME" -l "$LOCATION" \
-    --computer-name "mneu-vm-mrk-v1" \
+    --computer-name "$VM_COMPUTER_NAME" \
     --image "$VM_IMAGE" --size "$VM_SIZE" \
     --vnet-name "$VNET" --subnet "$SUBNET_WORKLOAD" \
     --admin-username "$VM_ADMIN" --admin-password "$VM_ADMIN_PASSWORD" \
@@ -674,7 +697,7 @@ AFD_HOST_NAME=$(az afd endpoint show -g "$RG" --profile-name "$AFD_PROFILE" \
   --endpoint-name "$AFD_ENDPOINT" --query hostName -o tsv)
 echo ""
 echo "=== Done ==="
-echo "App Gateway private frontend IP: ${AGW_PRIVATE_IP} (reachable only inside the VNet / via peering / VPN / ER)"
 echo "Front Door URL: https://${AFD_HOST_NAME}"
+echo "App Gateway private frontend IP: ${AGW_PRIVATE_IP} (Front Door connects through Private Link; VM access stays inside the VNet)"
 echo "VM:           private only (no public IP) -- use Bastion or VPN to connect"
 echo "API app URL:  https://${API_APP}.azurewebsites.net (accessible via AGW only)"

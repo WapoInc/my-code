@@ -1,0 +1,94 @@
+<mxfile host="app.diagrams.net" modified="2026-10-08T14:30:00.000Z" agent="Copilot" version="24.7.17">
+  <diagram id="deployment-architecture" name="Deployment Architecture">
+    <mxGraphModel dx="1600" dy="950" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="950" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+        <mxCell id="title" value="Azure Front Door + Application Gateway PoC Deployment" style="text;html=1;align=center;verticalAlign=middle;fontSize=24;fontStyle=1;fontColor=#17365D;" vertex="1" parent="1">
+          <mxGeometry x="350" y="20" width="900" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="subtitle" value="Every run appends the same random five-character suffix (-xxxxx) to named resources" style="text;html=1;align=center;verticalAlign=middle;fontSize=13;fontColor=#666666;" vertex="1" parent="1">
+          <mxGeometry x="400" y="58" width="800" height="25" as="geometry"/>
+        </mxCell>
+        <mxCell id="user" value="Internet clients" style="shape=mxgraph.azure.user;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#0078D4;fontColor=#17365D;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="20" y="225" width="110" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="rg" value="Resource group: &lt;base-name&gt;-xxxxx (South Africa North)" style="swimlane;html=1;rounded=1;startSize=36;horizontal=1;fillColor=#F7F9FC;strokeColor=#5B9BD5;strokeWidth=2;fontStyle=1;fontSize=15;align=left;spacingLeft=12;" vertex="1" parent="1">
+          <mxGeometry x="160" y="100" width="1400" height="790" as="geometry"/>
+        </mxCell>
+        <mxCell id="afd" value="Azure Front Door Premium&#xa;&#xa;Profile: mneu-afd-...-xxxxx&#xa;Endpoint: mneu-afd-endpoint-...-xxxxx&#xa;Origin group + private origin&#xa;HTTP/HTTPS route with HTTPS redirect" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E8F3FF;strokeColor=#0078D4;strokeWidth=2;fontStyle=1;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="210" y="165" width="260" height="155" as="geometry"/>
+        </mxCell>
+        <mxCell id="publicIp" value="Standard static public IP&#xa;mneu-pip-agw-...-xxxxx&#xa;&#xa;Compatibility frontend only;&#xa;listener is not bound here" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="220" y="390" width="230" height="120" as="geometry"/>
+        </mxCell>
+        <mxCell id="waf" value="WAF policy&#xa;Prevention / Enabled&#xa;mneu-wafpol-...-xxxxx" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8CECC;strokeColor=#B85450;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="240" y="560" width="190" height="90" as="geometry"/>
+        </mxCell>
+        <mxCell id="vnet" value="Virtual network: mneu-vnet-...-xxxxx  |  10.20.0.0/16" style="swimlane;html=1;rounded=1;startSize=34;horizontal=1;fillColor=#F2F8F2;strokeColor=#70AD47;strokeWidth=2;fontStyle=1;fontSize=14;align=left;spacingLeft=10;" vertex="1" parent="1">
+          <mxGeometry x="520" y="145" width="990" height="550" as="geometry"/>
+        </mxCell>
+        <mxCell id="agwSubnet" value="App Gateway subnet: snet-agw-v1-xxxxx  |  10.20.1.0/24" style="swimlane;html=1;rounded=1;startSize=30;fillColor=#FFFFFF;strokeColor=#70AD47;fontStyle=1;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="550" y="205" width="420" height="205" as="geometry"/>
+        </mxCell>
+        <mxCell id="agw" value="Application Gateway WAF_v2&#xa;mneu-agw-...-xxxxx&#xa;&#xa;Private frontend: 10.20.1.10&#xa;HTTP listener bound to private frontend&#xa;HTTPS backend + custom health probe" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DDEBF7;strokeColor=#2F5597;strokeWidth=2;fontStyle=1;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="590" y="255" width="340" height="125" as="geometry"/>
+        </mxCell>
+        <mxCell id="appSubnet" value="App Service integration subnet&#xa;snet-appsvc-v1-xxxxx  |  10.20.3.0/24&#xa;Delegated to Microsoft.Web/serverFarms" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E2F0D9;strokeColor=#70AD47;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="1020" y="205" width="440" height="105" as="geometry"/>
+        </mxCell>
+        <mxCell id="plSubnet" value="Application Gateway Private Link subnet&#xa;snet-agw-private-link-v1-xxxxx  |  10.20.5.0/24" style="swimlane;html=1;rounded=1;startSize=45;fillColor=#FFFFFF;strokeColor=#70AD47;fontStyle=1;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="550" y="455" width="420" height="175" as="geometry"/>
+        </mxCell>
+        <mxCell id="plConfig" value="Private Link configuration&#xa;agw-private-link-v1-xxxxx&#xa;&#xa;Dynamic Private Link IP configuration&#xa;AFD private endpoint connection approved" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E4DFEC;strokeColor=#8064A2;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="590" y="520" width="340" height="85" as="geometry"/>
+        </mxCell>
+        <mxCell id="vmSubnet" value="Workload subnet: snet-workload-v1-xxxxx  |  10.20.4.0/24" style="swimlane;html=1;rounded=1;startSize=30;fillColor=#FFFFFF;strokeColor=#70AD47;fontStyle=1;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="1020" y="365" width="440" height="265" as="geometry"/>
+        </mxCell>
+        <mxCell id="vm" value="Windows Server 2022 VM&#xa;mneu-vm-...-xxxxx&#xa;Standard_B2s&#xa;Private NIC only; no public IP" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D9EAD3;strokeColor=#38761D;strokeWidth=2;fontStyle=1;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="1060" y="420" width="220" height="120" as="geometry"/>
+        </mxCell>
+        <mxCell id="nsg" value="Network security group&#xa;mneu-nsg-vm-...-xxxxx&#xa;Outbound TCP 80/443 allowed" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCE5CD;strokeColor=#E69138;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="1310" y="430" width="125" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="plan" value="Linux App Service plan&#xa;mneu-asp-...-xxxxx&#xa;P1v3" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E8F3FF;strokeColor=#0078D4;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="760" y="745" width="210" height="90" as="geometry"/>
+        </mxCell>
+        <mxCell id="webapp" value="Linux App Service web app&#xa;mneu-api-...-xxxxx.azurewebsites.net&#xa;&#xa;Node.js 20 Hello page&#xa;Inbound allowed only from AGW subnet&#xa;VNet integration through app subnet" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DDEBF7;strokeColor=#0078D4;strokeWidth=2;fontStyle=1;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="1060" y="725" width="340" height="130" as="geometry"/>
+        </mxCell>
+        <mxCell id="e1" value="HTTPS" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#0078D4;strokeWidth=2;fontStyle=1;" edge="1" parent="1" source="user" target="afd">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e2" value="Shared Private Link" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#8064A2;strokeWidth=3;fontStyle=1;" edge="1" parent="1" source="afd" target="plConfig">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e3" value="Private connectivity to listener" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#8064A2;strokeWidth=3;fontStyle=1;" edge="1" parent="1" source="plConfig" target="agw">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e4" value="Attached; no listener" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=open;endFill=0;dashed=1;strokeColor=#D6B656;strokeWidth=2;" edge="1" parent="1" source="publicIp" target="agw">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e5" value="Applied" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=open;endFill=0;dashed=1;strokeColor=#B85450;strokeWidth=2;" edge="1" parent="1" source="waf" target="agw">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e6" value="HTTPS :443&#xa;Host: web app FQDN" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#2F5597;strokeWidth=2;fontStyle=1;" edge="1" parent="1" source="agw" target="webapp">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e7" value="Runs on" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=open;endFill=0;strokeColor=#0078D4;" edge="1" parent="1" source="plan" target="webapp">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e8" value="Regional VNet integration" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=open;endFill=0;dashed=1;strokeColor=#70AD47;strokeWidth=2;" edge="1" parent="1" source="webapp" target="appSubnet">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e9" value="Protects NIC" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=open;endFill=0;dashed=1;strokeColor=#E69138;" edge="1" parent="1" source="nsg" target="vm">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="legend" value="Traffic path: blue/purple solid arrows&#xa;Resource association: dashed arrows&#xa;The script deploys no storage account and no VM public IP." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#A5A5A5;fontSize=11;align=left;spacingLeft=8;" vertex="1" parent="1">
+          <mxGeometry x="210" y="725" width="310" height="105" as="geometry"/>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
