@@ -17,6 +17,7 @@ fail() {
 }
 
 command -v az >/dev/null 2>&1 || fail "Azure CLI is not installed."
+command -v python3 >/dev/null 2>&1 || fail "Python 3 is required to generate the FortiGate CLI file."
 [[ -f "$TEMPLATE_FILE" ]] || fail "Template '$TEMPLATE_FILE' not found."
 
 ARM_TEMPLATE_FILE="$(mktemp -t vnet-peerings-template)"
@@ -159,6 +160,122 @@ az deployment group create \
 	--template-file "$ARM_TEMPLATE_FILE" \
 	--parameters "$VPN_PARAMETERS" location="$LOCATION" \
 	--output table
+
+FORTIGATE_CONFIGURATION="$(az deployment group show \
+	--subscription "$SUBSCRIPTION_ID" \
+	--resource-group "$RESOURCE_GROUP" \
+	--name "$DEPLOYMENT_NAME" \
+	--query properties.outputs.fortigateConfiguration.value \
+	--output json)"
+FORTIGATE_FILE="$(dirname "$TEMPLATE_FILE")/fortigate-script-paste-into-cli"
+python3 - "$FORTIGATE_FILE" "$FORTIGATE_CONFIGURATION" <<'PY'
+import ipaddress
+import json
+import sys
+from pathlib import Path
+
+path = Path(sys.argv[1])
+config = json.loads(sys.argv[2])
+gateway = str(ipaddress.IPv4Address(config["gatewayPublicIp"]))
+networks = {
+    "AZH-OnPrem": ipaddress.IPv4Network(config["onPremPrefix"]),
+    "AZH-Hub": ipaddress.IPv4Network(config["hubPrefix"]),
+    "AZH-Spoke5": ipaddress.IPv4Network(config["spoke5Prefix"]),
+    "AZH-Spoke6": ipaddress.IPv4Network(config["spoke6Prefix"]),
+}
+lines = [
+    "# Replace ENTER_CURRENT_VPN_PSK with the deployed VPN PSK before pasting.",
+    "# Apply in the VDOM containing wan1 and b.",
+    "# This updates Azure-Hub. Route/policy edit 0 creates NEW entries.",
+    "# Skip existing equivalent routes/policies to avoid duplicates.",
+    "# Place allow policies above matching deny policies.",
+    "config vpn ipsec phase1-interface",
+    '    edit "Azure-Hub"',
+    '        set interface "wan1"',
+    "        set type static",
+    "        set ike-version 2",
+    "        set peertype any",
+    "        set authmethod psk",
+    f"        set remote-gw {gateway}",
+    "        set proposal aes256-sha256",
+    "        set dhgrp 14",
+    "        set keylife 28800",
+    "        set nattraversal enable",
+    "        set dpd on-idle",
+    "        set dpd-retryinterval 10",
+    "        set add-route disable",
+    '        set psksecret "ENTER_CURRENT_VPN_PSK"',
+    "    next",
+    "end",
+    "",
+    "config vpn ipsec phase2-interface",
+    '    edit "Azure-Hub-P2"',
+    '        set phase1name "Azure-Hub"',
+    "        set proposal aes256-sha256",
+    "        set pfs disable",
+    "        set keylife-type seconds",
+    "        set keylifeseconds 27000",
+    "        set src-subnet 0.0.0.0 0.0.0.0",
+    "        set dst-subnet 0.0.0.0 0.0.0.0",
+    "        set auto-negotiate enable",
+    "    next",
+    "end",
+    "",
+    "config firewall address",
+]
+for name, network in networks.items():
+    lines += [
+        f'    edit "{name}"',
+        f"        set subnet {network.network_address} {network.netmask}",
+        "    next",
+    ]
+lines += [
+    "end",
+    "",
+    "config firewall addrgrp",
+    '    edit "AZH-Networks"',
+    '        set member "AZH-Hub" "AZH-Spoke5" "AZH-Spoke6"',
+    "    next",
+    "end",
+    "",
+    "config router static",
+]
+for name in ("AZH-Hub", "AZH-Spoke5", "AZH-Spoke6"):
+    network = networks[name]
+    lines += [
+        "    edit 0",
+        f"        set dst {network.network_address} {network.netmask}",
+        '        set device "Azure-Hub"',
+        "        set distance 10",
+        f'        set comment "{name} via IPsec"',
+        "    next",
+    ]
+lines += ["end", "", "config firewall policy"]
+for name, source_interface, destination_interface, source, destination in (
+    ("OnPrem-to-AzureHub", "b", "Azure-Hub", "AZH-OnPrem", "AZH-Networks"),
+    ("AzureHub-to-OnPrem", "Azure-Hub", "b", "AZH-Networks", "AZH-OnPrem"),
+):
+    lines += [
+        "    edit 0",
+        f'        set name "{name}"',
+        f'        set srcintf "{source_interface}"',
+        f'        set dstintf "{destination_interface}"',
+        f'        set srcaddr "{source}"',
+        f'        set dstaddr "{destination}"',
+        "        set action accept",
+        '        set schedule "always"',
+        '        set service "ALL"',
+        "        set nat disable",
+        "        set logtraffic all",
+        "        set tcp-mss-sender 1350",
+        "        set tcp-mss-receiver 1350",
+        "    next",
+    ]
+lines += ["end", ""]
+path.write_text("\n".join(lines), encoding="ascii")
+PY
+printf 'FortiGate CLI file generated: %s\n' "$FORTIGATE_FILE"
+printf 'Replace ENTER_CURRENT_VPN_PSK before pasting; skip duplicate routes and policies.\n'
 
 printf '\nDeployment %s complete.\n' "$DEPLOYMENT_NAME"
 printf 'The hub VPN gateway and FortiGate site-to-site VPN connection are provisioned.\n'

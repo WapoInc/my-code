@@ -406,6 +406,13 @@ output hubVpnGatewayId string = hubVpnGateway.id
 output hubVpnGatewayPublicIpAddress string = hubGatewayPublicIp.properties.ipAddress
 output onPremLocalNetworkGatewayId string = onPremLocalNetworkGateway.id
 output onPremVpnConnectionId string = onPremVpnConnection.id
+output fortigateConfiguration object = {
+  gatewayPublicIp: hubGatewayPublicIp.properties.ipAddress
+  onPremPrefix: onPremAddressPrefix
+  hubPrefix: hubVnetPrefix
+  spoke5Prefix: spoke5VnetPrefix
+  spoke6Prefix: spoke6VnetPrefix
+}
 output vmConnectionDetails array = [for (vm, i) in vmDefinitions: {
   name: vm.name
   username: vmAdminUsername
