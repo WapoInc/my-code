@@ -7,7 +7,6 @@ LOCATION="${LOCATION:-southafricanorth}"
 TEMPLATE_FILE="${TEMPLATE_FILE:-$(cd "$(dirname "$0")" && pwd)/main.bicep}"
 DEPLOYMENT_NAME="${DEPLOYMENT_NAME:-vnet-peering-spoke-5-6-$(date +%Y%m%d%H%M%S)}"
 KEY_VAULT_NAME="${KEY_VAULT_NAME:-vnet-peer-kv-0cfd0d2a}"
-KEY_VAULT_RESOURCE_GROUP="${KEY_VAULT_RESOURCE_GROUP:-$RESOURCE_GROUP}"
 VPN_PSK_SECRET_NAME="${VPN_PSK_SECRET_NAME:-vpn-shared-key}"
 VM_PASSWORD_SECRET_NAME="${VM_PASSWORD_SECRET_NAME:-vm-admin-password}"
 
@@ -15,6 +14,12 @@ fail() {
 	printf 'ERROR: %s\n' "$*" >&2
 	exit 1
 }
+
+IFS= read -r -p "Resource group [$RESOURCE_GROUP]: " RESOURCE_GROUP_INPUT \
+	|| fail "Unable to read resource group."
+RESOURCE_GROUP="${RESOURCE_GROUP_INPUT:-$RESOURCE_GROUP}"
+unset RESOURCE_GROUP_INPUT
+KEY_VAULT_RESOURCE_GROUP="${KEY_VAULT_RESOURCE_GROUP:-$RESOURCE_GROUP}"
 
 command -v az >/dev/null 2>&1 || fail "Azure CLI is not installed."
 command -v python3 >/dev/null 2>&1 || fail "Python 3 is required to generate the FortiGate CLI file."
