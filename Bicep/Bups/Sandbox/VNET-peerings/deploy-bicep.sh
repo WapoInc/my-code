@@ -6,7 +6,6 @@ RESOURCE_GROUP="${RESOURCE_GROUP:-VNET-Peerings}"
 LOCATION="${LOCATION:-southafricanorth}"
 TEMPLATE_FILE="${TEMPLATE_FILE:-$(cd "$(dirname "$0")" && pwd)/main.bicep}"
 DEPLOYMENT_NAME="${DEPLOYMENT_NAME:-vnet-peering-spoke-5-6-$(date +%Y%m%d%H%M%S)}"
-KEY_VAULT_NAME="${KEY_VAULT_NAME:-vnet-peer-kv-0cfd0d2a}"
 VPN_PSK_SECRET_NAME="${VPN_PSK_SECRET_NAME:-vpn-shared-key}"
 VM_PASSWORD_SECRET_NAME="${VM_PASSWORD_SECRET_NAME:-vm-admin-password}"
 
@@ -24,6 +23,24 @@ KEY_VAULT_RESOURCE_GROUP="${KEY_VAULT_RESOURCE_GROUP:-$RESOURCE_GROUP}"
 command -v az >/dev/null 2>&1 || fail "Azure CLI is not installed."
 command -v python3 >/dev/null 2>&1 || fail "Python 3 is required to generate the FortiGate CLI file."
 [[ -f "$TEMPLATE_FILE" ]] || fail "Template '$TEMPLATE_FILE' not found."
+
+if [[ -z "${KEY_VAULT_NAME:-}" ]]; then
+	KEY_VAULT_NAME="$(python3 - "$SUBSCRIPTION_ID" "$RESOURCE_GROUP" <<'PY'
+import hashlib
+import re
+import sys
+
+subscription, resource_group = sys.argv[1:]
+prefix = re.sub(r"[^a-z0-9]+", "-", resource_group.lower()).strip("-")
+if not prefix or not prefix[0].isalpha():
+    prefix = f"rg-{prefix}" if prefix else "rg"
+prefix = prefix[:17].rstrip("-")
+suffix = hashlib.sha256(f"{subscription.lower()}/{resource_group.lower()}".encode()).hexdigest()[:6]
+print(f"{prefix}-{suffix}")
+PY
+	)" || fail "Unable to generate the Key Vault name."
+fi
+printf 'Using Key Vault name: %s\n' "$KEY_VAULT_NAME"
 
 ARM_TEMPLATE_FILE="$(mktemp -t vnet-peerings-template)"
 trap 'rm -f -- "$ARM_TEMPLATE_FILE"' EXIT
