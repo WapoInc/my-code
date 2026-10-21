@@ -201,13 +201,14 @@ config = json.loads(sys.argv[2])
 gateway = str(ipaddress.IPv4Address(config["gatewayPublicIp"]))
 networks = {
     "AZH-OnPrem": ipaddress.IPv4Network(config["onPremPrefix"]),
+    "AZH-ER-OnPrem": ipaddress.IPv4Network("172.22.1.0/24"),
     "AZH-Hub": ipaddress.IPv4Network(config["hubPrefix"]),
     "AZH-Spoke5": ipaddress.IPv4Network(config["spoke5Prefix"]),
     "AZH-Spoke6": ipaddress.IPv4Network(config["spoke6Prefix"]),
 }
 lines = [
     "# Replace ENTER_CURRENT_VPN_PSK with the deployed VPN PSK before pasting.",
-    "# Apply in the VDOM containing wan1 and b.",
+    "# Apply in the VDOM containing wan1, Internal, SA-North-Pri, and SA-North-Sec.",
     "# This updates Azure-Hub. Route/policy edit 0 creates NEW entries.",
     "# Skip existing equivalent routes/policies to avoid duplicates.",
     "# Place allow policies above matching deny policies.",
@@ -274,8 +275,8 @@ for name in ("AZH-Hub", "AZH-Spoke5", "AZH-Spoke6"):
     ]
 lines += ["end", "", "config firewall policy"]
 for name, source_interface, destination_interface, source, destination in (
-    ("OnPrem-to-AzureHub", "b", "Azure-Hub", "AZH-OnPrem", "AZH-Networks"),
-    ("AzureHub-to-OnPrem", "Azure-Hub", "b", "AZH-Networks", "AZH-OnPrem"),
+    ("Internal-to-SA-North-Pri", "Internal", "SA-North-Pri", "AZH-ER-OnPrem", "AZH-Networks"),
+    ("Internal-to-SA-North-Sec", "Internal", "SA-North-Sec", "AZH-ER-OnPrem", "AZH-Networks"),
 ):
     lines += [
         "    edit 0",
@@ -301,6 +302,8 @@ printf 'Replace ENTER_CURRENT_VPN_PSK before pasting; skip duplicate routes and 
 
 printf '\nDeployment %s complete.\n' "$DEPLOYMENT_NAME"
 printf 'The hub VPN gateway and FortiGate site-to-site VPN connection are provisioned.\n'
+printf 'The coexisting ErGw1AZ gateway and connection to the existing ExpressRoute circuit are provisioned.\n'
+printf 'ExpressRoute can take precedence over VPN for identical learned prefixes; verify end-to-end routing.\n'
 printf 'Ubuntu VMs are provisioned in the hub and both spokes; see deployment output vmConnectionDetails for addresses.\n'
 printf 'Verify the tunnel is connected and the FortiGate has return routes for the hub and spoke CIDRs.\n'
 printf 'For a fresh environment, update the FortiGate remote gateway to deployment output hubVpnGatewayPublicIpAddress.\n'

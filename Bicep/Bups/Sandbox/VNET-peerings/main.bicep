@@ -1,9 +1,9 @@
-// Creates a hub with a VPN gateway, a FortiGate site-to-site connection,
+// Creates a hub with coexisting VPN and ExpressRoute gateways and connections,
 // spoke 5/6 peerings using gateway transit, and one Ubuntu VM per VNet.
 
 targetScope = 'resourceGroup'
 
-@description('Azure region for the hub, spokes, and VPN gateway.')
+@description('Azure region for the hub, spokes, and gateways.')
 param location string = 'southafricanorth'
 
 @description('Name of the new hub virtual network that hosts the VPN gateway.')
@@ -12,6 +12,9 @@ param hubVnetPrefix string = '10.26.0.0/24'
 param hubGatewaySubnetPrefix string = '10.26.0.0/27'
 param hubSubnetName string = 'Subnet-1'
 param hubSubnetPrefix string = '10.26.0.64/26'
+
+@description('Existing ExpressRoute circuit with provisioned Azure private peering. The circuit is not modified.')
+param expressRouteCircuitId string = '/subscriptions/0cfd0d2a-2b38-4c93-ba14-cf79185bc683/resourceGroups/ER-LTSA-rg/providers/Microsoft.Network/expressRouteCircuits/ER-LIT-ZAN'
 
 @description('Public IP address of the on-premises FortiGate.')
 param onPremGatewayIpAddress string = '156.155.28.158'
@@ -113,6 +116,65 @@ resource hubVpnGateway 'Microsoft.Network/virtualNetworkGateways@2024-05-01' = {
         }
       }
     ]
+  }
+}
+
+resource hubExpressRoutePublicIp 'Microsoft.Network/publicIPAddresses@2024-05-01' = {
+  name: '${hubVnetName}-ergw-pip'
+  location: location
+  sku: {
+    name: 'Standard'
+  }
+  properties: {
+    publicIPAllocationMethod: 'Static'
+    publicIPAddressVersion: 'IPv4'
+  }
+}
+
+resource hubExpressRouteGateway 'Microsoft.Network/virtualNetworkGateways@2024-05-01' = {
+  name: '${hubVnetName}-ergw'
+  location: location
+  properties: {
+    gatewayType: 'ExpressRoute'
+    vpnType: 'RouteBased'
+    sku: {
+      name: 'ErGw1AZ'
+      tier: 'ErGw1AZ'
+    }
+    ipConfigurations: [
+      {
+        name: 'gateway-ipconfig'
+        properties: {
+          privateIPAllocationMethod: 'Dynamic'
+          publicIPAddress: {
+            id: hubExpressRoutePublicIp.id
+          }
+          subnet: {
+            id: '${hubVnet.id}/subnets/GatewaySubnet'
+          }
+        }
+      }
+    ]
+  }
+  // Serialize gateway creation against the shared GatewaySubnet.
+  dependsOn: [
+    hubVpnGateway
+  ]
+}
+
+resource hubExpressRouteConnection 'Microsoft.Network/connections@2024-05-01' = {
+  name: '${hubVnetName}-to-expressroute'
+  location: location
+  properties: {
+    connectionType: 'ExpressRoute'
+    virtualNetworkGateway1: {
+      id: hubExpressRouteGateway.id
+      properties: {}
+    }
+    peer: {
+      id: expressRouteCircuitId
+    }
+    routingWeight: 0
   }
 }
 
@@ -404,6 +466,8 @@ output spoke5VnetId string = spoke5Vnet.id
 output spoke6VnetId string = spoke6Vnet.id
 output hubVpnGatewayId string = hubVpnGateway.id
 output hubVpnGatewayPublicIpAddress string = hubGatewayPublicIp.properties.ipAddress
+output hubExpressRouteGatewayId string = hubExpressRouteGateway.id
+output hubExpressRouteConnectionId string = hubExpressRouteConnection.id
 output onPremLocalNetworkGatewayId string = onPremLocalNetworkGateway.id
 output onPremVpnConnectionId string = onPremVpnConnection.id
 output fortigateConfiguration object = {
