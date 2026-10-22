@@ -1,4 +1,4 @@
-// Creates a hub with coexisting VPN and ExpressRoute gateways and connections,
+// Creates a hub with an ExpressRoute gateway and circuit connection,
 // spoke 5/6 peerings using gateway transit, and one Ubuntu VM per VNet.
 
 targetScope = 'resourceGroup'
@@ -6,7 +6,7 @@ targetScope = 'resourceGroup'
 @description('Azure region for the hub, spokes, and gateways.')
 param location string = 'southafricanorth'
 
-@description('Name of the new hub virtual network that hosts the VPN gateway.')
+@description('Name of the hub virtual network that hosts the ExpressRoute gateway.')
 param hubVnetName string = 'hub'
 param hubVnetPrefix string = '10.26.0.0/24'
 param hubGatewaySubnetPrefix string = '10.26.0.0/27'
@@ -16,16 +16,11 @@ param hubSubnetPrefix string = '10.26.0.64/26'
 @description('Existing ExpressRoute circuit with provisioned Azure private peering. The circuit is not modified.')
 param expressRouteCircuitId string = '/subscriptions/0cfd0d2a-2b38-4c93-ba14-cf79185bc683/resourceGroups/ER-LTSA-rg/providers/Microsoft.Network/expressRouteCircuits/ER-LIT-ZAN'
 
-@description('Public IP address of the on-premises FortiGate.')
+@description('On-premises public IP permitted to SSH to the VM public IPs.')
 param onPremGatewayIpAddress string = '156.155.28.158'
 
-@description('On-premises network reachable through the FortiGate.')
-param onPremAddressPrefix string = '192.168.2.0/24'
-
-@secure()
-@minLength(1)
-@description('IPsec pre-shared key matching the FortiGate, supplied by a Key Vault parameter reference in deploy-bicep.sh.')
-param vpnSharedKey string
+@description('On-premises network advertised over ExpressRoute and permitted for VM SSH.')
+param onPremAddressPrefix string = '172.22.1.0/24'
 
 param vmAdminUsername string = 'rootadmin'
 param vmSize string = 'Standard_B1ls'
@@ -77,48 +72,6 @@ resource hubVnet 'Microsoft.Network/virtualNetworks@2024-05-01' = {
   }
 }
 
-resource hubGatewayPublicIp 'Microsoft.Network/publicIPAddresses@2024-05-01' = {
-  name: '${hubVnetName}-vpngw-pip'
-  location: location
-  sku: {
-    name: 'Standard'
-  }
-  properties: {
-    publicIPAllocationMethod: 'Static'
-    publicIPAddressVersion: 'IPv4'
-  }
-}
-
-resource hubVpnGateway 'Microsoft.Network/virtualNetworkGateways@2024-05-01' = {
-  name: '${hubVnetName}-vpngw'
-  location: location
-  properties: {
-    gatewayType: 'Vpn'
-    vpnType: 'RouteBased'
-    vpnGatewayGeneration: 'Generation1'
-    sku: {
-      name: 'VpnGw1AZ'
-      tier: 'VpnGw1AZ'
-    }
-    activeActive: false
-    enableBgp: false
-    ipConfigurations: [
-      {
-        name: 'gateway-ipconfig'
-        properties: {
-          privateIPAllocationMethod: 'Dynamic'
-          publicIPAddress: {
-            id: hubGatewayPublicIp.id
-          }
-          subnet: {
-            id: '${hubVnet.id}/subnets/GatewaySubnet'
-          }
-        }
-      }
-    ]
-  }
-}
-
 resource hubExpressRoutePublicIp 'Microsoft.Network/publicIPAddresses@2024-05-01' = {
   name: '${hubVnetName}-ergw-pip'
   location: location
@@ -156,10 +109,6 @@ resource hubExpressRouteGateway 'Microsoft.Network/virtualNetworkGateways@2024-0
       }
     ]
   }
-  // Serialize gateway creation against the shared GatewaySubnet.
-  dependsOn: [
-    hubVpnGateway
-  ]
 }
 
 resource hubExpressRouteConnection 'Microsoft.Network/connections@2024-05-01' = {
@@ -175,51 +124,6 @@ resource hubExpressRouteConnection 'Microsoft.Network/connections@2024-05-01' = 
       id: expressRouteCircuitId
     }
     routingWeight: 0
-  }
-}
-
-resource onPremLocalNetworkGateway 'Microsoft.Network/localNetworkGateways@2024-05-01' = {
-  name: '${hubVnetName}-lng-fortigate'
-  location: location
-  properties: {
-    gatewayIpAddress: onPremGatewayIpAddress
-    localNetworkAddressSpace: {
-      addressPrefixes: [
-        onPremAddressPrefix
-      ]
-    }
-  }
-}
-
-resource onPremVpnConnection 'Microsoft.Network/connections@2024-05-01' = {
-  name: '${hubVnetName}-to-fortigate'
-  location: location
-  properties: {
-    connectionType: 'IPsec'
-    connectionProtocol: 'IKEv2'
-    virtualNetworkGateway1: {
-      id: hubVpnGateway.id
-      properties: {}
-    }
-    localNetworkGateway2: {
-      id: onPremLocalNetworkGateway.id
-      properties: {}
-    }
-    sharedKey: vpnSharedKey
-    enableBgp: false
-    usePolicyBasedTrafficSelectors: false
-    ipsecPolicies: [
-      {
-        ikeEncryption: 'AES256'
-        ikeIntegrity: 'SHA256'
-        dhGroup: 'DHGroup14'
-        ipsecEncryption: 'AES256'
-        ipsecIntegrity: 'SHA256'
-        pfsGroup: 'None'
-        saLifeTimeSeconds: 27000
-        saDataSizeKilobytes: 102400000
-      }
-    ]
   }
 }
 
@@ -263,7 +167,7 @@ resource spoke6Vnet 'Microsoft.Network/virtualNetworks@2024-05-01' = {
   }
 }
 
-// Hub side advertises the VPN gateway to the spoke.
+// Hub side advertises gateway transit to the spoke.
 resource hubToSpoke5 'Microsoft.Network/virtualNetworks/virtualNetworkPeerings@2024-05-01' = {
   parent: hubVnet
   name: hubToSpoke5PeeringName
@@ -293,7 +197,7 @@ resource spoke5ToHub 'Microsoft.Network/virtualNetworks/virtualNetworkPeerings@2
   }
   dependsOn: [
     hubToSpoke5
-    hubVpnGateway
+    hubExpressRouteGateway
   ]
 }
 
@@ -329,7 +233,7 @@ resource spoke6ToHub 'Microsoft.Network/virtualNetworks/virtualNetworkPeerings@2
   }
   dependsOn: [
     hubToSpoke6
-    hubVpnGateway
+    hubExpressRouteGateway
   ]
 }
 
@@ -464,14 +368,9 @@ resource virtualMachines 'Microsoft.Compute/virtualMachines@2024-07-01' = [for (
 output hubVnetId string = hubVnet.id
 output spoke5VnetId string = spoke5Vnet.id
 output spoke6VnetId string = spoke6Vnet.id
-output hubVpnGatewayId string = hubVpnGateway.id
-output hubVpnGatewayPublicIpAddress string = hubGatewayPublicIp.properties.ipAddress
 output hubExpressRouteGatewayId string = hubExpressRouteGateway.id
 output hubExpressRouteConnectionId string = hubExpressRouteConnection.id
-output onPremLocalNetworkGatewayId string = onPremLocalNetworkGateway.id
-output onPremVpnConnectionId string = onPremVpnConnection.id
 output fortigateConfiguration object = {
-  gatewayPublicIp: hubGatewayPublicIp.properties.ipAddress
   onPremPrefix: onPremAddressPrefix
   hubPrefix: hubVnetPrefix
   spoke5Prefix: spoke5VnetPrefix

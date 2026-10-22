@@ -6,7 +6,6 @@ RESOURCE_GROUP="${RESOURCE_GROUP:-VNET-Peerings}"
 LOCATION="${LOCATION:-southafricanorth}"
 TEMPLATE_FILE="${TEMPLATE_FILE:-$(cd "$(dirname "$0")" && pwd)/main.bicep}"
 DEPLOYMENT_NAME="${DEPLOYMENT_NAME:-vnet-peering-spoke-5-6-$(date +%Y%m%d%H%M%S)}"
-VPN_PSK_SECRET_NAME="${VPN_PSK_SECRET_NAME:-vpn-shared-key}"
 VM_PASSWORD_SECRET_NAME="${VM_PASSWORD_SECRET_NAME:-vm-admin-password}"
 
 fail() {
@@ -128,21 +127,6 @@ for ((attempt = 1; attempt <= 18; attempt++)); do
 done
 
 set +x
-if ! grep -Fxq "$VPN_PSK_SECRET_NAME" <<<"$SECRET_NAMES"; then
-	IFS= read -r -s -p 'FortiGate VPN pre-shared key (must match the FortiGate): ' VPN_SHARED_KEY \
-		|| fail "Unable to read VPN pre-shared key."
-	printf '\n'
-	[[ -n "$VPN_SHARED_KEY" ]] || fail "VPN pre-shared key must not be empty."
-	printf '%s' "$VPN_SHARED_KEY" | az keyvault secret set \
-		--subscription "$SUBSCRIPTION_ID" \
-		--vault-name "$KEY_VAULT_NAME" \
-		--name "$VPN_PSK_SECRET_NAME" \
-		--file /dev/stdin \
-		--encoding utf-8 \
-		--output none
-	unset VPN_SHARED_KEY
-fi
-
 IFS= read -r -s -p 'VM administrator password: ' VM_ADMIN_PASSWORD \
 	|| fail "Unable to read VM administrator password."
 printf '\n'
@@ -162,10 +146,9 @@ printf '%s' "$VM_ADMIN_PASSWORD" | az keyvault secret set \
 	--output none
 unset VM_ADMIN_PASSWORD VM_ADMIN_PASSWORD_CONFIRM
 
-VPN_PARAMETERS="$(printf '{"vpnSharedKey":{"reference":{"keyVault":{"id":"%s"},"secretName":"%s"}},"vmAdminPassword":{"reference":{"keyVault":{"id":"%s"},"secretName":"%s"}}}' \
-	"$KEY_VAULT_ID" "$VPN_PSK_SECRET_NAME" "$KEY_VAULT_ID" "$VM_PASSWORD_SECRET_NAME")"
+DEPLOYMENT_PARAMETERS="$(printf '{"vmAdminPassword":{"reference":{"keyVault":{"id":"%s"},"secretName":"%s"}}}' \
+	"$KEY_VAULT_ID" "$VM_PASSWORD_SECRET_NAME")"
 
-printf 'Using Key Vault secret %s/%s for vpnSharedKey.\n' "$KEY_VAULT_NAME" "$VPN_PSK_SECRET_NAME"
 printf 'Using Key Vault secret %s/%s for vmAdminPassword.\n' "$KEY_VAULT_NAME" "$VM_PASSWORD_SECRET_NAME"
 
 az deployment group what-if \
@@ -173,14 +156,14 @@ az deployment group what-if \
 	--resource-group "$RESOURCE_GROUP" \
 	--name "$DEPLOYMENT_NAME" \
 	--template-file "$ARM_TEMPLATE_FILE" \
-	--parameters "$VPN_PARAMETERS" location="$LOCATION"
+	--parameters "$DEPLOYMENT_PARAMETERS" location="$LOCATION"
 
 az deployment group create \
 	--subscription "$SUBSCRIPTION_ID" \
 	--resource-group "$RESOURCE_GROUP" \
 	--name "$DEPLOYMENT_NAME" \
 	--template-file "$ARM_TEMPLATE_FILE" \
-	--parameters "$VPN_PARAMETERS" location="$LOCATION" \
+	--parameters "$DEPLOYMENT_PARAMETERS" location="$LOCATION" \
 	--output table
 
 FORTIGATE_CONFIGURATION="$(az deployment group show \
@@ -198,52 +181,17 @@ from pathlib import Path
 
 path = Path(sys.argv[1])
 config = json.loads(sys.argv[2])
-gateway = str(ipaddress.IPv4Address(config["gatewayPublicIp"]))
 networks = {
-    "AZH-OnPrem": ipaddress.IPv4Network(config["onPremPrefix"]),
-    "AZH-ER-OnPrem": ipaddress.IPv4Network("172.22.1.0/24"),
+    "AZH-ER-OnPrem": ipaddress.IPv4Network(config["onPremPrefix"]),
     "AZH-Hub": ipaddress.IPv4Network(config["hubPrefix"]),
     "AZH-Spoke5": ipaddress.IPv4Network(config["spoke5Prefix"]),
     "AZH-Spoke6": ipaddress.IPv4Network(config["spoke6Prefix"]),
 }
 lines = [
-    "# Replace ENTER_CURRENT_VPN_PSK with the deployed VPN PSK before pasting.",
-    "# Apply in the VDOM containing wan1, Internal, SA-North-Pri, and SA-North-Sec.",
-    "# This updates Azure-Hub. Route/policy edit 0 creates NEW entries.",
-    "# Skip existing equivalent routes/policies to avoid duplicates.",
+    "# Apply in the VDOM containing internal, SA-North-Pri, and SA-North-Sec.",
+    "# Each policy edit 0 creates a NEW entry; skip existing equivalent policies.",
     "# Place allow policies above matching deny policies.",
-    "config vpn ipsec phase1-interface",
-    '    edit "Azure-Hub"',
-    '        set interface "wan1"',
-    "        set type static",
-    "        set ike-version 2",
-    "        set peertype any",
-    "        set authmethod psk",
-    f"        set remote-gw {gateway}",
-    "        set proposal aes256-sha256",
-    "        set dhgrp 14",
-    "        set keylife 28800",
-    "        set nattraversal enable",
-    "        set dpd on-idle",
-    "        set dpd-retryinterval 10",
-    "        set add-route disable",
-    '        set psksecret "ENTER_CURRENT_VPN_PSK"',
-    "    next",
-    "end",
-    "",
-    "config vpn ipsec phase2-interface",
-    '    edit "Azure-Hub-P2"',
-    '        set phase1name "Azure-Hub"',
-    "        set proposal aes256-sha256",
-    "        set pfs disable",
-    "        set keylife-type seconds",
-    "        set keylifeseconds 27000",
-    "        set src-subnet 0.0.0.0 0.0.0.0",
-    "        set dst-subnet 0.0.0.0 0.0.0.0",
-    "        set auto-negotiate enable",
-    "    next",
-    "end",
-    "",
+    "# Routes must already select SA-North-Pri or SA-North-Sec for Azure networks.",
     "config firewall address",
 ]
 for name, network in networks.items():
@@ -260,23 +208,11 @@ lines += [
     '        set member "AZH-Hub" "AZH-Spoke5" "AZH-Spoke6"',
     "    next",
     "end",
-    "",
-    "config router static",
 ]
-for name in ("AZH-Hub", "AZH-Spoke5", "AZH-Spoke6"):
-    network = networks[name]
-    lines += [
-        "    edit 0",
-        f"        set dst {network.network_address} {network.netmask}",
-        '        set device "Azure-Hub"',
-        "        set distance 10",
-        f'        set comment "{name} via IPsec"',
-        "    next",
-    ]
-lines += ["end", "", "config firewall policy"]
+lines += ["", "config firewall policy"]
 for name, source_interface, destination_interface, source, destination in (
-    ("Internal-to-SA-North-Pri", "Internal", "SA-North-Pri", "AZH-ER-OnPrem", "AZH-Networks"),
-    ("Internal-to-SA-North-Sec", "Internal", "SA-North-Sec", "AZH-ER-OnPrem", "AZH-Networks"),
+    ("Internal-to-SA-North-Pri", "internal", "SA-North-Pri", "AZH-ER-OnPrem", "AZH-Networks"),
+    ("Internal-to-SA-North-Sec", "internal", "SA-North-Sec", "AZH-ER-OnPrem", "AZH-Networks"),
 ):
     lines += [
         "    edit 0",
@@ -298,12 +234,10 @@ lines += ["end", ""]
 path.write_text("\n".join(lines), encoding="ascii")
 PY
 printf 'FortiGate CLI file generated: %s\n' "$FORTIGATE_FILE"
-printf 'Replace ENTER_CURRENT_VPN_PSK before pasting; skip duplicate routes and policies.\n'
+printf 'Apply ER firewall policies only if equivalent policies do not already exist.\n'
 
 printf '\nDeployment %s complete.\n' "$DEPLOYMENT_NAME"
-printf 'The hub VPN gateway and FortiGate site-to-site VPN connection are provisioned.\n'
-printf 'The coexisting ErGw1AZ gateway and connection to the existing ExpressRoute circuit are provisioned.\n'
-printf 'ExpressRoute can take precedence over VPN for identical learned prefixes; verify end-to-end routing.\n'
+printf 'The ErGw1AZ gateway and connection to the existing ExpressRoute circuit are provisioned.\n'
 printf 'Ubuntu VMs are provisioned in the hub and both spokes; see deployment output vmConnectionDetails for addresses.\n'
-printf 'Verify the tunnel is connected and the FortiGate has return routes for the hub and spoke CIDRs.\n'
-printf 'For a fresh environment, update the FortiGate remote gateway to deployment output hubVpnGatewayPublicIpAddress.\n'
+printf 'Verify ExpressRoute private peering advertises the on-premises CIDR and return routes exist for all three VNets.\n'
+printf 'Incremental deployment does not delete previously deployed VPN resources; remove those separately if required.\n'
