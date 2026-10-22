@@ -172,7 +172,7 @@ FORTIGATE_CONFIGURATION="$(az deployment group show \
 	--name "$DEPLOYMENT_NAME" \
 	--query properties.outputs.fortigateConfiguration.value \
 	--output json)"
-FORTIGATE_FILE="$(dirname "$TEMPLATE_FILE")/fortigate-script-paste-into-cli"
+FORTIGATE_FILE="$(dirname "$TEMPLATE_FILE")/fortigate-run-to-conf-vpn-on-fortigate"
 python3 - "$FORTIGATE_FILE" "$FORTIGATE_CONFIGURATION" <<'PY'
 import ipaddress
 import json
