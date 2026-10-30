@@ -6,7 +6,7 @@ RESOURCE_GROUP="vmr-WebApp"
 LOCATION="southafricanorth"
 TEMPLATE_FILE="main.bicep"
 WEB_APP_NAME="${WEB_APP_NAME:-wapoinc-webapp-$(date -u +%Y%m%d-%H%M%S)}"
-CUSTOM_DOMAINS=("wapoinc.tech" "www.wapoinc.tech" "802dot1x.net" "www.802dot1x.net")
+CUSTOM_DOMAINS=("wapoinc.tech" "www.wapoinc.tech" "802dotx.net" "www.802dotx.net")
 APP_SERVICE_PLAN_SKU="B1"
 
 # ---- Login check ----

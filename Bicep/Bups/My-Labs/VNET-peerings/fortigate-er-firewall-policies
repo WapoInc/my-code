@@ -1,0 +1,56 @@
+# Apply in the VDOM containing internal, SA-North-Pri, and SA-North-Sec.
+# Interface names are case-sensitive; verify that the LAN interface is internal.
+# Each edit 0 creates a new policy; do not duplicate existing equivalent policies.
+# Place these policies above matching deny policies.
+# Routes must already select SA-North-Pri or SA-North-Sec for the Azure networks.
+config firewall address
+    edit "AZH-ER-OnPrem"
+        set subnet 172.22.1.0 255.255.255.0
+    next
+    edit "AZH-Hub"
+        set subnet 10.26.0.0 255.255.255.0
+    next
+    edit "AZH-Spoke5"
+        set subnet 10.24.0.0 255.255.255.0
+    next
+    edit "AZH-Spoke6"
+        set subnet 10.25.0.0 255.255.255.0
+    next
+end
+
+config firewall addrgrp
+    edit "AZH-Networks"
+        set member "AZH-Hub" "AZH-Spoke5" "AZH-Spoke6"
+    next
+end
+
+config firewall policy
+    edit 0
+        set name "Internal-to-SA-North-Pri"
+        set srcintf "internal"
+        set dstintf "SA-North-Pri"
+        set srcaddr "AZH-ER-OnPrem"
+        set dstaddr "AZH-Networks"
+        set action accept
+        set schedule "always"
+        set service "ALL"
+        set nat disable
+        set logtraffic all
+        set tcp-mss-sender 1350
+        set tcp-mss-receiver 1350
+    next
+    edit 0
+        set name "Internal-to-SA-North-Sec"
+        set srcintf "internal"
+        set dstintf "SA-North-Sec"
+        set srcaddr "AZH-ER-OnPrem"
+        set dstaddr "AZH-Networks"
+        set action accept
+        set schedule "always"
+        set service "ALL"
+        set nat disable
+        set logtraffic all
+        set tcp-mss-sender 1350
+        set tcp-mss-receiver 1350
+    next
+end

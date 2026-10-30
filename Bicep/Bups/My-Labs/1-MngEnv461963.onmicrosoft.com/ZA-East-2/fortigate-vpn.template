@@ -1,0 +1,134 @@
+# FortiGate CLI: paste in the VDOM containing AzureS2S, wan1 and b.
+# Generated from the deployed Azure VPN connection.
+# Azure uses IKEv2, BGP and default IPsec policies (no custom policy).
+# Contains the connection PSK after generation; do not share or commit the output.
+# This updates the tunnel and global BGP ASN/router ID; expect reconvergence.
+# Review existing BGP configuration before applying.
+# Numeric "edit 0" entries create new routes, advertisements and policies.
+# Apply once, or remove equivalent entries first to avoid duplicates.
+
+config vpn ipsec phase1-interface
+    edit "AzureS2S"
+        set interface "wan1"
+        set ike-version 2
+        set peertype any
+        set net-device disable
+        set proposal aes256-sha256
+        set dhgrp 2
+        set keylife 28800
+        set nattraversal enable
+        set dpd on-idle
+        set remote-gw {{AZURE_PUBLIC_IP}}
+        set psksecret "{{PSK}}"
+    next
+end
+
+config vpn ipsec phase2-interface
+    edit "AzureS2S-P2"
+        set phase1name "AzureS2S"
+        set proposal aes256-sha256
+        set pfs disable
+        set keylifeseconds 27000
+        set src-subnet 0.0.0.0 0.0.0.0
+        set dst-subnet 0.0.0.0 0.0.0.0
+        set auto-negotiate enable
+    next
+end
+
+# Azure's local network gateway expects this FortiGate BGP source address.
+config system interface
+    edit "AzureS2S"
+        set ip {{FORTIGATE_BGP_IP}} 255.255.255.255
+        set remote-ip {{AZURE_BGP_IP}} 255.255.255.255
+        set allowaccess ping
+    next
+end
+
+# Bootstrap reachability to Azure's BGP peer; workload routes are learned by BGP.
+config router static
+    edit 0
+        set dst {{AZURE_BGP_IP}} 255.255.255.255
+        set device "AzureS2S"
+        set comment "Azure VPN gateway BGP peer"
+    next
+end
+
+config router bgp
+    set as {{FORTIGATE_ASN}}
+    set router-id {{FORTIGATE_BGP_IP}}
+    config neighbor
+        edit "{{AZURE_BGP_IP}}"
+            set remote-as {{AZURE_ASN}}
+            set update-source "AzureS2S"
+            set ebgp-enforce-multihop enable
+            set soft-reconfiguration enable
+        next
+    end
+    config network
+        edit 0
+            set prefix 192.168.2.0 255.255.255.0
+        next
+    end
+end
+
+# The LAN prefix must exist in the FortiGate routing table to be advertised.
+config firewall address
+    edit "onprem-192.168.2.0_24"
+        set subnet 192.168.2.0 255.255.255.0
+    next
+    edit "azure-hub-10.20.0.0_20"
+        set subnet 10.20.0.0 255.255.240.0
+    next
+    edit "azure-spoke1-10.21.0.0_20"
+        set subnet 10.21.0.0 255.255.240.0
+    next
+    edit "azure-spoke2-10.22.0.0_20"
+        set subnet 10.22.0.0 255.255.240.0
+    next
+    edit "azure-spoke3-10.23.0.0_20"
+        set subnet 10.23.0.0 255.255.240.0
+    next
+end
+
+config firewall addrgrp
+    edit "azure-networks"
+        set member "azure-hub-10.20.0.0_20" "azure-spoke1-10.21.0.0_20" "azure-spoke2-10.22.0.0_20" "azure-spoke3-10.23.0.0_20"
+    next
+end
+
+# Place these policies above any matching deny policy.
+config firewall policy
+    edit 0
+        set name "OnPrem-to-AzureS2S"
+        set srcintf "b"
+        set dstintf "AzureS2S"
+        set srcaddr "onprem-192.168.2.0_24"
+        set dstaddr "azure-networks"
+        set action accept
+        set schedule "always"
+        set service "ALL"
+        set nat disable
+        set logtraffic all
+        set tcp-mss-sender 1350
+        set tcp-mss-receiver 1350
+    next
+    edit 0
+        set name "AzureS2S-to-OnPrem"
+        set srcintf "AzureS2S"
+        set dstintf "b"
+        set srcaddr "azure-networks"
+        set dstaddr "onprem-192.168.2.0_24"
+        set action accept
+        set schedule "always"
+        set service "ALL"
+        set nat disable
+        set logtraffic all
+        set tcp-mss-sender 1350
+        set tcp-mss-receiver 1350
+    next
+end
+
+# After applying, verify:
+# get vpn ipsec tunnel summary
+# get router info bgp summary
+# get router info routing-table bgp

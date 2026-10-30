@@ -56,6 +56,9 @@ param enableFortiGateBgp bool = true
 @description('Create the FortiGate local network gateway.')
 param createFortiGateLocalNetworkGateway bool = false
 
+@description('Public IP address of the on-premises FortiGate VPN endpoint.')
+param fortiGatePublicIp string = '156.155.28.158'
+
 @description('BGP ASN used by the on-premises FortiGate.')
 param fortiGateBgpAsn int = 65521
 
@@ -90,6 +93,7 @@ module resources 'ZA-East-Hub-resources.bicep' = {
     azureFirewallSku: azureFirewallSku
     enableFortiGateBgp: enableFortiGateBgp
     createFortiGateLocalNetworkGateway: createFortiGateLocalNetworkGateway
+    fortiGatePublicIp: fortiGatePublicIp
     fortiGateBgpAsn: fortiGateBgpAsn
     onPremisesAddressPrefixes: onPremisesAddressPrefixes
     fortiGateBgpPeerIp: fortiGateBgpPeerIp

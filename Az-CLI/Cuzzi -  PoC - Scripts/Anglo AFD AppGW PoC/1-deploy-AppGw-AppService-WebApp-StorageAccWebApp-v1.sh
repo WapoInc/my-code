@@ -2,11 +2,9 @@
 ###############################################################################
 # South Africa North HLD deployment
 #
-#   [ Azure Front Door Premium ] --Private Link--> [ App Gateway (WAF) ]
+#   [ Azure Front Door Premium ] --Private Link--> [ App Gateway private listener (WAF) ]
 #                                                        |
-#                                                        v
-#                                               [ API App (App Service) ]
-#                                               [ active VM (private) ]
+#   [ active VM (private) ] ------------------------------+--> [ API App ] --> [ Storage static website ]
 ##
 # Each execution generates a new five-character suffix and deploys an independent
 # environment. Dependency-sensitive resources are followed by an explicit wait
@@ -36,13 +34,18 @@ fi
 #    The per-run suffix prevents collisions between independent deployments.
 ###############################################################################
 AGW_NAME="mneu-agw-prod-mrk-001-v1-${UNIQUE_SUFFIX}"
-API_APP="mneu-api-prod-mrk-001-v1-${UNIQUE_SUFFIX}"
-VM_NAME="mneu-vm-prod-mrk-001-v1-${UNIQUE_SUFFIX}"
+AGW_PUBLIC_IP="mneu-pip-agw-prod-mrk-001-v1-${UNIQUE_SUFFIX}"
+AGW_NSG="mneu-nsg-agw-prod-mrk-001-v1-${UNIQUE_SUFFIX}"
+AGW_PUBLIC_LISTENER="afdPublicHttpListener"
+AGW_PUBLIC_RULE="afdPublicRoutingRule"
 AFD_PROFILE="mneu-afd-prod-mrk-001-v1-${UNIQUE_SUFFIX}"
 AFD_ENDPOINT="mneu-afd-endpoint-prod-mrk-001-v1-${UNIQUE_SUFFIX}"
 AFD_ORIGIN_GROUP="appgw-origin-group-${UNIQUE_SUFFIX}"
 AFD_ORIGIN="appgw-origin-${UNIQUE_SUFFIX}"
 AFD_ROUTE="appgw-route-${UNIQUE_SUFFIX}"
+API_APP="mneu-api-prod-mrk-001-v1-${UNIQUE_SUFFIX}"
+STORAGE_ACCT="mneustprodmkt001v1${UNIQUE_SUFFIX}"  # backend static website (was the SQL server)
+VM_NAME="mneu-vm-prod-mrk-001-v1-${UNIQUE_SUFFIX}"
 
 ###############################################################################
 # 2. NETWORKING
@@ -89,10 +92,66 @@ waitmsg() { printf '   [WAIT]   %s\n' "$*"; }
 # exists <az ... show ...> : returns 0 if the resource is found, 1 otherwise
 exists() { "$@" -o none >/dev/null 2>&1; }
 
+cleanup_webapp_deployment() {
+  local exit_status=$?
+
+  if [ "${SCM_DEFAULT_ACTION_RELAXED:-false}" = true ]; then
+    if az webapp config access-restriction set -g "$RG" -n "$API_APP" \
+        --scm-default-action Deny -o none; then
+      SCM_DEFAULT_ACTION_RELAXED=false
+      made "SCM default action restored to Deny"
+    else
+      printf >&2 "ERROR: Failed to restore the SCM default action to Deny for '%s'.\n" "$API_APP"
+      exit_status=1
+    fi
+  fi
+
+  if [ -n "${TMP_APP_DIR:-}" ] && [ -d "$TMP_APP_DIR" ]; then
+    rm -rf "$TMP_APP_DIR"
+  fi
+
+  return "$exit_status"
+}
+
+validate_webapp_name() {
+  if exists az webapp show -g "$RG" -n "$API_APP"; then
+    return
+  fi
+
+  local name_available
+  name_available=$(az rest --method post \
+    --uri "https://management.azure.com/subscriptions/${SUBSCRIPTION_ID}/providers/Microsoft.Web/checkNameAvailability?api-version=2024-04-01" \
+    --body "{\"name\":\"${API_APP}\",\"type\":\"Microsoft.Web/sites\"}" \
+    --query nameAvailable -o tsv)
+
+  case "$name_available" in
+    true|True)
+      return
+      ;;
+  esac
+
+  local availability_message
+  availability_message=$(az rest --method post \
+    --uri "https://management.azure.com/subscriptions/${SUBSCRIPTION_ID}/providers/Microsoft.Web/checkNameAvailability?api-version=2024-04-01" \
+    --body "{\"name\":\"${API_APP}\",\"type\":\"Microsoft.Web/sites\"}" \
+    --query message -o tsv)
+
+  printf >&2 "ERROR: Web app name '%s' is globally unavailable, but the app is not in resource group '%s' in subscription '%s'.\n" \
+    "$API_APP" "$RG" "$SUBSCRIPTION_ID"
+  printf >&2 "Azure: %s\n" "${availability_message:-The name is already in use.}"
+  printf >&2 "Select the subscription that owns the existing app, or change API_APP to a globally unique name and rerun.\n"
+  exit 1
+}
+
 ###############################################################################
 # --- Execution ---
 ###############################################################################
 [ -n "$SUBSCRIPTION" ] && az account set --subscription "$SUBSCRIPTION"
+SUBSCRIPTION_ID=$(az account show --query id -o tsv)
+
+# App Service hostnames are global. Fail before creating any dependencies when
+# this name belongs to an app outside the selected resource group/subscription.
+validate_webapp_name
 
 printf 'Resource group base name [%s]: ' "$DEFAULT_RG"
 if ! IFS= read -r RG_INPUT; then
@@ -169,7 +228,7 @@ az network vnet subnet update -g "$RG" --vnet-name "$VNET" \
 
 say "Application Gateway feature compatibility (Private Link requires network isolation disabled)"
 FEATURE_STATE=$(az feature show --namespace Microsoft.Network \
-  --name EnableApplicationGatewayNetworkIsolation --query properties.state -o tsv 2>/dev/null || echo "NotRegistered")
+  --name EnableApplicationGatewayNetworkIsolation --query properties.state -o tsv)
 if [ "$FEATURE_STATE" = "Registered" ] || [ "$FEATURE_STATE" = "Registering" ]; then
   az feature unregister --namespace Microsoft.Network \
     --name EnableApplicationGatewayNetworkIsolation -o none
@@ -193,6 +252,45 @@ elif [ "$FEATURE_STATE" = "Unregistering" ]; then
 else
   found "Feature EnableApplicationGatewayNetworkIsolation is not registered"
 fi
+
+say "NSG for Application Gateway public origin: $AGW_NSG"
+if exists az network nsg show -g "$RG" -n "$AGW_NSG"; then
+  found "NSG $AGW_NSG"
+else
+  az network nsg create -g "$RG" -n "$AGW_NSG" -l "$LOCATION" -o none
+  made "NSG $AGW_NSG created"
+fi
+if ! exists az network nsg rule show -g "$RG" --nsg-name "$AGW_NSG" -n Allow-AzureFrontDoor-HTTP; then
+  az network nsg rule create -g "$RG" --nsg-name "$AGW_NSG" \
+    -n Allow-AzureFrontDoor-HTTP --priority 100 --direction Inbound --access Allow \
+    --protocol Tcp --source-address-prefixes AzureFrontDoor.Backend \
+    --destination-port-ranges 80 -o none
+  made "NSG allows AzureFrontDoor.Backend to TCP 80"
+fi
+if ! exists az network nsg rule show -g "$RG" --nsg-name "$AGW_NSG" -n Allow-GatewayManager; then
+  az network nsg rule create -g "$RG" --nsg-name "$AGW_NSG" \
+    -n Allow-GatewayManager --priority 110 --direction Inbound --access Allow \
+    --protocol Tcp --source-address-prefixes GatewayManager \
+    --destination-port-ranges 65200-65535 -o none
+  made "NSG allows Application Gateway management traffic"
+fi
+if ! exists az network nsg rule show -g "$RG" --nsg-name "$AGW_NSG" -n Allow-AzureLoadBalancer; then
+  az network nsg rule create -g "$RG" --nsg-name "$AGW_NSG" \
+    -n Allow-AzureLoadBalancer --priority 120 --direction Inbound --access Allow \
+    --protocol '*' --source-address-prefixes AzureLoadBalancer \
+    --destination-port-ranges '*' -o none
+  made "NSG allows Azure Load Balancer probes"
+fi
+if ! exists az network nsg rule show -g "$RG" --nsg-name "$AGW_NSG" -n Deny-Internet-Inbound; then
+  az network nsg rule create -g "$RG" --nsg-name "$AGW_NSG" \
+    -n Deny-Internet-Inbound --priority 200 --direction Inbound --access Deny \
+    --protocol '*' --source-address-prefixes Internet \
+    --destination-port-ranges '*' -o none
+  made "NSG denies other Internet traffic"
+fi
+az network vnet subnet update -g "$RG" --vnet-name "$VNET" -n "$SUBNET_AGW" \
+  --network-security-group "$AGW_NSG" -o none
+made "NSG $AGW_NSG associated with $SUBNET_AGW"
 
 say "WAF policy: $WAF_POLICY"
 if exists az network application-gateway waf-policy show -g "$RG" -n "$WAF_POLICY"; then
@@ -264,24 +362,23 @@ az webapp config set -g "$RG" -n "$API_APP" \
 # Enable Oryx build during zip deploy (installs deps / runs start script for Linux)
 az webapp config appsettings set -g "$RG" -n "$API_APP" \
   --settings SCM_DO_BUILD_DURING_DEPLOYMENT=true -o none
-# Re-runs: a previous run may have locked the SCM (Kudu) endpoint to the AGW subnet
-# (the SCM access rule below). That lock blocks 'az webapp deploy' from this
-# machine with HTTP 403 ("Web App - Unavailable"). Temporarily remove it so Kudu is
-# reachable for the deploy; the SCM lock is re-applied further down in this script.
-if az webapp config access-restriction show -g "$RG" -n "$API_APP" --scm-site true \
-    --query "ipSecurityRestrictions[?name=='${SCM_ACCESS_RULE}']" -o tsv 2>/dev/null | grep -q .; then
-  az webapp config access-restriction remove -g "$RG" -n "$API_APP" --scm-site true \
-    --rule-name "$SCM_ACCESS_RULE" -o none
-  made "Temporarily removed SCM lock $SCM_ACCESS_RULE for deployment"
-  # Give the access-restriction change a moment to propagate to the SCM front end.
-  sleep 20
-fi
+# Re-runs have an SCM allow rule for the AGW subnet plus an implicit final Deny.
+# Temporarily allow unmatched SCM clients so this machine can reach Kudu. The
+# EXIT trap restores Deny even if zip deployment fails.
+SCM_DEFAULT_ACTION_RELAXED=false
+trap cleanup_webapp_deployment EXIT
+az webapp config access-restriction set -g "$RG" -n "$API_APP" \
+  --scm-default-action Allow -o none
+SCM_DEFAULT_ACTION_RELAXED=true
+made "Temporarily set SCM default action to Allow for deployment"
+sleep 20
 # --track-status false avoids the 404 from the deploymentStatus polling endpoint,
 # which is a known Azure CLI issue where tracking fails even though the zip deploy succeeds.
 az webapp deploy -g "$RG" -n "$API_APP" \
   --src-path "$TMP_APP_DIR/app.zip" --type zip --track-status false -o none
-rm -rf "$TMP_APP_DIR"
-made "Hello page app deployed to $API_APP"
+cleanup_webapp_deployment
+trap - EXIT
+made "Storage-proxy app deployed to $API_APP"
 
 say "Application Gateway public IP: $AGW_PUBLIC_IP"
 if exists az network public-ip show -g "$RG" -n "$AGW_PUBLIC_IP"; then
@@ -329,6 +426,21 @@ if ! exists az network application-gateway show -g "$RG" -n "$AGW_NAME"; then
 fi
 waitmsg "App Gateway $AGW_NAME to finish provisioning"
 az network application-gateway wait -g "$RG" -n "$AGW_NAME" --created -o none
+
+AGW_FRONTEND_IP_CONFIG=$(az network application-gateway frontend-ip list \
+  -g "$RG" --gateway-name "$AGW_NAME" \
+  --query "[?privateIPAddress=='${AGW_PRIVATE_IP}'].name | [0]" -o tsv)
+if [ -z "$AGW_FRONTEND_IP_CONFIG" ]; then
+  printf >&2 "ERROR: No Application Gateway frontend IP configuration uses private IP '%s'.\n" \
+    "$AGW_PRIVATE_IP"
+  exit 1
+fi
+# The create command attaches its default listener to the public frontend. Move
+# it to the private frontend so the public IP remains management-only.
+az network application-gateway http-listener update \
+  -g "$RG" --gateway-name "$AGW_NAME" -n appGatewayHttpListener \
+  --frontend-ip "$AGW_FRONTEND_IP_CONFIG" -o none
+made "HTTP listener attached only to private frontend $AGW_PRIVATE_IP"
 
 # Custom health probe: must send the correct Host header or App Service returns 400
 # and AGW marks the backend unhealthy (-> 502 to the client).
@@ -400,8 +512,9 @@ else
   made "App Service access restriction: allow $SUBNET_AGW only"
 fi
 # Also lock the SCM (Kudu) endpoint — prevents direct public access to the deploy API.
-if az webapp config access-restriction show -g "$RG" -n "$API_APP" --scm-site true \
-    --query "ipSecurityRestrictions[?name=='${SCM_ACCESS_RULE}']" -o tsv 2>/dev/null | grep -q .; then
+if az webapp config access-restriction show -g "$RG" -n "$API_APP" \
+    --query "scmIpSecurityRestrictions[?name=='${SCM_ACCESS_RULE}']" \
+    -o tsv 2>/dev/null | grep -q .; then
   found "App Service SCM access restriction $SCM_ACCESS_RULE"
 else
   az webapp config access-restriction add -g "$RG" -n "$API_APP" --scm-site true \
@@ -475,7 +588,7 @@ for _ in {1..30}; do
     --query "[0].properties.privateLinkServiceConnectionState.status" -o tsv)
   [ "$AFD_PRIVATE_ENDPOINT_STATUS" = "Approved" ] && break
   sleep 10
-done
+ done
 if [ -n "$AFD_PRIVATE_ENDPOINT_ID" ]; then
   az network private-endpoint-connection approve \
     --id "$AFD_PRIVATE_ENDPOINT_ID" \
@@ -487,6 +600,46 @@ else
   printf 'ERROR: Front Door private endpoint request was not created within 5 minutes.\n' >&2
   exit 1
 fi
+
+say "Upload index.html to \$web (Hello World Storage Account)"
+cat > /tmp/poc-index.html <<'HTML'
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hello World Storage Account</title>
+<style>
+  body { margin:0; height:100vh; display:flex; align-items:center;
+         justify-content:center; font-family:system-ui,sans-serif;
+         background:#0b1a2b; color:#fff; }
+  h1 { font-size:clamp(1.5rem,6vw,4rem); text-align:center; padding:1rem; }
+</style>
+</head><body>
+  <h1>Hello World Storage Account</h1>
+</body></html>
+HTML
+# Temporarily open the firewall so this script (running outside the VNet) can upload
+az storage account update -g "$RG" -n "$STORAGE_ACCT" --default-action Allow -o none
+STORAGE_UPLOAD_SUCCEEDED=false
+for _ in $(seq 1 12); do
+  if az storage blob upload \
+      --account-name "$STORAGE_ACCT" --account-key "$STORAGE_KEY" \
+      -c '$web' -f /tmp/poc-index.html -n index.html \
+      --content-type "text/html" --overwrite -o none; then
+    STORAGE_UPLOAD_SUCCEEDED=true
+    break
+  fi
+  sleep 10
+ done
+if [ "$STORAGE_UPLOAD_SUCCEEDED" != true ]; then
+  az storage account update -g "$RG" -n "$STORAGE_ACCT" \
+    --default-action Deny --bypass AzureServices -o none
+  rm -f /tmp/poc-index.html
+  printf >&2 "ERROR: Storage firewall did not allow the static-site upload within 2 minutes.\n"
+  exit 1
+fi
+rm -f /tmp/poc-index.html
+made "index.html uploaded to \$web"
 
 say "Azure Front Door route: $AFD_ROUTE"
 if exists az afd route show -g "$RG" --profile-name "$AFD_PROFILE" \
@@ -540,11 +693,11 @@ VM_NIC=$(az vm show -g "$RG" -n "$VM_NAME" \
 az network nic update -g "$RG" -n "$VM_NIC" --network-security-group "$VM_NSG" -o none
 made "NIC $VM_NIC: NSG ensured (no public IP)"
 
+AFD_HOST_NAME=$(az afd endpoint show -g "$RG" --profile-name "$AFD_PROFILE" \
+  --endpoint-name "$AFD_ENDPOINT" --query hostName -o tsv)
 echo ""
 echo "=== Done ==="
-AFD_HOSTNAME=$(az afd endpoint show -g "$RG" --profile-name "$AFD_PROFILE" \
-  -n "$AFD_ENDPOINT" --query hostName -o tsv)
-echo "Front Door URL: https://${AFD_HOSTNAME}"
-echo "App Gateway private frontend IP: ${AGW_PRIVATE_IP} (Front Door connects through Private Link)"
+echo "Front Door URL: https://${AFD_HOST_NAME}"
+echo "App Gateway private frontend IP: ${AGW_PRIVATE_IP} (Front Door connects through Private Link; VM access stays inside the VNet)"
 echo "VM:           private only (no public IP) -- use Bastion or VPN to connect"
 echo "API app URL:  https://${API_APP}.azurewebsites.net (accessible via AGW only)"

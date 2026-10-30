@@ -3,7 +3,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-TEMPLATE_FILE="$SCRIPT_DIR/final-deploy-za-east-hub-vpn-gw-fw.bicep"
+TEMPLATE_FILE="$SCRIPT_DIR/ZA-East-Hub-resources-rg.bicep"
 MAX_DEPLOYMENT_ATTEMPTS=3
 
 # These arrays are consumed by select_option through a Bash nameref.
@@ -252,6 +252,16 @@ if [[ "$deployment_succeeded" != true ]]; then
 fi
 
 unset ADMIN_PASSWORD ADMIN_PASSWORD_CONFIRM
+
+if [[ "$CREATE_FORTIGATE_LNG" == true ]]; then
+  DEPLOYED_GATEWAY_NAME="$(az deployment sub show \
+    --subscription "$selected_subscription_id" \
+    --name "$DEPLOYMENT_NAME" \
+    --query properties.outputs.vpnGatewayName.value \
+    --output tsv)"
+  python3 "$SCRIPT_DIR/generate-fortigate-vpn.py" \
+    "$selected_subscription_id" "$RESOURCE_GROUP_NAME" "$DEPLOYED_GATEWAY_NAME"
+fi
 
 echo
 echo "Deployment succeeded: $DEPLOYMENT_NAME"
