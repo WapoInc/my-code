@@ -5,7 +5,6 @@ set -euo pipefail
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 TEMPLATE_FILE="$SCRIPT_DIR/Multi-VM-CS-Ubuntu-VM-for-ASR.bicep"
 OS_VERSION='Ubuntu 24.04 LTS'
-KERNEL_VERSION='6.8.0-1042-azure'
 
 if [[ ! -f "$TEMPLATE_FILE" ]]; then
   echo "Bicep template not found: $TEMPLATE_FILE" >&2
@@ -191,7 +190,7 @@ echo "  VNet           : $VNET_NAME ($VNET_CIDR)"
 echo "  Subnet         : $SUBNET_NAME ($SUBNET_CIDR)"
 echo "  VMs            : ${VM_NAMES[*]} ($VM_SIZE)"
 echo "  OS             : $OS_VERSION"
-echo "  Azure kernel   : $KERNEL_VERSION"
+echo '  Azure kernel   : Ubuntu image default (no custom installation)'
 echo "  Private IP     : Dynamic"
 echo "  Admin username : $ADMIN_USERNAME"
 echo "  Public IP      : $CREATE_PUBLIC_IP"
@@ -270,7 +269,7 @@ for CURRENT_VM_NAME in "${VM_NAMES[@]}"; do
     "adminPassword=$ADMIN_PASSWORD" \
     "vmSize=$VM_SIZE" \
     "createPublicIp=$CREATE_PUBLIC_IP" \
-    --query 'properties.outputs.{VMName:vmName.value,OS:osVersion.value,Kernel:kernelVersion.value,Username:adminUsername.value,PrivateIP:privateIpAddress.value,PublicIP:publicIpAddress.value}' \
+    --query 'properties.outputs.{VMName:vmName.value,OS:osVersion.value,Username:adminUsername.value,PrivateIP:privateIpAddress.value,PublicIP:publicIpAddress.value}' \
     --output table >"$LOG_FILE" 2>&1 &
 
   PIDS+=("$!")
@@ -280,19 +279,35 @@ for CURRENT_VM_NAME in "${VM_NAMES[@]}"; do
 done
 
 FAILED=0
-for idx in "${!PIDS[@]}"; do
-  if wait "${PIDS[$idx]}"; then
+echo
+echo 'Waiting for VM deployments to complete. No custom kernel extension will be installed.'
+echo 'Each VM result will be displayed as soon as its deployment finishes.'
+REMAINING=${#PIDS[@]}
+while (( REMAINING > 0 )); do
+  for idx in "${!PIDS[@]}"; do
+    [[ -z "${PIDS[$idx]}" ]] && continue
+    if kill -0 "${PIDS[$idx]}" 2>/dev/null; then
+      continue
+    fi
+
     VM_STOP_TIME=$(date +%s)
-    echo
-    echo "Deployment for '${PID_NAMES[$idx]}' completed successfully:"
-  else
-    VM_STOP_TIME=$(date +%s)
-    echo
-    echo "Deployment for '${PID_NAMES[$idx]}' FAILED:" >&2
-    FAILED=1
+    if wait "${PIDS[$idx]}"; then
+      echo
+      echo "Deployment for '${PID_NAMES[$idx]}' completed successfully:"
+    else
+      echo
+      echo "Deployment for '${PID_NAMES[$idx]}' FAILED:" >&2
+      FAILED=1
+    fi
+    print_timing "${PID_START_TIMES[$idx]}" "$VM_STOP_TIME"
+    cat "$LOG_DIR/${PID_NAMES[$idx]}.log"
+    PIDS[$idx]=''
+    REMAINING=$(( REMAINING - 1 ))
+  done
+
+  if (( REMAINING > 0 )); then
+    sleep 1
   fi
-  print_timing "${PID_START_TIMES[$idx]}" "$VM_STOP_TIME"
-  cat "$LOG_DIR/${PID_NAMES[$idx]}.log"
 done
 
 rm -rf "$LOG_DIR"
@@ -305,33 +320,6 @@ if (( FAILED )); then
   exit 1
 fi
 
-echo
-echo "Restarting VMs into Azure kernel $KERNEL_VERSION and verifying the running version..."
-for CURRENT_VM_NAME in "${VM_NAMES[@]}"; do
-  if ! az vm restart \
-    --resource-group "$RESOURCE_GROUP_NAME" \
-    --name "$CURRENT_VM_NAME" \
-    --output none; then
-    echo "Restart failed for '$CURRENT_VM_NAME'." >&2
-    FAILED=1
-    continue
-  fi
-
-  if KERNEL_OUTPUT="$(az vm run-command invoke \
-    --resource-group "$RESOURCE_GROUP_NAME" \
-    --name "$CURRENT_VM_NAME" \
-    --command-id RunShellScript \
-    --scripts 'uname -r' \
-    --query 'value[0].message' \
-    --output tsv)" && grep -Fq "$KERNEL_VERSION" <<<"$KERNEL_OUTPUT"; then
-    echo "  $CURRENT_VM_NAME: verified $KERNEL_VERSION"
-  else
-    echo "  $CURRENT_VM_NAME: expected $KERNEL_VERSION, but runtime verification failed." >&2
-    [[ -n "${KERNEL_OUTPUT:-}" ]] && printf '%s\n' "$KERNEL_OUTPUT" >&2
-    FAILED=1
-  fi
-done
-
 END_TIME=$(date +%s)
 
 echo
@@ -339,9 +327,4 @@ echo 'Overall timing:'
 print_timing "$START_TIME" "$END_TIME"
 
 echo
-if (( FAILED )); then
-  echo 'One or more VMs did not restart with the requested kernel.' >&2
-  exit 1
-fi
-
 echo "All ${#VM_NAMES[@]} VM deployment(s) completed successfully."
