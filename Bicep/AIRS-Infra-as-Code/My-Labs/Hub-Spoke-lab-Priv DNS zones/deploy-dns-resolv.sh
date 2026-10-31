@@ -2,15 +2,21 @@
 #
 # Deploys the hub + 3 spokes lab (VNets, peerings, 4 Ubuntu VMs,
 # private DNS zone with an A record per VM) into South Africa North.
+# Includes an ExpressRoute gateway and circuit connection, with spoke gateway transit.
 #
 # Usage:
-#   ./deploy-hub-3-spokes-dns.sh              # deploy
-#   ./deploy-hub-3-spokes-dns.sh --what-if    # preview changes only
-#   ./deploy-hub-3-spokes-dns.sh --validate   # validate template only
+#   ./deploy-dns-resolv.sh              # deploy
+#   ./deploy-dns-resolv.sh --what-if    # preview changes only
+#   ./deploy-dns-resolv.sh --validate   # validate template only
 #
 # Overridable via environment variables:
 #   SUBSCRIPTION_ID, RG, LOCATION, ADMIN_USERNAME, ADMIN_PASSWORD,
-#   PRIVATE_DNS_ZONE_NAME, TEMPLATE_FILE
+#   PRIVATE_DNS_ZONE_NAME, TEMPLATE_FILE, EXPRESS_ROUTE_CIRCUIT_ID,
+#   EXPRESS_ROUTE_GATEWAY_SKU, GATEWAY_SUBNET_PREFIX
+# The target subscription must have access to the circuit in the same subscription.
+# GatewaySubnet has no NSG. FortiGate policies are in fortigate-er-policies.conf.
+# On-premises routing/BGP must advertise 172.22.1.0/24 and learn the four Azure /24s.
+# Private DNS resolution from on-premises requires a resolver/forwarder (not deployed).
 #
 set -euo pipefail
 
@@ -20,6 +26,9 @@ LOCATION="${LOCATION:-southafricanorth}"
 ADMIN_USERNAME="${ADMIN_USERNAME:-rootadmin}"
 ADMIN_PASSWORD="${ADMIN_PASSWORD:-P@ssw0rd123!}"
 PRIVATE_DNS_ZONE_NAME="${PRIVATE_DNS_ZONE_NAME:-lab.internal}"
+EXPRESS_ROUTE_CIRCUIT_ID="${EXPRESS_ROUTE_CIRCUIT_ID:-/subscriptions/0cfd0d2a-2b38-4c93-ba14-cf79185bc683/resourceGroups/ER-LTSA-rg/providers/Microsoft.Network/expressRouteCircuits/ER-LIT-ZAN}"
+EXPRESS_ROUTE_GATEWAY_SKU="${EXPRESS_ROUTE_GATEWAY_SKU:-ErGw1AZ}"
+GATEWAY_SUBNET_PREFIX="${GATEWAY_SUBNET_PREFIX:-10.30.0.128/27}"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TEMPLATE_FILE="${TEMPLATE_FILE:-$SCRIPT_DIR/main.bicep}"
@@ -48,6 +57,8 @@ fi
 echo "Subscription : $(az account show --query name -o tsv)"
 echo "Resource grp : $RG ($LOCATION)"
 echo "DNS zone     : $PRIVATE_DNS_ZONE_NAME"
+echo "ER circuit   : $EXPRESS_ROUTE_CIRCUIT_ID"
+echo "ER gateway   : $EXPRESS_ROUTE_GATEWAY_SKU (GatewaySubnet $GATEWAY_SUBNET_PREFIX)"
 
 log "Ensuring resource group '$RG'"
 az group create -n "$RG" -l "$LOCATION" -o none
@@ -59,6 +70,9 @@ COMMON_ARGS=(
                adminUsername="$ADMIN_USERNAME"
                adminPassword="$ADMIN_PASSWORD"
                privateDnsZoneName="$PRIVATE_DNS_ZONE_NAME"
+               expressRouteCircuitId="$EXPRESS_ROUTE_CIRCUIT_ID"
+               expressRouteGatewaySku="$EXPRESS_ROUTE_GATEWAY_SKU"
+               gatewaySubnetPrefix="$GATEWAY_SUBNET_PREFIX"
 )
 
 case "$MODE" in

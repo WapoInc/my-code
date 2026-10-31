@@ -1,6 +1,7 @@
 // ============================================================
 // Hub + 3 Spokes lab - VNets, bidirectional peering, 4 VMs,
 // and a private DNS zone with an A record per VM.
+// ExpressRoute connects the hub and all spokes to the existing circuit.
 // Resource-group scoped. Region: South Africa North.
 // ============================================================
 
@@ -21,6 +22,19 @@ param vmSize string = 'Standard_B2s'
 
 @description('Private DNS zone that holds an A record per VM.')
 param privateDnsZoneName string = 'lab.internal'
+
+@description('Existing circuit with provisioned Azure private peering. The circuit is not modified.')
+param expressRouteCircuitId string = '/subscriptions/0cfd0d2a-2b38-4c93-ba14-cf79185bc683/resourceGroups/ER-LTSA-rg/providers/Microsoft.Network/expressRouteCircuits/ER-LIT-ZAN'
+
+@description('Dedicated hub GatewaySubnet, without an NSG; must not overlap subnet-1.')
+param gatewaySubnetPrefix string = '10.30.0.128/27'
+
+@allowed([
+  'ErGw1AZ'
+  'ErGw2AZ'
+  'ErGw3AZ'
+])
+param expressRouteGatewaySku string = 'ErGw1AZ'
 
 type vnetConfig = {
   @description('Virtual network name.')
@@ -128,7 +142,7 @@ resource vnets 'Microsoft.Network/virtualNetworks@2023-11-01' = [
           net.cidr
         ]
       }
-      subnets: [
+      subnets: concat([
         {
           name: subnetName
           properties: {
@@ -138,11 +152,19 @@ resource vnets 'Microsoft.Network/virtualNetworks@2023-11-01' = [
             }
           }
         }
-      ]
+      ], net.isHub ? [
+        {
+          name: 'GatewaySubnet'
+          properties: {
+            addressPrefix: gatewaySubnetPrefix
+          }
+        }
+      ] : [])
     }
   }
 ]
 
+@batchSize(1)
 resource hubToSpoke 'Microsoft.Network/virtualNetworks/virtualNetworkPeerings@2023-11-01' = [
   for i in spokeIndexes: {
     parent: vnets[0]
@@ -150,7 +172,7 @@ resource hubToSpoke 'Microsoft.Network/virtualNetworks/virtualNetworkPeerings@20
     properties: {
       allowVirtualNetworkAccess: true
       allowForwardedTraffic: true
-      allowGatewayTransit: false
+      allowGatewayTransit: true
       useRemoteGateways: false
       remoteVirtualNetwork: {
         id: vnets[i].id
@@ -167,13 +189,77 @@ resource spokeToHub 'Microsoft.Network/virtualNetworks/virtualNetworkPeerings@20
       allowVirtualNetworkAccess: true
       allowForwardedTraffic: true
       allowGatewayTransit: false
-      useRemoteGateways: false
+      useRemoteGateways: true
       remoteVirtualNetwork: {
         id: vnets[0].id
       }
     }
+    dependsOn: [
+      hubToSpoke
+      expressRouteGateway
+    ]
   }
 ]
+
+resource expressRoutePublicIp 'Microsoft.Network/publicIPAddresses@2023-11-01' = {
+  name: 'hub-ergw-pip'
+  location: location
+  sku: {
+    name: 'Standard'
+  }
+  zones: [
+    '1'
+    '2'
+    '3'
+  ]
+  properties: {
+    publicIPAllocationMethod: 'Static'
+    publicIPAddressVersion: 'IPv4'
+  }
+}
+
+resource expressRouteGateway 'Microsoft.Network/virtualNetworkGateways@2024-05-01' = {
+  name: 'hub-ergw'
+  location: location
+  properties: {
+    gatewayType: 'ExpressRoute'
+    vpnType: 'RouteBased'
+    sku: {
+      name: expressRouteGatewaySku
+      tier: expressRouteGatewaySku
+    }
+    ipConfigurations: [
+      {
+        name: 'gateway-ipconfig'
+        properties: {
+          privateIPAllocationMethod: 'Dynamic'
+          publicIPAddress: {
+            id: expressRoutePublicIp.id
+          }
+          subnet: {
+            id: '${vnets[0].id}/subnets/GatewaySubnet'
+          }
+        }
+      }
+    ]
+  }
+}
+
+resource expressRouteConnection 'Microsoft.Network/connections@2024-05-01' = {
+  name: 'hub-ergw-to-er-lit-zan'
+  location: location
+  properties: {
+    connectionType: 'ExpressRoute'
+    virtualNetworkGateway1: {
+      id: expressRouteGateway.id
+      properties: {}
+    }
+    peer: {
+      id: expressRouteCircuitId
+    }
+    routingWeight: 0
+  }
+}
 
 resource publicIps 'Microsoft.Network/publicIPAddresses@2023-11-01' = [
   for net in networks: {
@@ -291,3 +377,6 @@ output vnetNames array = [for (net, i) in networks: vnets[i].name]
 output vmPrivateIps array = [for net in networks: net.vmIp]
 output vmPublicIps array = [for (net, i) in networks: publicIps[i].properties.ipAddress]
 output vmFqdns array = [for net in networks: '${net.vmName}.${privateDnsZoneName}']
+output expressRouteGatewayId string = expressRouteGateway.id
+output expressRouteConnectionId string = expressRouteConnection.id
+output hubGatewaySubnetPrefix string = gatewaySubnetPrefix

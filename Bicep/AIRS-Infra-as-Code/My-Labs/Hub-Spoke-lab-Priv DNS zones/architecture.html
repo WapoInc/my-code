@@ -17,6 +17,9 @@
   <!-- title -->
   <text x="40" y="48" font-size="28" font-weight="700" fill="#0b3d5c">Hub &amp; Spoke Lab — South Africa North</text>
   <text x="40" y="78" font-size="16" fill="#5b6b73">Resource group: sa-north-hub-spokes-rg  •  Private DNS: lab.internal  •  4 × Ubuntu 22.04 VMs (public IP, password auth)</text>
+  <text x="40" y="108" font-size="14" fill="#134a78">ExpressRoute: ER-LIT-ZAN ↔ hub-ergw (ErGw1AZ) • GatewaySubnet: 10.30.0.128/27 (no NSG)</text>
+  <text x="40" y="132" font-size="14" fill="#134a78">On-premises: 172.22.1.0/24 • Gateway transit enabled for all three spokes</text>
+  <text x="40" y="156" font-size="13" fill="#5b6b73">FortiGate: internal ↔ SA-North-Pri / SA-North-Sec • PING, SSH, HTTP, HTTPS • No NAT</text>
 
   <!-- Private DNS zone banner -->
   <rect x="820" y="110" width="420" height="120" rx="12" fill="#eef7ee" stroke="#3a8a3a" stroke-width="2"/>
