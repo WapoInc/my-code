@@ -7,7 +7,6 @@ rg=lab-vwan-irazfw-4
 vwanname=vwan-irazfw
 hub1name=hub1
 hub2name=hub2
-username=azureuser
 password="Msft123Msft123" #Please change your password
 region1_vmsize=Standard_DS1_v2
 region2_vmsize=Standard_B2s
@@ -23,9 +22,57 @@ elif [ "$1" == "help" ]; then
     echo "Usage: ./vwan-irazfw.sh [basic|standard|premium]"
     exit 0
 elif [ -z "$1" ]; then
-    echo "No parameter passed, setting Azure Firewall to basic tier"
-    firewalltier=basic
+    echo "No parameter passed, setting Azure Firewall to standard tier"
+    firewalltier=standard
+else
+    echo "Unknown firewall tier '$1'. Usage: ./vwan-irazfw.sh [basic|standard|premium]"
+    exit 1
 fi
+
+# Prompt for the VPN pre-shared key (PSK); input is hidden and not stored in the script
+while true; do
+    read -r -s -p "Enter VPN pre-shared key (PSK): " psk; echo
+    read -r -s -p "Confirm VPN pre-shared key (PSK): " psk2; echo
+    if [ -z "$psk" ]; then
+        echo "PSK cannot be empty."
+    elif [ "$psk" != "$psk2" ]; then
+        echo "PSKs do not match, try again."
+    else
+        break
+    fi
+done
+unset psk2
+
+# Prompt for the VM admin username and password (password authentication, no SSH keys)
+reserved_users=" administrator admin user user1 user2 user3 user4 user5 test test1 test2 test3 guest root adm owner server sql support sys backup console aspnet actuser "
+while true; do
+    read -r -p "Enter VM admin username [azureuser]: " username
+    username=${username:-azureuser}
+    if [[ ! "$username" =~ ^[a-z_][a-z0-9_-]{0,31}$ ]]; then
+        echo "Username must be 1-32 chars: lowercase letters, digits, '_' or '-', not starting with a digit or '-'."
+    elif [[ "$reserved_users" == *" $username "* ]]; then
+        echo "'$username' is reserved by Azure for Linux VMs, choose another name."
+    else
+        break
+    fi
+done
+while true; do
+    read -r -s -p "Enter VM admin password for $username: " password; echo
+    read -r -s -p "Confirm VM admin password: " password2; echo
+    classes=0
+    [[ "$password" =~ [a-z] ]] && ((classes++))
+    [[ "$password" =~ [A-Z] ]] && ((classes++))
+    [[ "$password" =~ [0-9] ]] && ((classes++))
+    [[ "$password" =~ [^a-zA-Z0-9] ]] && ((classes++))
+    if [ ${#password} -lt 12 ] || [ ${#password} -gt 72 ] || [ $classes -lt 3 ]; then
+        echo "Password must be 12-72 chars and include 3 of: lowercase, uppercase, digit, special character."
+    elif [ "$password" != "$password2" ]; then
+        echo "Passwords do not match, try again."
+    else
+        break
+    fi
+done
+unset password2 classes reserved_users
 
 # Adding script starting time and finish time
 start=`date +%s`
@@ -94,8 +141,8 @@ az network vnet peering create -g $rg -n spoke8-to-spoke4 --vnet-name spoke8 --a
 
 echo Creating VMs in both branches...
 # Creating a VM in each branch spoke
-az vm create -n branch1VM  -g $rg --image Ubuntu2204 --public-ip-sku standard --size $region1_vmsize -l $region1 --subnet main --vnet-name branch1 --admin-username $username --admin-password $password --nsg "" --no-wait --only-show-errors
-az vm create -n branch2VM  -g $rg --image Ubuntu2204 --public-ip-sku standard --size $region2_vmsize -l $region2 --subnet main --vnet-name branch2 --admin-username $username --admin-password $password --nsg "" --no-wait --only-show-errors
+az vm create -n branch1VM  -g $rg --image Ubuntu2204 --public-ip-sku standard --size $region1_vmsize -l $region1 --subnet main --vnet-name branch1 --admin-username "$username" --admin-password "$password" --authentication-type password --nsg "" --no-wait --only-show-errors
+az vm create -n branch2VM  -g $rg --image Ubuntu2204 --public-ip-sku standard --size $region2_vmsize -l $region2 --subnet main --vnet-name branch2 --admin-username "$username" --admin-password "$password" --authentication-type password --nsg "" --no-wait --only-show-errors
 
 echo Waiting for branch VMs to be created...
 az vm wait -g $rg --created --ids $(az vm show -g $rg -n branch1VM --query id -o tsv) $(az vm show -g $rg -n branch2VM --query id -o tsv) --only-show-errors -o none
@@ -127,13 +174,13 @@ az network vnet-gateway create -n branch2-vpngw --public-ip-addresses branch2-vp
 
 echo Creating Spoke VMs...
 # Creating a VM in each connected spoke
-az vm create -n spoke1VM  -g $rg --image Ubuntu2204 --public-ip-sku standard --size $region1_vmsize -l $region1 --subnet main --vnet-name spoke1 --admin-username $username --admin-password $password --nsg "" --no-wait --only-show-errors
-az vm create -n spoke3VM  -g $rg --image Ubuntu2204 --public-ip-sku standard --size $region2_vmsize -l $region2 --subnet main --vnet-name spoke3 --admin-username $username --admin-password $password --nsg "" --no-wait --only-show-errors
+az vm create -n spoke1VM  -g $rg --image Ubuntu2204 --public-ip-sku standard --size $region1_vmsize -l $region1 --subnet main --vnet-name spoke1 --admin-username "$username" --admin-password "$password" --authentication-type password --nsg "" --no-wait --only-show-errors
+az vm create -n spoke3VM  -g $rg --image Ubuntu2204 --public-ip-sku standard --size $region2_vmsize -l $region2 --subnet main --vnet-name spoke3 --admin-username "$username" --admin-password "$password" --authentication-type password --nsg "" --no-wait --only-show-errors
 # Creating VMs on each indirect spoke.
-az vm create -n spoke5VM  -g $rg --image Ubuntu2204 --public-ip-sku standard --size $region1_vmsize -l $region1 --subnet main --vnet-name spoke5 --admin-username $username --admin-password $password --nsg "" --no-wait --only-show-errors
-az vm create -n spoke6VM  -g $rg --image Ubuntu2204 --public-ip-sku standard --size $region1_vmsize -l $region1 --subnet main --vnet-name spoke6 --admin-username $username --admin-password $password --nsg "" --no-wait --only-show-errors
-az vm create -n spoke7VM  -g $rg --image Ubuntu2204 --public-ip-sku standard --size $region2_vmsize -l $region2 --subnet main --vnet-name spoke7 --admin-username $username --admin-password $password --nsg "" --no-wait --only-show-errors
-az vm create -n spoke8VM  -g $rg --image Ubuntu2204 --public-ip-sku standard --size $region2_vmsize -l $region2 --subnet main --vnet-name spoke8 --admin-username $username --admin-password $password --nsg "" --no-wait --only-show-errors
+az vm create -n spoke5VM  -g $rg --image Ubuntu2204 --public-ip-sku standard --size $region1_vmsize -l $region1 --subnet main --vnet-name spoke5 --admin-username "$username" --admin-password "$password" --authentication-type password --nsg "" --no-wait --only-show-errors
+az vm create -n spoke6VM  -g $rg --image Ubuntu2204 --public-ip-sku standard --size $region1_vmsize -l $region1 --subnet main --vnet-name spoke6 --admin-username "$username" --admin-password "$password" --authentication-type password --nsg "" --no-wait --only-show-errors
+az vm create -n spoke7VM  -g $rg --image Ubuntu2204 --public-ip-sku standard --size $region2_vmsize -l $region2 --subnet main --vnet-name spoke7 --admin-username "$username" --admin-password "$password" --authentication-type password --nsg "" --no-wait --only-show-errors
+az vm create -n spoke8VM  -g $rg --image Ubuntu2204 --public-ip-sku standard --size $region2_vmsize -l $region2 --subnet main --vnet-name spoke8 --admin-username "$username" --admin-password "$password" --authentication-type password --nsg "" --no-wait --only-show-errors
 
 # Continue only if all VMs are created
 echo Waiting for VMs to be created...
@@ -220,7 +267,7 @@ az network vnet subnet create -g $rg --vnet-name spoke2 -n AzureFirewallManageme
 az network public-ip create --name spoke2-azfw-mgmtpip --resource-group $rg --location $region1 --allocation-method static --sku standard --output none --only-show-errors
 
 # Create Azure Firewall
-az network firewall create --name spoke2-azfw --resource-group $rg --location $region1 --firewall-policy $region1-AZFW-Policy --vnet-name spoke2 --sku AZFW_VNet --tier basic --conf-name FW-config --m-conf-name FW-mgmconfig --m-public-ip spoke2-azfw-mgmtpip --output none
+az network firewall create --name spoke2-azfw --resource-group $rg --location $region1 --firewall-policy $region1-AZFW-Policy --vnet-name spoke2 --sku AZFW_VNet --tier $firewalltier --conf-name FW-config --m-conf-name FW-mgmconfig --m-public-ip spoke2-azfw-mgmtpip --output none
 # Add Public IP to the firewall
 az network firewall ip-config create --firewall-name spoke2-azfw --name FW-config --m-name FW-mgmconfig --public-ip-address spoke2-azfw-pip --m-public-ip-address spoke2-azfw-mgmtpip --m-vnet-name spoke2 --resource-group $rg --vnet-name spoke2 --output none
 az network firewall update --name spoke2-azfw --resource-group $rg --output none --only-show-errors
@@ -233,7 +280,7 @@ az network public-ip create --name spoke4-azfw-pip --resource-group $rg --locati
 az network vnet subnet create -g $rg --vnet-name spoke4 -n AzureFirewallManagementSubnet --address-prefixes 10.4.0.128/26 --output none
 az network public-ip create --name spoke4-azfw-mgmtpip --resource-group $rg --location $region2 --allocation-method static --sku standard --output none --only-show-errors
 # Create Azure Firewall
-az network firewall create --name spoke4-azfw --resource-group $rg --location $region2 --firewall-policy $region2-AZFW-Policy --vnet-name spoke4 --sku AZFW_VNet --tier basic --conf-name FW-config --m-conf-name FW-mgmconfig --m-public-ip spoke4-azfw-mgmtpip --output none
+az network firewall create --name spoke4-azfw --resource-group $rg --location $region2 --firewall-policy $region2-AZFW-Policy --vnet-name spoke4 --sku AZFW_VNet --tier $firewalltier --conf-name FW-config --m-conf-name FW-mgmconfig --m-public-ip spoke4-azfw-mgmtpip --output none
 # Add Public IP to the firewall
 az network firewall ip-config create --firewall-name spoke4-azfw --name FW-config --public-ip-address spoke4-azfw-pip --m-public-ip-address spoke4-azfw-mgmtpip --m-vnet-name spoke4 --resource-group $rg --vnet-name spoke4 --output none
 az network firewall update --name spoke4-azfw --resource-group $rg --output none
@@ -437,16 +484,16 @@ az network vpn-site create --ip-address $pip2 -n site-branch2 -g $rg --asn 65509
 
 # Creating virtual wan vpn connection
 echo Creating VPN Connections...
-az network vpn-gateway connection create --gateway-name $hub1name-vpngw -n site-branch1-conn -g $rg --enable-bgp true --remote-vpn-site site-branch1 --internet-security --shared-key 'abc123' --output none
-az network vpn-gateway connection create --gateway-name $hub2name-vpngw -n site-branch2-conn -g $rg --enable-bgp true --remote-vpn-site site-branch2 --internet-security --shared-key 'abc123' --output none
+az network vpn-gateway connection create --gateway-name $hub1name-vpngw -n site-branch1-conn -g $rg --enable-bgp true --remote-vpn-site site-branch1 --internet-security --shared-key "$psk" --output none
+az network vpn-gateway connection create --gateway-name $hub2name-vpngw -n site-branch2-conn -g $rg --enable-bgp true --remote-vpn-site site-branch2 --internet-security --shared-key "$psk" --output none
 
 # Creating connection from vpn gw to local gateway and watch for connection succeeded
 echo Creating VPN Connections from VPN Gateways to the respective Branches...
 az network local-gateway create -g $rg -n site-$hub1name-LG --gateway-ip-address $vwanpip1 --asn 65515 --bgp-peering-address $vwanbgp1 -l $region1 --output none
-az network vpn-connection create -n branch1-to-site-$hub1name -g $rg -l $region1 --vnet-gateway1 branch1-vpngw --local-gateway2 site-$hub1name-LG --enable-bgp --shared-key 'abc123' --output none
+az network vpn-connection create -n branch1-to-site-$hub1name -g $rg -l $region1 --vnet-gateway1 branch1-vpngw --local-gateway2 site-$hub1name-LG --enable-bgp --shared-key "$psk" --output none
 
 az network local-gateway create -g $rg -n site-$hub2name-LG --gateway-ip-address $vwanpip2 --asn 65515 --bgp-peering-address $vwanbgp2 -l $region2 --output none
-az network vpn-connection create -n branch2-to-site-$hub2name -g $rg -l $region2 --vnet-gateway1 branch2-vpngw --local-gateway2 site-$hub2name-LG --enable-bgp --shared-key 'abc123' --output none
+az network vpn-connection create -n branch2-to-site-$hub2name -g $rg -l $region2 --vnet-gateway1 branch2-vpngw --local-gateway2 site-$hub2name-LG --enable-bgp --shared-key "$psk" --output none
 
 echo Configuring spoke1 and spoke3 vnet connection to their respective vHubs...
 # **** Configuring vWAN route default route table to send traffic to Azure Firewall and reach indirect spokes: *****
