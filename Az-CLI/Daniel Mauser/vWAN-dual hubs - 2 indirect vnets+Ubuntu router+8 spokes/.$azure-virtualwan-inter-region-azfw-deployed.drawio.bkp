@@ -1,0 +1,97 @@
+<mxfile host="Electron">
+  <diagram id="vwan-irazfw" name="vwan-irazfw">
+    <mxGraphModel dx="1428" dy="1191" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1700" pageHeight="1100" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="vwan" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1F6FB2;fontColor=#FFFFFF;strokeColor=#134A78;fontSize=13;" value="&lt;b&gt;Virtual WAN: vwan-irazfw&lt;/b&gt; (Standard, branch-to-branch on)&lt;br&gt;RG: lab-vwan-irazfw-4" vertex="1">
+          <mxGeometry height="50" width="460" x="570" y="755" as="geometry" />
+        </mxCell>
+        <mxCell id="reg1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F9FF;strokeColor=#6C8EBF;dashed=1;verticalAlign=top;align=left;spacingLeft=12;fontStyle=1;fontSize=14;" value="South Africa North (region1)" vertex="1">
+          <mxGeometry height="650" width="760" x="20" y="90" as="geometry" />
+        </mxCell>
+        <mxCell id="reg2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F9FF;strokeColor=#6C8EBF;dashed=1;verticalAlign=top;align=left;spacingLeft=12;fontStyle=1;fontSize=14;" value="North Europe (region2)" vertex="1">
+          <mxGeometry height="650" width="760" x="820" y="90" as="geometry" />
+        </mxCell>
+        <mxCell id="hub1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#1F6FB2;strokeWidth=2;fontSize=12;" value="&lt;b&gt;hub1&lt;/b&gt; 192.168.1.0/24 (Standard)&lt;br&gt;hub1-vpngw (vWAN VPN gateway)&lt;br&gt;default route table:&lt;br&gt;10.2.0.0/16 → spoke2conn&lt;br&gt;10.4.0.0/16 → spoke4conn" vertex="1">
+          <mxGeometry height="150" width="240" x="340" y="560" as="geometry" />
+        </mxCell>
+        <mxCell id="hub2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#1F6FB2;strokeWidth=2;fontSize=12;" value="&lt;b&gt;hub2&lt;/b&gt; 192.168.2.0/24 (Standard)&lt;br&gt;hub2-vpngw (vWAN VPN gateway)&lt;br&gt;default route table:&lt;br&gt;10.4.0.0/16 → spoke4conn&lt;br&gt;10.2.0.0/16 → spoke2conn" vertex="1">
+          <mxGeometry height="150" width="240" x="1020" y="560" as="geometry" />
+        </mxCell>
+        <mxCell id="branch1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;strokeWidth=2;fontSize=12;" value="&lt;b&gt;branch1&lt;/b&gt; 10.100.0.0/16&lt;br&gt;branch1-vpngw VpnGw1Az (ASN 65510)&lt;br&gt;GatewaySubnet 10.100.100.0/26&lt;br&gt;🖥 branch1VM (main 10.100.0.0/24)" vertex="1">
+          <mxGeometry height="110" width="220" x="40" y="600" as="geometry" />
+        </mxCell>
+        <mxCell id="branch2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;strokeWidth=2;fontSize=12;" value="&lt;b&gt;branch2&lt;/b&gt; 10.200.0.0/16&lt;br&gt;branch2-vpngw VpnGw1Az (ASN 65509)&lt;br&gt;GatewaySubnet 10.200.100.0/26&lt;br&gt;🖥 branch2VM (main 10.200.0.0/24)" vertex="1">
+          <mxGeometry height="110" width="220" x="1340" y="600" as="geometry" />
+        </mxCell>
+        <mxCell id="spoke1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E1D5E7;strokeColor=#9673A6;strokeWidth=2;fontSize=12;" value="&lt;b&gt;spoke1&lt;/b&gt; 10.1.0.0/24&lt;br&gt;🖥 spoke1VM (main 10.1.0.0/27)" vertex="1">
+          <mxGeometry height="90" width="220" x="40" y="470" as="geometry" />
+        </mxCell>
+        <mxCell id="spoke3" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E1D5E7;strokeColor=#9673A6;strokeWidth=2;fontSize=12;" value="&lt;b&gt;spoke3&lt;/b&gt; 10.3.0.0/24&lt;br&gt;🖥 spoke3VM (main 10.3.0.0/27)" vertex="1">
+          <mxGeometry height="90" width="220" x="1340" y="470" as="geometry" />
+        </mxCell>
+        <mxCell id="spoke2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E1D5E7;strokeColor=#9673A6;strokeWidth=2;verticalAlign=top;fontSize=12;" value="&lt;b&gt;spoke2&lt;/b&gt; 10.2.0.0/24 (main 10.2.0.0/27, no VM)" vertex="1">
+          <mxGeometry height="240" width="240" x="340" y="270" as="geometry" />
+        </mxCell>
+        <mxCell id="azfw2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8CECC;strokeColor=#B85450;strokeWidth=2;fontSize=11;" value="&lt;b&gt;spoke2-azfw&lt;/b&gt; (AZFW_VNet, standard)&lt;br&gt;AzureFirewallSubnet 10.2.0.64/26&lt;br&gt;Mgmt subnet 10.2.0.128/26&lt;br&gt;2 public IPs (data + mgmt)&lt;br&gt;Policy southafricanorth-AZFW-Policy&lt;br&gt;(Any-to-Any allow, threat intel Alert)&lt;br&gt;Diagnostics → Log Analytics" vertex="1">
+          <mxGeometry height="180" width="220" x="350" y="320" as="geometry" />
+        </mxCell>
+        <mxCell id="spoke4" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E1D5E7;strokeColor=#9673A6;strokeWidth=2;verticalAlign=top;fontSize=12;" value="&lt;b&gt;spoke4&lt;/b&gt; 10.4.0.0/24 (main 10.4.0.0/27, no VM)" vertex="1">
+          <mxGeometry height="240" width="240" x="1020" y="270" as="geometry" />
+        </mxCell>
+        <mxCell id="azfw4" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8CECC;strokeColor=#B85450;strokeWidth=2;fontSize=11;" value="&lt;b&gt;spoke4-azfw&lt;/b&gt; (AZFW_VNet, standard)&lt;br&gt;AzureFirewallSubnet 10.4.0.64/26&lt;br&gt;Mgmt subnet 10.4.0.128/26&lt;br&gt;2 public IPs (data + mgmt)&lt;br&gt;Policy northeurope-AZFW-Policy&lt;br&gt;(Any-to-Any allow, threat intel Alert)&lt;br&gt;Diagnostics → Log Analytics" vertex="1">
+          <mxGeometry height="180" width="220" x="1030" y="320" as="geometry" />
+        </mxCell>
+        <mxCell id="spoke5" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F3ECF8;strokeColor=#9673A6;fontSize=12;" value="&lt;b&gt;spoke5&lt;/b&gt; 10.2.1.0/24&lt;br&gt;🖥 spoke5VM (main 10.2.1.0/27)&lt;br&gt;RT-to-Spoke2-AzFW" vertex="1">
+          <mxGeometry height="90" width="220" x="180" y="120" as="geometry" />
+        </mxCell>
+        <mxCell id="spoke6" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F3ECF8;strokeColor=#9673A6;fontSize=12;" value="&lt;b&gt;spoke6&lt;/b&gt; 10.2.2.0/24&lt;br&gt;🖥 spoke6VM (main 10.2.2.0/27)&lt;br&gt;RT-to-Spoke2-AzFW" vertex="1">
+          <mxGeometry height="90" width="220" x="460" y="120" as="geometry" />
+        </mxCell>
+        <mxCell id="spoke7" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F3ECF8;strokeColor=#9673A6;fontSize=12;" value="&lt;b&gt;spoke7&lt;/b&gt; 10.4.1.0/24&lt;br&gt;🖥 spoke7VM (main 10.4.1.0/27)&lt;br&gt;RT-to-Spoke4-AzFW" vertex="1">
+          <mxGeometry height="90" width="220" x="1200" y="120" as="geometry" />
+        </mxCell>
+        <mxCell id="spoke8" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F3ECF8;strokeColor=#9673A6;fontSize=12;" value="&lt;b&gt;spoke8&lt;/b&gt; 10.4.2.0/24&lt;br&gt;🖥 spoke8VM (main 10.4.2.0/27)&lt;br&gt;RT-to-Spoke4-AzFW" vertex="1">
+          <mxGeometry height="90" width="220" x="920" y="120" as="geometry" />
+        </mxCell>
+        <mxCell id="e-hubs" edge="1" parent="1" source="hub1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#1F6FB2;strokeWidth=3;startArrow=classic;endArrow=classic;labelBackgroundColor=#FFFFFF;" target="hub2" value="vWAN hub-to-hub">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-b1" edge="1" parent="1" source="branch1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;dashed=1;strokeColor=#D79B00;strokeWidth=2;startArrow=classic;endArrow=classic;labelBackgroundColor=#FFFFFF;fontSize=10;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.7;entryDx=0;entryDy=0;" target="hub1" value="S2S VPN + BGP">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-b2" edge="1" parent="1" source="branch2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;dashed=1;strokeColor=#D79B00;strokeWidth=2;startArrow=classic;endArrow=classic;labelBackgroundColor=#FFFFFF;fontSize=10;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.7;entryDx=0;entryDy=0;" target="hub2" value="S2S VPN + BGP">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-s1" edge="1" parent="1" source="spoke1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#1F6FB2;strokeWidth=2;startArrow=classic;endArrow=classic;labelBackgroundColor=#FFFFFF;fontSize=10;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.15;entryDx=0;entryDy=0;" target="hub1" value="spoke1conn">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-s3" edge="1" parent="1" source="spoke3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#1F6FB2;strokeWidth=2;startArrow=classic;endArrow=classic;labelBackgroundColor=#FFFFFF;fontSize=10;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.15;entryDx=0;entryDy=0;" target="hub2" value="spoke3conn">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-s2" edge="1" parent="1" source="hub1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#1F6FB2;strokeWidth=2;startArrow=classic;endArrow=classic;labelBackgroundColor=#FFFFFF;fontSize=10;" target="spoke2" value="spoke2conn · static route 10.2.0.0/16 → spoke2-azfw">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-s4" edge="1" parent="1" source="hub2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#1F6FB2;strokeWidth=2;startArrow=classic;endArrow=classic;labelBackgroundColor=#FFFFFF;fontSize=10;" target="spoke4" value="spoke4conn · static route 10.4.0.0/16 → spoke4-azfw">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-p25" edge="1" parent="1" source="spoke2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#9673A6;strokeWidth=3;startArrow=classic;endArrow=classic;labelBackgroundColor=#FFFFFF;fontSize=10;exitX=0.25;exitY=0;exitDx=0;exitDy=0;" target="spoke5" value="peering + UDR 0/0 → AzFW">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-p26" edge="1" parent="1" source="spoke2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#9673A6;strokeWidth=3;startArrow=classic;endArrow=classic;labelBackgroundColor=#FFFFFF;fontSize=10;exitX=0.75;exitY=0;exitDx=0;exitDy=0;" target="spoke6" value="peering + UDR 0/0 → AzFW">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-p47" edge="1" parent="1" source="spoke4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#9673A6;strokeWidth=3;startArrow=classic;endArrow=classic;labelBackgroundColor=#FFFFFF;fontSize=10;exitX=0.75;exitY=0;exitDx=0;exitDy=0;" target="spoke7" value="peering + UDR 0/0 → AzFW">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-p48" edge="1" parent="1" source="spoke4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#9673A6;strokeWidth=3;startArrow=classic;endArrow=classic;labelBackgroundColor=#FFFFFF;fontSize=10;exitX=0.25;exitY=0;exitDx=0;exitDy=0;" target="spoke8" value="peering + UDR 0/0 → AzFW">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="notes" parent="1" style="rounded=1;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacingLeft=10;spacingTop=6;fillColor=#FFFFFF;strokeColor=#666666;fontSize=16;" value="&lt;b&gt;What gets deployed (script: azure-virtualwan-inter-region-azfw.sh, RG lab-vwan-irazfw-4)&lt;/b&gt;&lt;br&gt;• 1 Standard vWAN, 2 Standard vHubs, 2 hub VPN gateways; 2 branch VNets with VpnGw1Az gateways; 2 BGP VPN site connections, each with a local gateway and a branch-side connection&lt;br&gt;• 10 VNets (branch1/2, spoke1-8) and 8 Ubuntu 22.04 VMs (branch1VM, branch2VM, spoke1/3/5/6/7/8VM) with 8 Standard public IPs, plus 2 VPN gateway public IPs&lt;br&gt;• 2 Azure Firewalls (spoke2-azfw, spoke4-azfw) with 4 public IPs, 2 firewall policies (Any-to-Any allow) and 2 Log Analytics workspaces with diagnostics&lt;br&gt;• 8 VNet peerings (spoke2 to 5/6, spoke4 to 7/8); 2 route tables (default route to firewall) on spoke5-8; 2 NSGs (SSH only from the deploying machine&#39;s public IP) on each main subnet&lt;br&gt;• spoke1/spoke3 connect to their hubs normally; spoke2/spoke4 connect with a static route to their firewall; hub default route tables forward 10.2.0.0/16 and 10.4.0.0/16 to spoke2conn/spoke4conn&lt;br&gt;&lt;b&gt;Legend:&lt;/b&gt; blue = vHub connection/hub link, orange dashed = S2S VPN with BGP, purple thick = VNet peering, red = Azure Firewall, yellow = branch, purple = spoke" vertex="1">
+          <mxGeometry height="150" width="1560" x="20" y="825" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
